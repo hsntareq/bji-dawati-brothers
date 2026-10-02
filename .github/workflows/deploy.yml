@@ -7,20 +7,18 @@ on:
 
   workflow_dispatch: # Allow manual trigger from GitHub UI
 
-# Grant GITHUB_TOKEN permissions for Pages deployment
+# Allow GITHUB_TOKEN to write to the gh-pages branch
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
-# Allow only one concurrent deployment, cancelling in-progress runs
+# Allow only one concurrent deployment
 concurrency:
   group: "pages"
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build
+  deploy:
+    name: Build & Deploy
     runs-on: ubuntu-latest
 
     steps:
@@ -39,7 +37,6 @@ jobs:
       - name: Build Next.js static export
         run: npm run build
         env:
-          # Inject Firebase environment variables from GitHub Secrets
           NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
           NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
           NEXT_PUBLIC_FIREBASE_DATABASE_URL: ${{ secrets.NEXT_PUBLIC_FIREBASE_DATABASE_URL }}
@@ -48,21 +45,10 @@ jobs:
           NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
           NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: ./out   # Next.js static export outputs to ./out
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./out          # Next.js static export output folder
+          publish_branch: gh-pages    # Pushes to this branch; GitHub Pages serves from it
 
-  deploy:
-    name: Deploy
-    needs: build
-    runs-on: ubuntu-latest
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
