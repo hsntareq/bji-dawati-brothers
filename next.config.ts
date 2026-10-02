@@ -1,13 +1,19 @@
 import type { NextConfig } from "next";
 
+// GitHub Actions automatically sets GITHUB_ACTIONS=true in CI.
+// Apply static-export settings only there — local dev stays at localhost:3015/dashboard.
+const isCI = process.env.GITHUB_ACTIONS === "true";
+
 const nextConfig: NextConfig = {
-  output: "export",          // Static HTML export for GitHub Pages
-  basePath: "/bji-dawati-brothers", // Must match GitHub repo name
-  assetPrefix: "/bji-dawati-brothers/",
+  ...(isCI && {
+    output: "export",
+    basePath: "/bji-dawati-brothers",
+    assetPrefix: "/bji-dawati-brothers/",
+    trailingSlash: true,
+  }),
   images: {
-    unoptimized: true,       // Next.js image optimization needs a server
+    unoptimized: true, // required for static export
   },
-  trailingSlash: true,       // Ensures /dashboard/ resolves correctly on static host
 };
 
 export default nextConfig;
