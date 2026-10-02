@@ -24,3 +24,152 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.animate-slide-in-right {
+  animation: slide-in-right 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   BJ Design Token System
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Dark mode (default) ──────────────────────────── */
+.bji-dark {
+  --bji-bg:          #020817;
+  --bji-sidebar-bg:  #0f172a;
+  --bji-card-bg:     #0f172a;
+  --bji-card-hover:  rgba(255,255,255,0.015);
+  --bji-input-bg:    #1e293b;
+  --bji-border:      rgba(255,255,255,0.08);
+  --bji-divider:     rgba(255,255,255,0.05);
+  --bji-header-bg:   rgba(15,23,42,0.8);
+  --bji-text-1:      #f8fafc;
+  --bji-text-2:      #94a3b8;
+  --bji-text-3:      #475569;
+  --bji-btn-ghost:   rgba(255,255,255,0);
+  --bji-btn-ghost-h: rgba(255,255,255,0.08);
+  --bji-btn-color:   #94a3b8;
+  --bji-thead-bg:    rgba(255,255,255,0.03);
+}
+
+/* ── Light mode ───────────────────────────────────── */
+.bji-light {
+  --bji-bg:          #f1f5f9;
+  --bji-sidebar-bg:  #ffffff;
+  --bji-card-bg:     #ffffff;
+  --bji-card-hover:  rgba(0,0,0,0.02);
+  --bji-input-bg:    #f8fafc;
+  --bji-border:      rgba(0,0,0,0.08);
+  --bji-divider:     rgba(0,0,0,0.06);
+  --bji-header-bg:   rgba(255,255,255,0.85);
+  --bji-text-1:      #0f172a;
+  --bji-text-2:      #475569;
+  --bji-text-3:      #94a3b8;
+  --bji-btn-ghost:   rgba(0,0,0,0);
+  --bji-btn-ghost-h: rgba(0,0,0,0.06);
+  --bji-btn-color:   #475569;
+  --bji-thead-bg:    rgba(0,0,0,0.02);
+}
+
+/* ── Semantic utility classes ─────────────────────── */
+.bji-bg            { background-color: var(--bji-bg); }
+.bji-sidebar       { background-color: var(--bji-sidebar-bg); border-right: 1px solid var(--bji-border); }
+.bji-header        { background-color: var(--bji-header-bg); }
+.bji-border-b      { border-bottom: 1px solid var(--bji-border); }
+.bji-divider       { background-color: var(--bji-divider); }
+.bji-btn-ghost     { color: var(--bji-btn-color); background: var(--bji-btn-ghost); }
+.bji-btn-ghost:hover { background: var(--bji-btn-ghost-h); color: var(--bji-text-1); }
+
+/* Apply token overrides to Tailwind classes inside themed root */
+.bji-dark  .bg-slate-950, .bji-light .bg-slate-950 { background-color: var(--bji-bg) !important; }
+.bji-dark  .bg-slate-900, .bji-light .bg-slate-900 { background-color: var(--bji-card-bg) !important; }
+.bji-dark  .bg-slate-800, .bji-light .bg-slate-800 { background-color: var(--bji-input-bg) !important; }
+
+.bji-light .text-white   { color: var(--bji-text-1) !important; }
+.bji-light .text-slate-300 { color: var(--bji-text-2) !important; }
+.bji-light .text-slate-400 { color: var(--bji-text-2) !important; }
+.bji-light .text-slate-500 { color: var(--bji-text-3) !important; }
+.bji-light .text-slate-700 { color: var(--bji-text-3) !important; }
+
+.bji-light .border-white\/10  { border-color: var(--bji-border) !important; }
+.bji-light .border-white\/5   { border-color: var(--bji-divider) !important; }
+
+.bji-light .divide-white\/5 > * + * { border-color: var(--bji-divider) !important; }
+
+.bji-light .bg-white\/\[0\.03\] { background-color: var(--bji-thead-bg) !important; }
+.bji-light .bg-white\/5  { background-color: var(--bji-thead-bg) !important; }
+.bji-light .bg-white\/10 { background-color: rgba(0,0,0,0.05) !important; }
+.bji-light .hover\:bg-white\/\[0\.03\]:hover { background-color: var(--bji-card-hover) !important; }
+
+.bji-light .bg-black\/50 { background-color: rgba(0,0,0,0.35) !important; }
+.bji-light .bg-black\/60 { background-color: rgba(0,0,0,0.4) !important; }
+.bji-light .bg-slate-900\/50 { background-color: rgba(255,255,255,0.7) !important; }
+
+/* ── Compact mode ─────────────────────────────────── */
+.bji-compact .px-5   { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+.bji-compact .px-6   { padding-left: 1rem !important;    padding-right: 1rem !important;    }
+.bji-compact .py-3\.5 { padding-top: 0.375rem !important; padding-bottom: 0.375rem !important; }
+.bji-compact .py-4   { padding-top: 0.5rem !important;   padding-bottom: 0.5rem !important;  }
+.bji-compact .py-5   { padding-top: 0.75rem !important;  padding-bottom: 0.75rem !important; }
+.bji-compact .py-6   { padding-top: 1rem !important;     padding-bottom: 1rem !important;    }
+.bji-compact .p-6    { padding: 1rem !important; }
+.bji-compact .gap-5  { gap: 0.75rem !important; }
+.bji-compact .gap-4  { gap: 0.5rem !important; }
+.bji-compact .space-y-5 > * + * { margin-top: 0.625rem !important; }
+.bji-compact .space-y-2 > * + * { margin-top: 0.25rem !important; }
+
+/* Compact cards — smaller avatar, tighter rows */
+.bji-compact .w-10.h-10 { width: 2rem !important; height: 2rem !important; }
+.bji-compact .text-sm   { font-size: 0.75rem !important; line-height: 1rem !important; }
+.bji-compact .text-xs   { font-size: 0.65rem !important; }
+.bji-compact .rounded-2xl { border-radius: 0.75rem !important; }
+.bji-compact .py-3\.5   { padding-top: 0.35rem !important; padding-bottom: 0.35rem !important; }
+
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
