@@ -7,10 +7,11 @@ import { ref, onValue, update, query, orderByChild, limitToLast } from 'firebase
 import {
   LogOut, Bell, LayoutDashboard, Building2, Users,
   Menu, X, Sun, Moon, AlignJustify, LayoutList, CheckCheck, ArrowRight,
-  UserCircle2,
+  UserCircle2, Download,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { usePWA } from '@/components/PWAProvider';
 
 // ── Disposition label helper ──────────────────────────
 const STATUS_LABELS: Record<string, { label: string; dot: string }> = {
@@ -65,6 +66,7 @@ function ProfileAvatar({ profile, user, size = 'md' }: { profile: any; user: any
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
+  const { isInstallable, isInstalled, installApp } = usePWA();
   const pathname = usePathname();
   const [drawerOpen,    setDrawerOpen]    = useState(false);
   const [bellOpen,      setBellOpen]      = useState(false);
@@ -176,8 +178,17 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         })}
       </nav>
 
-      <div className="p-4 border-t border-white/10">
-        <Link href="/dashboard/profile" className="flex items-center gap-3 px-4 py-2 mb-2 rounded-xl hover:bg-white/5 transition-colors">
+      <div className="p-4 border-t border-white/10 space-y-2">
+        {isInstallable && !isInstalled && (
+          <button
+            onClick={installApp}
+            className="flex items-center gap-3 px-4 py-2.5 w-full bg-gradient-to-r from-indigo-600/30 to-purple-600/30 hover:from-indigo-600/50 hover:to-purple-600/50 border border-indigo-500/30 text-indigo-300 hover:text-white rounded-xl transition-all font-medium text-sm cursor-pointer shadow-sm"
+          >
+            <Download className="w-4 h-4 flex-shrink-0 text-indigo-400" />
+            <span>Install App</span>
+          </button>
+        )}
+        <Link href="/dashboard/profile" className="flex items-center gap-3 px-4 py-2 rounded-xl hover:bg-white/5 transition-colors">
           <ProfileAvatar profile={profile} user={user} size="sm" />
           <div className="min-w-0">
             <p className="text-sm text-white font-medium truncate">
@@ -188,10 +199,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         </Link>
         <button
           onClick={logout}
-          className="flex items-center gap-3 px-4 py-3 w-full text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-xl transition-colors"
+          className="flex items-center gap-3 px-4 py-2.5 w-full text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-xl transition-colors"
         >
-          <LogOut className="w-5 h-5" />
-          <span className="font-medium">Sign Out</span>
+          <LogOut className="w-4 h-4" />
+          <span className="font-medium text-sm">Sign Out</span>
         </button>
       </div>
     </>
