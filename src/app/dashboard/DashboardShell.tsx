@@ -251,13 +251,15 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       </nav>
 
       <div className="p-4 border-t border-white/10 space-y-2">
-        {isInstallable && !isInstalled && (
+        {!isInstalled && (
           <button
             onClick={installApp}
-            className="flex items-center gap-3 px-4 py-2.5 w-full bg-gradient-to-r from-indigo-600/30 to-purple-600/30 hover:from-indigo-600/50 hover:to-purple-600/50 border border-indigo-500/30 text-indigo-300 hover:text-white rounded-xl transition-all font-medium text-sm cursor-pointer shadow-sm"
+            className="flex items-center gap-3 px-4 py-2.5 w-full bg-gradient-to-r from-blue-600/25 via-indigo-600/25 to-purple-600/25 hover:from-blue-600/40 hover:via-indigo-600/40 hover:to-purple-600/40 border border-blue-500/30 text-blue-300 hover:text-white rounded-xl transition-all font-semibold text-sm cursor-pointer shadow-sm group"
+            title="Install Dawati Brothers App on your device"
           >
-            <Download className="w-4 h-4 flex-shrink-0 text-indigo-400" />
+            <Download className="w-4 h-4 flex-shrink-0 text-blue-400 group-hover:scale-110 transition-transform" />
             <span>Install App</span>
+            <span className="ml-auto text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded font-bold border border-blue-500/30">PWA</span>
           </button>
         )}
         <Link href="/dashboard/profile" className="flex items-center gap-3 px-4 py-2 rounded-xl hover:bg-white/5 transition-colors">
@@ -397,6 +399,19 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           </div>
 
           <div className="flex items-center gap-1.5">
+            {/* Header Install App Button */}
+            {!isInstalled && (
+              <button
+                onClick={installApp}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/25 text-blue-300 hover:text-white text-xs font-semibold transition-all shadow-sm cursor-pointer group"
+                title="Install Dawati Brothers App on your device"
+              >
+                <Download className="w-3.5 h-3.5 text-blue-400 group-hover:translate-y-0.5 transition-transform flex-shrink-0" />
+                <span className="hidden sm:inline">Install App</span>
+                <span className="sm:hidden text-[10px] font-bold">App</span>
+              </button>
+            )}
+
             {/* Compact toggle */}
             <button onClick={toggleCompact} title={compact ? 'Normal view' : 'Compact view'}
               className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${
