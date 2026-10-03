@@ -691,17 +691,6 @@ export default function ContactsPage() {
                       className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-green-600/20 text-green-400 transition-colors">
                       <FaWhatsapp className="w-4 h-4" />
                     </a>
-                    <button title="Edit" onClick={e => openEdit(c, e)}
-                      className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-amber-500/20 text-slate-500 hover:text-amber-400 transition-colors">
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button title="Delete" onClick={e => handleDelete(c, e)}
-                      disabled={deletingId === c.id}
-                      className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors disabled:opacity-50">
-                      {deletingId === c.id
-                        ? <Loader2 className="w-4 h-4 animate-spin" />
-                        : <Trash2 className="w-4 h-4" />}
-                    </button>
                   </div>
                 </div>
               ))}
@@ -716,7 +705,6 @@ export default function ContactsPage() {
                     <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Status</th>
                     <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Contact</th>
                     <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Org</th>
-                    <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -769,21 +757,6 @@ export default function ContactsPage() {
                         <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-md text-xs">
                           {orgName(c.organizationId)}
                         </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button title="Edit" onClick={e => openEdit(c, e)}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-amber-500/20 text-slate-500 hover:text-amber-400 transition-colors">
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button title="Delete" onClick={e => handleDelete(c, e)}
-                            disabled={deletingId === c.id}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors disabled:opacity-50">
-                            {deletingId === c.id
-                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              : <Trash2 className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
                       </td>
                     </tr>
                   ))}
@@ -923,6 +896,18 @@ export default function ContactsPage() {
                 <button onClick={e => openEdit(selectedContact, e)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-xs font-medium transition-colors">
                   <Pencil className="w-3 h-3" /> Edit
+                </button>
+                <button
+                  onClick={e => {
+                    handleDelete(selectedContact, e);
+                    setSelectedContact(null);
+                  }}
+                  disabled={deletingId === selectedContact.id}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs font-medium transition-colors disabled:opacity-50"
+                >
+                  {deletingId === selectedContact.id
+                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                    : <Trash2 className="w-3 h-3" />} Delete
                 </button>
                 <button onClick={() => setSelectedContact(null)}
                   className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 transition-colors">
