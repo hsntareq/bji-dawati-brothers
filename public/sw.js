@@ -1,5 +1,5 @@
 // BJI Dawati Brothers - Advanced Offline PWA Service Worker
-const CACHE_NAME = 'bji-dawati-v3';
+const CACHE_NAME = 'bji-dawati-v4';
 
 // Core routes and assets to precache on install
 const PRECACHE_ASSETS = [
@@ -73,6 +73,13 @@ self.addEventListener('fetch', (event) => {
     event.request.method !== 'GET'
   ) {
     return;
+  }
+
+  // Bypass local development server Next.js compilation / hot reload chunks
+  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+    if (url.pathname.startsWith('/_next/')) {
+      return;
+    }
   }
 
   // Handle Offline state directly to avoid DevTools net::ERR_INTERNET_DISCONNECTED red errors
@@ -149,7 +156,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // When online: Cache-first with stale-while-revalidate for static assets
+  // When online: Network-first for Next.js chunks to always get latest build, fallback to cache
+  if (url.pathname.includes('/_next/')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request, { ignoreSearch: true }))
+    );
+    return;
+  }
+
+  // For other static assets (images, icons, fonts): Cache-first with background revalidation
   event.respondWith(
     caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
       const fetchPromise = fetch(event.request)
