@@ -113,12 +113,31 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const { user, logout } = useAuth();
   const { isInstallable, isInstalled, installApp } = usePWA();
   const pathname = usePathname();
-  const [drawerOpen,    setDrawerOpen]    = useState(false);
   const [bellOpen,      setBellOpen]      = useState(false);
   const [profileOpen,   setProfileOpen]   = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const bellRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  const [showNav, setShowNav] = useState(true);
+  const lastScrollY = useRef(0);
+
+  const handleScroll = (e: React.UIEvent<HTMLElement>) => {
+    const currentScrollY = e.currentTarget.scrollTop;
+    const diff = currentScrollY - lastScrollY.current;
+    
+    // Ignore rubber banding at the top
+    if (currentScrollY < 0) return;
+
+    if (Math.abs(diff) > 5) {
+      if (diff > 0 && currentScrollY > 60) {
+        setShowNav(false);
+      } else if (diff < 0) {
+        setShowNav(true);
+      }
+      lastScrollY.current = currentScrollY;
+    }
+  };
 
   const [profile, setProfile] = useState<{ displayName?: string; gradientId?: string } | null>(null);
   const [theme,   setTheme]   = useState<'dark' | 'light'>('dark');
@@ -297,52 +316,12 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         <NavLinks />
       </aside>
 
-      {/* Mobile Drawer */}
-      {drawerOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
-          <aside
-            className="relative w-72 bji-sidebar flex flex-col h-full z-10"
-            style={{ animation: 'slide-in-left 0.25s cubic-bezier(0.22,1,0.36,1) both' }}
-          >
-            <div className="h-16 bji-border-b px-5 flex items-center justify-between">
-              <Link href="/dashboard" onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 hover:opacity-90 transition-opacity min-w-0">
-                <BrandLogo size={36} />
-                <div className="min-w-0">
-                  <h2 className="text-base font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent leading-tight truncate">
-                    BJI Dawati
-                  </h2>
-                  <p className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">Brothers</p>
-                </div>
-              </Link>
-              <button
-                onClick={() => setDrawerOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg bji-btn-ghost transition-colors"
-                aria-label="Close navigation menu"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <NavLinks onNavigate={() => setDrawerOpen(false)} />
-          </aside>
-        </div>
-      )}
-
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 bji-border-b bji-header backdrop-blur-xl flex items-center justify-between px-4 md:px-6 sticky top-0 z-10 gap-3">
+      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto bji-bg relative" onScroll={handleScroll}>
+        <header className={`fixed top-0 left-0 md:left-64 right-0 h-16 bji-border-b bji-header backdrop-blur-xl flex items-center justify-between px-4 md:px-6 z-30 gap-3 transition-transform duration-300 ${showNav ? 'translate-y-0' : '-translate-y-full'}`}>
           {/* Side Panel Toggler & Brand Logo */}
           <div className="flex items-center gap-2.5 min-w-0">
-            <button
-              className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl bji-btn-ghost transition-colors flex-shrink-0"
-              onClick={() => setDrawerOpen(true)}
-              aria-label="Toggle navigation menu"
-              title="Open navigation menu"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-
-            {/* Mobile Brand Logo beside toggler */}
+            {/* Mobile Brand Logo */}
             <Link href="/dashboard" className="md:hidden flex items-center gap-2 hover:opacity-90 transition-opacity flex-shrink-0">
               <BrandLogo size={32} />
               <div className="flex flex-col">
@@ -555,7 +534,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           </div>
         </header>
 
-        <div className="p-4 md:p-8 flex-1 overflow-y-auto bji-bg">
+        <div className="p-4 pt-20 md:p-8 md:pt-24 pb-24 md:pb-8 flex-1">
           {!isOnline && (
             <div className="mb-6 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-200 text-xs flex items-center gap-3">
               <WifiOff className="w-4 h-4 text-amber-400 flex-shrink-0" />
@@ -567,6 +546,29 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           {children}
         </div>
       </main>
+
+      {/* Mobile Bottom Nav */}
+      <nav className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bji-header border-t border-white/10 backdrop-blur-xl transition-transform duration-300 ${showNav ? 'translate-y-0' : 'translate-y-full'}`}>
+        <div className="flex items-center justify-around h-16 px-2">
+          {navItems.map(({ name, href, icon: Icon }) => {
+            const isActive = pathname === href;
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${
+                  isActive ? 'text-blue-400' : 'text-slate-400 hover:text-slate-300'
+                }`}
+              >
+                <div className={`p-1 rounded-xl transition-colors ${isActive ? 'bg-blue-500/10' : ''}`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] font-medium">{name}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }
