@@ -81,6 +81,13 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const [isOnline,         setIsOnline]         = useState(true);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [isSyncing,        setIsSyncing]        = useState(false);
+  const [logoSrc,          setLogoSrc]          = useState('/icons/icon.svg');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/bji-dawati-brothers')) {
+      setLogoSrc('/bji-dawati-brothers/icons/icon.svg');
+    }
+  }, []);
 
   useEffect(() => {
     setIsOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -244,11 +251,17 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
       {/* Desktop Sidebar */}
       <aside className="w-64 bji-sidebar hidden md:flex flex-col sticky top-0 h-screen">
-        <div className="p-6 bji-border-b">
-          <h2 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-            Dashboard
-          </h2>
-        </div>
+        <Link href="/dashboard" className="p-5 bji-border-b flex items-center gap-3 hover:opacity-90 transition-opacity">
+          <div className="w-9 h-9 rounded-xl overflow-hidden shadow-md border border-white/10 flex-shrink-0 bg-slate-900 flex items-center justify-center p-0.5">
+            <img src={logoSrc} alt="BJI Logo" className="w-full h-full object-contain" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-base font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent leading-tight truncate">
+              BJI Dawati
+            </h2>
+            <p className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">Brothers</p>
+          </div>
+        </Link>
         <NavLinks />
       </aside>
 
@@ -261,9 +274,17 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             style={{ animation: 'slide-in-left 0.25s cubic-bezier(0.22,1,0.36,1) both' }}
           >
             <div className="flex items-center justify-between p-5 bji-border-b">
-              <h2 className="text-lg font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                Dashboard
-              </h2>
+              <Link href="/dashboard" onClick={() => setDrawerOpen(false)} className="flex items-center gap-3 hover:opacity-90 transition-opacity">
+                <div className="w-8 h-8 rounded-xl overflow-hidden shadow-md border border-white/10 flex-shrink-0 bg-slate-900 flex items-center justify-center p-0.5">
+                  <img src={logoSrc} alt="BJI Logo" className="w-full h-full object-contain" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent leading-tight">
+                    BJI Dawati
+                  </h2>
+                  <p className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">Brothers</p>
+                </div>
+              </Link>
               <button onClick={() => setDrawerOpen(false)}
                 className="w-8 h-8 flex items-center justify-center rounded-lg bji-btn-ghost transition-colors">
                 <X className="w-4 h-4" />
@@ -276,13 +297,36 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 bji-border-b bji-header backdrop-blur-xl flex items-center justify-between px-4 md:px-6 sticky top-0 z-10 gap-3">
-          <button
-            className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl bji-btn-ghost transition-colors"
-            onClick={() => setDrawerOpen(true)}
-          >
-            <Menu className="w-5 h-5" />
-          </button>
+        <header className="h-14 bji-border-b bji-header backdrop-blur-xl flex items-center justify-between px-3 md:px-6 sticky top-0 z-10 gap-3">
+          {/* Side Panel Toggler & Brand Logo */}
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <button
+              className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl bji-btn-ghost transition-colors flex-shrink-0"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="Toggle navigation menu"
+              title="Open navigation menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
+            <Link href="/dashboard" className="flex items-center gap-2 hover:opacity-90 transition-opacity flex-shrink-0">
+              <div className="w-8 h-8 rounded-xl overflow-hidden shadow-sm border border-white/10 flex-shrink-0 bg-slate-900 flex items-center justify-center p-0.5">
+                <img
+                  src={logoSrc}
+                  alt="BJI Logo"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-bold text-sm bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent leading-none">
+                  BJI Dawati
+                </span>
+                <span className="text-[9px] font-medium text-slate-400 tracking-wider uppercase leading-none mt-0.5">
+                  Brothers
+                </span>
+              </div>
+            </Link>
+          </div>
           {/* Offline & Sync Status Indicator */}
           <div className="flex items-center gap-2">
             {!isOnline && (
