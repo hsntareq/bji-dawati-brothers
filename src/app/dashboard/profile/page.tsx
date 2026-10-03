@@ -9,6 +9,13 @@ import {
   Loader2, CheckCircle2, Palette,
 } from 'lucide-react';
 
+import {
+  getAllFromStore,
+  getMetaItem,
+  setMetaItem,
+  enqueueSync,
+} from '@/lib/offlineSync';
+
 const ROLES = [
   'Unit Leader (ইউনিট প্রধান)',
   'Assistant Unit Leader',
@@ -54,6 +61,36 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
+      // 1. Instant load from IndexedDB
+      try {
+        const cachedOrgs = await getAllFromStore('organizations');
+        if (cachedOrgs.length > 0) {
+          setOrgs(cachedOrgs.filter((o: any) => {
+            if (o.createdBy === user.uid || (o.allowedEmails && o.allowedEmails.includes(user.email))) return true;
+            if (o.type === 'unit' && o.parentOrgId) {
+              const parent = cachedOrgs.find((p: any) => p.id === o.parentOrgId);
+              return parent && (parent.createdBy === user.uid || (parent.allowedEmails && parent.allowedEmails.includes(user.email)));
+            }
+            return false;
+          }));
+        }
+
+        const cachedProfile = await getMetaItem<any>(`profile_${user.uid}`);
+        if (cachedProfile) {
+          const data = { ...emptyProfile, ...cachedProfile };
+          setProfile(data);
+          setForm(data);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.warn('Error reading cached profile from IndexedDB:', err);
+      }
+
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        setLoading(false);
+        return;
+      }
+
       try {
         // Load orgs accessible to this user
         const orgsSnap = await get(ref(database, 'organizations'));
@@ -74,6 +111,7 @@ export default function ProfilePage() {
             const data = { ...emptyProfile, ...snap.val() };
             setProfile(data);
             setForm(data);
+            setMetaItem(`profile_${user.uid}`, data);
           }
           setLoading(false);
         });
@@ -90,16 +128,34 @@ export default function ProfilePage() {
     if (!user || saving) return;
     setSaving(true);
     try {
-      await set(ref(database, `users/${user.uid}/profile`), {
+      const data = {
         ...form,
         email: user.email,
         uid:   user.uid,
         updatedAt: new Date().toISOString(),
-      });
+      };
+
+      setProfile(data);
+      await setMetaItem(`profile_${user.uid}`, data);
+
+      const path = `users/${user.uid}/profile`;
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          await set(ref(database, path), data);
+        } catch {
+          await enqueueSync({ collection: 'contacts' as any, action: 'set', path, data });
+        }
+      } else {
+        await enqueueSync({ collection: 'contacts' as any, action: 'set', path, data });
+      }
+
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
-    } catch (e) { console.error(e); }
-    finally { setSaving(false); }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const grad = AVATAR_GRADIENTS.find(g => g.id === form.gradientId) ?? AVATAR_GRADIENTS[0];

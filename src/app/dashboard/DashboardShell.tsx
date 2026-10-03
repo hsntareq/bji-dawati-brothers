@@ -7,11 +7,12 @@ import { ref, onValue, update, query, orderByChild, limitToLast } from 'firebase
 import {
   LogOut, Bell, LayoutDashboard, Building2, Users,
   Menu, X, Sun, Moon, AlignJustify, LayoutList, CheckCheck, ArrowRight,
-  UserCircle2, Download,
+  UserCircle2, Download, WifiOff, RefreshCw,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { usePWA } from '@/components/PWAProvider';
+import { addSyncListener, syncQueueWithFirebase } from '@/lib/offlineSync';
 
 // ── Disposition label helper ──────────────────────────
 const STATUS_LABELS: Record<string, { label: string; dot: string }> = {
@@ -76,6 +77,33 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const [profile, setProfile] = useState<{ displayName?: string; gradientId?: string } | null>(null);
   const [theme,   setTheme]   = useState<'dark' | 'light'>('dark');
   const [compact, setCompact] = useState(false);
+
+  const [isOnline,         setIsOnline]         = useState(true);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [isSyncing,        setIsSyncing]        = useState(false);
+
+  useEffect(() => {
+    setIsOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
+    const onOnline = () => {
+      setIsOnline(true);
+      syncQueueWithFirebase();
+    };
+    const onOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+
+    const unsubSync = addSyncListener((count, syncing) => {
+      setPendingSyncCount(count);
+      setIsSyncing(syncing);
+    });
+
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+      unsubSync();
+    };
+  }, []);
 
   useEffect(() => {
     const t = localStorage.getItem('bji-theme') as 'dark' | 'light' | null;
@@ -255,7 +283,31 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           >
             <Menu className="w-5 h-5" />
           </button>
-          <div className="hidden md:block" />
+          {/* Offline & Sync Status Indicator */}
+          <div className="flex items-center gap-2">
+            {!isOnline && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-400 text-xs font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                <span className="hidden sm:inline">Offline Mode</span>
+              </div>
+            )}
+            {pendingSyncCount > 0 && (
+              <button
+                onClick={() => syncQueueWithFirebase()}
+                disabled={!isOnline || isSyncing}
+                title={isOnline ? "Click to sync changes to Firebase" : "Saved in IndexedDB. Will sync automatically when online."}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                  isOnline
+                    ? 'bg-blue-500/15 border border-blue-500/30 text-blue-400 hover:bg-blue-500/25 cursor-pointer shadow-sm'
+                    : 'bg-slate-800/80 border border-slate-700/80 text-slate-400 cursor-default'
+                }`}
+              >
+                <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin text-blue-400' : ''}`} />
+                <span>{pendingSyncCount} {pendingSyncCount === 1 ? 'change' : 'changes'}</span>
+                {isOnline && !isSyncing && <span className="text-[10px] text-blue-300 underline ml-0.5">Sync</span>}
+              </button>
+            )}
+          </div>
 
           <div className="flex items-center gap-1.5">
             {/* Compact toggle */}
@@ -371,6 +423,14 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         </header>
 
         <div className="p-4 md:p-8 flex-1 overflow-y-auto bji-bg">
+          {!isOnline && (
+            <div className="mb-6 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-200 text-xs flex items-center gap-3">
+              <WifiOff className="w-4 h-4 text-amber-400 flex-shrink-0" />
+              <div className="flex-1">
+                <span className="font-semibold text-amber-300">Offline Mode Active</span> — You are currently offline. All additions, edits, and status changes are safely stored in IndexedDB and will automatically sync with Firebase when your connection returns.
+              </div>
+            </div>
+          )}
           {children}
         </div>
       </main>

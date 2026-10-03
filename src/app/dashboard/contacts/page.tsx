@@ -11,6 +11,16 @@ import {
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 
+import {
+  getAllFromStore,
+  putAllInStore,
+  putInStore,
+  deleteFromStore,
+  enqueueSync,
+  generateOfflineId,
+  getActivitiesForContact,
+} from '@/lib/offlineSync';
+
 const PREFIX = '01';
 const emptyForm = { name: '', mobile: PREFIX, note: '', organizationId: '', email: '', address: '' };
 
@@ -178,18 +188,43 @@ export default function ContactsPage() {
   const [secOpen, setSecOpen] = useState({ disposition: true, info: true, activities: true });
   const toggleSec = (k: keyof typeof secOpen) => setSecOpen(p => ({ ...p, [k]: !p[k] }));
 
-  useEffect(() => { fetchData(); }, [user]);
+  useEffect(() => {
+    fetchData();
+  }, [user]);
 
-  // Load activities when selected contact changes
+  // Listen for online sync completion to refresh data automatically
+  useEffect(() => {
+    const handleSynced = () => {
+      fetchData();
+    };
+    window.addEventListener('bji_offline_synced', handleSynced);
+    return () => window.removeEventListener('bji_offline_synced', handleSynced);
+  }, [user]);
+
+  // Load activities when selected contact changes (IndexedDB first, then cloud if online)
   useEffect(() => {
     if (!selectedContact?.id) { setActivities([]); return; }
-    const q = ref(database, `contact_activities/${selectedContact.id}`);
+    const cid = selectedContact.id;
+
+    // Instant local cache load
+    getActivitiesForContact(cid).then(cached => {
+      if (cached && cached.length > 0) {
+        setActivities(cached);
+      }
+    });
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return;
+    }
+
+    const q = ref(database, `contact_activities/${cid}`);
     const unsub = onValue(q, snap => {
       if (!snap.exists()) { setActivities([]); return; }
       const items = Object.entries(snap.val())
-        .map(([id, v]: any) => ({ id, ...v }))
+        .map(([id, v]: any) => ({ id, contactId: cid, ...v }))
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setActivities(items);
+      items.forEach(it => putInStore('contact_activities', it));
     });
     return () => unsub();
   }, [selectedContact?.id]);
@@ -208,30 +243,64 @@ export default function ContactsPage() {
     if (!selectedContact || actSaving) return;
     setActSaving(true);
     try {
-      const actRef = push(ref(database, `contact_activities/${selectedContact.id}`));
+      const actId = generateOfflineId('act');
       const base = { type: actType, date: new Date().toISOString(), addedBy: user?.uid ?? '' };
       const extra = actType === 'quran'  ? { suraName: actForm.suraName, ayatNumber: actForm.ayatNumber }
                   : actType === 'hadis'  ? { hadisBook: actForm.hadisBook, hadisNumber: actForm.hadisNumber }
                   : actType === 'book'   ? { bookName: actForm.bookName }
                   : {};
       const notePart = actForm.note.trim() ? { note: actForm.note.trim() } : {};
-      await set(actRef, { ...base, ...extra, ...notePart });
+      const payload = { ...base, ...extra, ...notePart };
+      const newAct = { id: actId, contactId: selectedContact.id, ...payload };
+
+      // Optimistic local state + IndexedDB
+      setActivities(prev => [newAct, ...prev]);
+      await putInStore('contact_activities', newAct);
+
       setActForm(emptyActForm);
       setActType(null);
       setActPanelOpen(false);
+
+      const path = `contact_activities/${selectedContact.id}/${actId}`;
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          await set(ref(database, path), payload);
+        } catch {
+          await enqueueSync({ collection: 'contact_activities', action: 'set', path, data: payload });
+        }
+      } else {
+        await enqueueSync({ collection: 'contact_activities', action: 'set', path, data: payload });
+      }
+
       await reloadActivitySummary();
     } catch (err) { console.error(err); }
     finally { setActSaving(false); }
   };
 
-  // Quick save for no-form activity types (avoids stale-closure bug)
+  // Quick save for no-form activity types
   const handleQuickActivity = async (typeValue: string) => {
     if (!selectedContact) return;
     setActSaving(true);
     try {
-      const actRef = push(ref(database, `contact_activities/${selectedContact.id}`));
-      await set(actRef, { type: typeValue, date: new Date().toISOString(), addedBy: user?.uid ?? '' });
+      const actId = generateOfflineId('act');
+      const payload = { type: typeValue, date: new Date().toISOString(), addedBy: user?.uid ?? '' };
+      const newAct = { id: actId, contactId: selectedContact.id, ...payload };
+
+      setActivities(prev => [newAct, ...prev]);
+      await putInStore('contact_activities', newAct);
       setActPanelOpen(false);
+
+      const path = `contact_activities/${selectedContact.id}/${actId}`;
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          await set(ref(database, path), payload);
+        } catch {
+          await enqueueSync({ collection: 'contact_activities', action: 'set', path, data: payload });
+        }
+      } else {
+        await enqueueSync({ collection: 'contact_activities', action: 'set', path, data: payload });
+      }
+
       await reloadActivitySummary();
     } catch (err) { console.error(err); }
     finally { setActSaving(false); }
@@ -239,7 +308,20 @@ export default function ContactsPage() {
 
   const handleDeleteActivity = async (actId: string) => {
     if (!selectedContact) return;
-    await remove(ref(database, `contact_activities/${selectedContact.id}/${actId}`));
+    setActivities(prev => prev.filter(a => a.id !== actId));
+    await deleteFromStore('contact_activities', actId);
+
+    const path = `contact_activities/${selectedContact.id}/${actId}`;
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      try {
+        await remove(ref(database, path));
+      } catch {
+        await enqueueSync({ collection: 'contact_activities', action: 'remove', path });
+      }
+    } else {
+      await enqueueSync({ collection: 'contact_activities', action: 'remove', path });
+    }
+
     await reloadActivitySummary();
   };
 
@@ -252,50 +334,139 @@ export default function ContactsPage() {
 
   const fetchData = async () => {
     if (!user) return;
+
+    // 1. Instant load from IndexedDB
     try {
-      const orgsSnap = await get(ref(database, 'organizations'));
-      let myOrgs: any[] = [];
-      if (orgsSnap.exists()) {
-        const orgList = Object.entries(orgsSnap.val()).map(([id, v]: any) => ({ id, ...v }));
-        myOrgs = orgList.filter(o => {
+      const cachedOrgs = await getAllFromStore('organizations');
+      const cachedContacts = await getAllFromStore('contacts');
+      const cachedActs = await getAllFromStore('contact_activities');
+
+      if (cachedOrgs.length > 0 || cachedContacts.length > 0) {
+        const myOrgs = cachedOrgs.filter((o: any) => {
           if (o.createdBy === user.uid || (o.allowedEmails && o.allowedEmails.includes(user.email))) return true;
           if (o.type === 'unit' && o.parentOrgId) {
-            const parent = orgList.find(p => p.id === o.parentOrgId);
+            const parent = cachedOrgs.find((p: any) => p.id === o.parentOrgId);
             return parent && (parent.createdBy === user.uid || (parent.allowedEmails && parent.allowedEmails.includes(user.email)));
           }
           return false;
         });
         setOrganizations(myOrgs);
+
+        const myOrgIds = myOrgs.map(o => o.id);
+        const myContacts = cachedContacts.filter((c: any) => myOrgIds.includes(c.organizationId));
+        setContacts(myContacts);
+
+        if (cachedActs.length > 0) {
+          const summary: Record<string, number> = {};
+          const grouped: Record<string, Set<string>> = {};
+          cachedActs.forEach((a: any) => {
+            if (a.contactId && a.type) {
+              if (!grouped[a.contactId]) grouped[a.contactId] = new Set();
+              grouped[a.contactId].add(a.type);
+            }
+          });
+          Object.entries(grouped).forEach(([cid, types]) => {
+            summary[cid] = types.size;
+          });
+          setActSummary(summary);
+        }
+        setLoading(false);
       }
+    } catch (e) {
+      console.warn('[Contacts] Error loading IndexedDB cache:', e);
+    }
+
+    // 2. Fetch fresh data from Firebase if online
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const orgsSnap = await get(ref(database, 'organizations'));
+      let myOrgs: any[] = [];
+      let allOrgs: any[] = [];
+      if (orgsSnap.exists()) {
+        allOrgs = Object.entries(orgsSnap.val()).map(([id, v]: any) => ({ id, ...v }));
+        myOrgs = allOrgs.filter(o => {
+          if (o.createdBy === user.uid || (o.allowedEmails && o.allowedEmails.includes(user.email))) return true;
+          if (o.type === 'unit' && o.parentOrgId) {
+            const parent = allOrgs.find(p => p.id === o.parentOrgId);
+            return parent && (parent.createdBy === user.uid || (parent.allowedEmails && parent.allowedEmails.includes(user.email)));
+          }
+          return false;
+        });
+        setOrganizations(myOrgs);
+        await putAllInStore('organizations', allOrgs);
+      }
+
       const cSnap = await get(ref(database, 'contacts'));
       if (cSnap.exists()) {
-        const all = Object.entries(cSnap.val()).map(([id, v]: any) => ({ id, ...v }));
+        const allContacts = Object.entries(cSnap.val()).map(([id, v]: any) => ({ id, ...v }));
         const myOrgIds = myOrgs.map(o => o.id);
-        const myContacts = all.filter(c => myOrgIds.includes(c.organizationId));
+        const myContacts = allContacts.filter(c => myOrgIds.includes(c.organizationId));
         setContacts(myContacts);
+        await putAllInStore('contacts', allContacts);
       } else {
         setContacts([]);
       }
-      // Load activity summary for performance stars
+
       await reloadActivitySummary();
     } catch (e) {
-      console.error(e);
+      console.warn('[Contacts] Cloud fetch failed, relying on local cache:', e);
     } finally {
       setLoading(false);
     }
   };
 
   const reloadActivitySummary = async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const cachedActs = await getAllFromStore('contact_activities');
+      const summary: Record<string, number> = {};
+      const grouped: Record<string, Set<string>> = {};
+      cachedActs.forEach((a: any) => {
+        if (a.contactId && a.type) {
+          if (!grouped[a.contactId]) grouped[a.contactId] = new Set();
+          grouped[a.contactId].add(a.type);
+        }
+      });
+      Object.entries(grouped).forEach(([cid, types]) => {
+        summary[cid] = types.size;
+      });
+      setActSummary(summary);
+      return;
+    }
+
     try {
       const snap = await get(ref(database, 'contact_activities'));
       if (!snap.exists()) { setActSummary({}); return; }
       const summary: Record<string, number> = {};
+      const allActsList: any[] = [];
       Object.entries(snap.val()).forEach(([contactId, acts]: any) => {
-        const uniqueTypes = new Set(Object.values(acts).map((a: any) => a.type));
+        const uniqueTypes = new Set<string>();
+        Object.entries(acts).forEach(([actId, actVal]: any) => {
+          uniqueTypes.add(actVal.type);
+          allActsList.push({ id: actId, contactId, ...actVal });
+        });
         summary[contactId] = uniqueTypes.size;
       });
       setActSummary(summary);
-    } catch {}
+      await putAllInStore('contact_activities', allActsList);
+    } catch {
+      const cachedActs = await getAllFromStore('contact_activities');
+      const summary: Record<string, number> = {};
+      const grouped: Record<string, Set<string>> = {};
+      cachedActs.forEach((a: any) => {
+        if (a.contactId && a.type) {
+          if (!grouped[a.contactId]) grouped[a.contactId] = new Set();
+          grouped[a.contactId].add(a.type);
+        }
+      });
+      Object.entries(grouped).forEach(([cid, types]) => {
+        summary[cid] = types.size;
+      });
+      setActSummary(summary);
+    }
   };
 
   // ── Shared mobile input handlers ───────────────────
@@ -326,8 +497,8 @@ export default function ContactsPage() {
     if (!user || !isFormValid || saving) return;
     setSaving(true);
     try {
-      const newRef = push(ref(database, 'contacts'));
-      await set(newRef, {
+      const newId = generateOfflineId('contact');
+      const contactData = {
         name: form.name.trim(),
         mobile: form.mobile.trim(),
         note: form.note.trim() || null,
@@ -336,10 +507,26 @@ export default function ContactsPage() {
         organizationId: form.organizationId,
         createdBy: user.uid,
         createdAt: new Date().toISOString(),
-      });
+      };
+      const newContact = { id: newId, ...contactData };
+
+      // Optimistic update
+      setContacts(prev => [newContact, ...prev]);
+      await putInStore('contacts', newContact);
+
       setForm(emptyForm);
       setFormOpen(false);
-      fetchData();
+
+      const path = `contacts/${newId}`;
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          await set(ref(database, path), contactData);
+        } catch {
+          await enqueueSync({ collection: 'contacts', action: 'set', path, data: contactData });
+        }
+      } else {
+        await enqueueSync({ collection: 'contacts', action: 'set', path, data: contactData });
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -377,12 +564,26 @@ export default function ContactsPage() {
         organizationId: editForm.organizationId,
         updatedAt: new Date().toISOString(),
       };
-      await update(ref(database, `contacts/${editContact.id}`), updated);
+      const merged = { ...editContact, ...updated };
+
+      // Optimistic update
+      setContacts(prev => prev.map(x => x.id === editContact.id ? merged : x));
       if (selectedContact?.id === editContact.id) {
         setSelectedContact((prev: any) => ({ ...prev, ...updated }));
       }
+      await putInStore('contacts', merged);
       setEditContact(null);
-      fetchData();
+
+      const path = `contacts/${editContact.id}`;
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          await update(ref(database, path), updated);
+        } catch {
+          await enqueueSync({ collection: 'contacts', action: 'update', path, data: updated });
+        }
+      } else {
+        await enqueueSync({ collection: 'contacts', action: 'update', path, data: updated });
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -396,9 +597,20 @@ export default function ContactsPage() {
     if (!confirm(`Delete "${c.name}"? This cannot be undone.`)) return;
     setDeletingId(c.id);
     try {
-      await remove(ref(database, `contacts/${c.id}`));
+      setContacts(prev => prev.filter(x => x.id !== c.id));
       if (selectedContact?.id === c.id) setSelectedContact(null);
-      fetchData();
+      await deleteFromStore('contacts', c.id);
+
+      const path = `contacts/${c.id}`;
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          await remove(ref(database, path));
+        } catch {
+          await enqueueSync({ collection: 'contacts', action: 'remove', path });
+        }
+      } else {
+        await enqueueSync({ collection: 'contacts', action: 'remove', path });
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -410,32 +622,49 @@ export default function ContactsPage() {
   const handleStatusChange = async (c: any, status: string, e: { stopPropagation: () => void }) => {
     e.stopPropagation();
     const prevStatus = c.status ?? '';
-    // Optimistic local update
-    setContacts(prev => prev.map(x => x.id === c.id ? { ...x, status } : x));
-    if (selectedContact?.id === c.id) setSelectedContact((p: any) => ({ ...p, status }));
-    try {
-      const now = new Date().toISOString();
-      await update(ref(database, `contacts/${c.id}`), { status, statusUpdatedAt: now });
+    const now = new Date().toISOString();
+    const updatedContact = { ...c, status, statusUpdatedAt: now };
 
-      // ── Write notification to org owner ────────────
-      const org = organizations.find((o: any) => o.id === c.organizationId);
-      if (org?.createdBy) {
-        const notifRef = push(ref(database, `notifications/${org.createdBy}`));
-        await set(notifRef, {
-          contactId:        c.id,
-          contactName:      c.name,
-          oldStatus:        prevStatus,
-          newStatus:        status,
-          organizationId:   c.organizationId,
-          organizationName: org.name,
-          changedBy:        user?.uid ?? '',
-          changedByEmail:   user?.email ?? '',
-          timestamp:        now,
-          read:             false,
-        });
+    // Optimistic local update
+    setContacts(prev => prev.map(x => x.id === c.id ? updatedContact : x));
+    if (selectedContact?.id === c.id) setSelectedContact((p: any) => ({ ...p, status }));
+    await putInStore('contacts', updatedContact);
+
+    const statusData = { status, statusUpdatedAt: now };
+    const org = organizations.find((o: any) => o.id === c.organizationId);
+    const notifData = org?.createdBy ? {
+      contactId:        c.id,
+      contactName:      c.name,
+      oldStatus:        prevStatus,
+      newStatus:        status,
+      organizationId:   c.organizationId,
+      organizationName: org.name,
+      changedBy:        user?.uid ?? '',
+      changedByEmail:   user?.email ?? '',
+      timestamp:        now,
+      read:             false,
+    } : null;
+
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      try {
+        await update(ref(database, `contacts/${c.id}`), statusData);
+        if (notifData && org?.createdBy) {
+          const notifRef = push(ref(database, `notifications/${org.createdBy}`));
+          await set(notifRef, notifData);
+        }
+      } catch {
+        await enqueueSync({ collection: 'contacts', action: 'update', path: `contacts/${c.id}`, data: statusData });
+        if (notifData && org?.createdBy) {
+          const notifId = generateOfflineId('notif');
+          await enqueueSync({ collection: 'notifications', action: 'set', path: `notifications/${org.createdBy}/${notifId}`, data: notifData });
+        }
       }
-    } catch (err) {
-      console.error(err);
+    } else {
+      await enqueueSync({ collection: 'contacts', action: 'update', path: `contacts/${c.id}`, data: statusData });
+      if (notifData && org?.createdBy) {
+        const notifId = generateOfflineId('notif');
+        await enqueueSync({ collection: 'notifications', action: 'set', path: `notifications/${org.createdBy}/${notifId}`, data: notifData });
+      }
     }
   };
 
