@@ -1,21 +1,48 @@
-// BJI Dawati Brothers Service Worker
-const CACHE_NAME = 'bji-dawati-v1';
+// BJI Dawati Brothers - Advanced Offline PWA Service Worker
+const CACHE_NAME = 'bji-dawati-v3';
 
-const STATIC_ASSETS = [
-  './icons/icon-192x192.png',
-  './icons/icon-512x512.png',
-  './icons/icon-maskable-512x512.png',
-  './icons/apple-touch-icon.png',
-  './icons/icon.svg',
-  './manifest.json'
+// Core routes and assets to precache on install
+const PRECACHE_ASSETS = [
+  '/',
+  '/login',
+  '/dashboard',
+  '/dashboard/contacts',
+  '/dashboard/organizations',
+  '/dashboard/profile',
+  '/manifest.webmanifest',
+  '/manifest.json',
+  '/favicon.ico',
+  '/icon-192x192.png',
+  '/icon-512x512.png',
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png',
+  '/icons/icon-maskable-512x512.png',
+  '/icons/apple-touch-icon.png',
+  '/icons/icon.svg'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch((err) => {
-        console.warn('Failed to pre-cache some assets:', err);
+    caches.open(CACHE_NAME).then(async (cache) => {
+      // Determine if running under a subpath like /bji-dawati-brothers/
+      const scopeUrl = new URL(self.registration.scope);
+      const prefix = scopeUrl.pathname.replace(/\/$/, '');
+
+      const urlsToCache = PRECACHE_ASSETS.map((path) => {
+        return prefix ? `${prefix}${path}` : path;
       });
+
+      // Cache sequentially with resilience so 1 missing asset does not abort install
+      for (const url of urlsToCache) {
+        try {
+          const res = await fetch(url);
+          if (res.ok) {
+            await cache.put(url, res);
+          }
+        } catch {
+          // Ignore individual fetch failure during precache
+        }
+      }
     }).then(() => self.skipWaiting())
   );
 });
@@ -33,12 +60,14 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Bypass Firebase Realtime Database, IdentityToolkit, and WebSocket connections
+  // Bypass Firebase Realtime Database, IdentityToolkit, Analytics, and WebSockets
   if (
     url.hostname.includes('firebaseio.com') ||
     url.hostname.includes('firebasedatabase.app') ||
     url.hostname.includes('googleapis.com') ||
     url.hostname.includes('identitytoolkit') ||
+    url.hostname.includes('google-analytics') ||
+    url.hostname.includes('analytics.google.com') ||
     url.protocol === 'ws:' ||
     url.protocol === 'wss:' ||
     event.request.method !== 'GET'
@@ -46,8 +75,44 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigation requests: Network first with cache fallback
+  // Handle Offline state directly to avoid DevTools net::ERR_INTERNET_DISCONNECTED red errors
+  const isOffline = !self.navigator.onLine;
+
+  // 1. Navigation requests (HTML pages)
   if (event.request.mode === 'navigate') {
+    if (isOffline) {
+      event.respondWith(
+        caches.match(event.request, { ignoreSearch: true }).then(async (cached) => {
+          if (cached) return cached;
+
+          // Try dashboard or login shell fallback
+          const scopeUrl = new URL(self.registration.scope);
+          const prefix = scopeUrl.pathname.replace(/\/$/, '');
+          const fallbacks = [
+            `${prefix}/dashboard`,
+            `${prefix}/dashboard/`,
+            `${prefix}/dashboard/contacts`,
+            `${prefix}/login`,
+            `${prefix}/`,
+            '/dashboard',
+            '/login'
+          ];
+
+          for (const fb of fallbacks) {
+            const match = await caches.match(fb, { ignoreSearch: true });
+            if (match) return match;
+          }
+
+          return new Response(
+            `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Offline</title></head><body style="background:#0f172a;color:#fff;font-family:sans-serif;padding:40px;text-align:center;"><h2>You are offline</h2><p>Data is stored locally in IndexedDB. Please reconnect to sync with cloud.</p></body></html>`,
+            { headers: { 'Content-Type': 'text/html' } }
+          );
+        })
+      );
+      return;
+    }
+
+    // When online: Network first with cache fallback
     event.respondWith(
       fetch(event.request)
         .then((response) => {
@@ -58,28 +123,47 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(async () => {
-          const cached = await caches.match(event.request);
+          const cached = await caches.match(event.request, { ignoreSearch: true });
           if (cached) return cached;
-          const fallback = await caches.match('./dashboard/') || await caches.match('./');
-          if (fallback) return fallback;
-          return new Response('You are offline. Please check your internet connection.', {
-            headers: { 'Content-Type': 'text/plain' }
-          });
+          return new Response('Network error occurred while offline', { status: 408 });
         })
     );
     return;
   }
 
-  // Static assets: Stale-While-Revalidate
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-          const clone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+  // 2. Static Assets (Scripts, Styles, Next.js chunks, Icons, Fonts)
+  if (isOffline) {
+    // When offline, check cache only — do not attempt network fetch!
+    event.respondWith(
+      caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
+        if (cachedResponse) return cachedResponse;
+
+        if (event.request.destination === 'image') {
+          return new Response('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>', {
+            headers: { 'Content-Type': 'image/svg+xml' }
+          });
         }
-        return networkResponse;
-      }).catch(() => null);
+        return new Response('', { status: 408, statusText: 'Offline' });
+      })
+    );
+    return;
+  }
+
+  // When online: Cache-first with stale-while-revalidate for static assets
+  event.respondWith(
+    caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
+      const fetchPromise = fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          if (cachedResponse) return cachedResponse;
+          return new Response('', { status: 408, statusText: 'Network Error' });
+        });
 
       return cachedResponse || fetchPromise;
     })
@@ -88,7 +172,7 @@ self.addEventListener('fetch', (event) => {
 
 // Push notification listener
 self.addEventListener('push', (event) => {
-  let data = { title: 'BJI Dawati Brothers', body: 'New update available' };
+  let data = { title: 'BJI Dawati Brothers', body: 'New update received' };
   if (event.data) {
     try {
       data = event.data.json();
@@ -99,21 +183,20 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body,
-    icon: './icons/icon-192x192.png',
-    badge: './icons/icon-192x192.png',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-192x192.png',
     vibrate: [100, 50, 100],
     data: {
-      url: data.url || './dashboard/'
+      url: data.url || '/dashboard/'
     }
   };
 
   event.waitUntil(self.registration.showNotification(data.title, options));
 });
 
-// Notification click listener
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url || './dashboard/';
+  const targetUrl = event.notification.data?.url || '/dashboard/';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
       for (const client of windowClients) {

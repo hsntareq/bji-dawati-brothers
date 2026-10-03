@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { database } from '@/lib/firebase';
 import { ref, get } from 'firebase/database';
+import { getMetaItem, setMetaItem } from '@/lib/offlineSync';
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -13,14 +14,30 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchUserData = async () => {
       if (user) {
+        // 1. Instant load from IndexedDB
+        try {
+          const cached = await getMetaItem<any>(`user_${user.uid}`);
+          if (cached) {
+            setUserData(cached);
+            setLoading(false);
+          }
+        } catch {}
+
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          setLoading(false);
+          return;
+        }
+
         try {
           const userRef = ref(database, 'users/' + user.uid);
           const snapshot = await get(userRef);
           if (snapshot.exists()) {
-            setUserData(snapshot.val());
+            const data = snapshot.val();
+            setUserData(data);
+            await setMetaItem(`user_${user.uid}`, data);
           }
         } catch (error) {
-          console.error("Error fetching user data:", error);
+          console.warn("Error fetching user data from cloud:", error);
         } finally {
           setLoading(false);
         }

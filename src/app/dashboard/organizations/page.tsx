@@ -9,6 +9,16 @@ import {
   MapPin, Users, Shield, GitBranch, Pencil, Check, Trash2,
   UserPlus, Settings, Save, AlertCircle, Crown, UserCheck, Phone,
 } from 'lucide-react';
+import {
+  getAllFromStore,
+  putAllInStore,
+  putInStore,
+  deleteFromStore,
+  enqueueSync,
+  generateOfflineId,
+  getMetaItem,
+  setMetaItem,
+} from '@/lib/offlineSync';
 
 const ORG_TYPES = [
   { value: 'ward',   label: 'Ward',   desc: 'Parent ward — oversees multiple units', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
@@ -53,7 +63,16 @@ export default function OrganizationsPage() {
   // Contact counts per org
   const [contactCounts,   setContactCounts]   = useState<Record<string, number>>({});
 
-  useEffect(() => { fetchOrganizations(); }, [user]);
+  useEffect(() => {
+    fetchOrganizations();
+  }, [user]);
+
+  // Listen for online sync completion to refresh data automatically
+  useEffect(() => {
+    const handleSynced = () => fetchOrganizations();
+    window.addEventListener('bji_offline_synced', handleSynced);
+    return () => window.removeEventListener('bji_offline_synced', handleSynced);
+  }, [user]);
 
   const showFeedback = (text: string, type: 'success' | 'error' = 'success') => {
     setFeedback({ text, type });
@@ -62,11 +81,47 @@ export default function OrganizationsPage() {
 
   const fetchOrganizations = async () => {
     if (!user) return;
+
+    // 1. Instant load from IndexedDB
+    try {
+      const cached = await getAllFromStore('organizations');
+      if (cached && cached.length > 0) {
+        setAllOrgsRaw(cached);
+        const mine = cached.filter((o: any) => {
+          if (o.createdBy === user.uid || (o.allowedEmails && o.allowedEmails.includes(user.email))) return true;
+          if (o.type === 'unit' && o.parentOrgId) {
+            const parent = cached.find((p: any) => p.id === o.parentOrgId);
+            return parent && (parent.createdBy === user.uid || parent.allowedEmails?.includes(user.email));
+          }
+          return false;
+        });
+        setOrganizations(mine);
+        const wardIds = new Set(mine.filter((o: any) => o.type === 'ward').map((o: any) => o.id));
+        setExpandedWards(wardIds as Set<string>);
+        setLoading(false);
+      }
+
+      const cachedCounts = await getMetaItem<Record<string, number>>('contact_counts');
+      if (cachedCounts) setContactCounts(cachedCounts);
+
+      const cachedUsers = await getMetaItem<any[]>('registered_users');
+      if (cachedUsers) setRegisteredUsers(cachedUsers);
+    } catch (e) {
+      console.warn('[Orgs] Error loading IndexedDB cache:', e);
+    }
+
+    // 2. Fetch fresh data from Firebase if online
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const snap = await get(ref(database, 'organizations'));
       if (snap.exists()) {
         const all = Object.entries(snap.val()).map(([id, v]: any) => ({ id, ...v }));
         setAllOrgsRaw(all);
+        await putAllInStore('organizations', all);
 
         // Access rule:
         // 1. Direct creator
@@ -108,6 +163,7 @@ export default function OrganizationsPage() {
           }
         });
         setContactCounts(counts);
+        await setMetaItem('contact_counts', counts);
       }
 
       // Fetch registered users to make assigning members easy
@@ -119,9 +175,10 @@ export default function OrganizationsPage() {
           name: u.name || u.profile?.displayName || '',
         })).filter(u => u.email);
         setRegisteredUsers(uList);
+        await setMetaItem('registered_users', uList);
       }
     } catch (e) {
-      console.error(e);
+      console.warn('[Orgs] Cloud fetch failed, relying on local IndexedDB:', e);
     } finally {
       setLoading(false);
     }
@@ -132,7 +189,7 @@ export default function OrganizationsPage() {
     if (!form.name.trim() || !user) return;
     setSubmitting(true);
     try {
-      const newRef = push(ref(database, 'organizations'));
+      const newId = generateOfflineId('org');
       const data: any = {
         name:         form.name.trim(),
         type:         form.type,
@@ -143,11 +200,28 @@ export default function OrganizationsPage() {
       };
       if (form.type === 'ward' && form.wardName.trim()) data.wardName = form.wardName.trim();
       if (form.type === 'unit' && form.parentOrgId)     data.parentOrgId = form.parentOrgId;
-      await set(newRef, data);
+
+      const newOrg = { id: newId, ...data };
+
+      // Optimistic update
+      setAllOrgsRaw(prev => [newOrg, ...prev]);
+      setOrganizations(prev => [newOrg, ...prev]);
+      await putInStore('organizations', newOrg);
+
       setIsModalOpen(false);
       setForm(emptyForm);
       showFeedback('Organization created successfully!');
-      fetchOrganizations();
+
+      const path = `organizations/${newId}`;
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          await set(ref(database, path), data);
+        } catch {
+          await enqueueSync({ collection: 'organizations', action: 'set', path, data });
+        }
+      } else {
+        await enqueueSync({ collection: 'organizations', action: 'set', path, data });
+      }
     } catch (e) {
       console.error(e);
       showFeedback('Failed to create organization', 'error');
@@ -158,9 +232,27 @@ export default function OrganizationsPage() {
 
   const saveWardName = async (orgId: string) => {
     if (!editWardName.trim()) return;
-    await update(ref(database, `organizations/${orgId}`), { wardName: editWardName.trim() });
+    const wardName = editWardName.trim();
+
+    // Optimistic update
+    setAllOrgsRaw(prev => prev.map(o => o.id === orgId ? { ...o, wardName } : o));
+    setOrganizations(prev => prev.map(o => o.id === orgId ? { ...o, wardName } : o));
+    const targetOrg = allOrgsRaw.find(o => o.id === orgId);
+    if (targetOrg) {
+      await putInStore('organizations', { ...targetOrg, wardName });
+    }
     setEditingWardId(null);
-    fetchOrganizations();
+
+    const path = `organizations/${orgId}`;
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      try {
+        await update(ref(database, path), { wardName });
+      } catch {
+        await enqueueSync({ collection: 'organizations', action: 'update', path, data: { wardName } });
+      }
+    } else {
+      await enqueueSync({ collection: 'organizations', action: 'update', path, data: { wardName } });
+    }
   };
 
   const addEmailToCreateForm = () => {
@@ -198,10 +290,27 @@ export default function OrganizationsPage() {
       } else if (editOrgForm.type === 'unit') {
         updates.parentOrgId = editOrgForm.parentOrgId || null;
       }
-      await update(ref(database, `organizations/${selectedOrg.id}`), updates);
-      setSelectedOrg((prev: any) => ({ ...prev, ...updates }));
+
+      const updatedOrg = { ...selectedOrg, ...updates };
+
+      // Optimistic update
+      setSelectedOrg(updatedOrg);
+      setAllOrgsRaw(prev => prev.map(o => o.id === selectedOrg.id ? updatedOrg : o));
+      setOrganizations(prev => prev.map(o => o.id === selectedOrg.id ? updatedOrg : o));
+      await putInStore('organizations', updatedOrg);
+
       showFeedback('Organization details updated!');
-      fetchOrganizations();
+
+      const path = `organizations/${selectedOrg.id}`;
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          await update(ref(database, path), updates);
+        } catch {
+          await enqueueSync({ collection: 'organizations', action: 'update', path, data: updates });
+        }
+      } else {
+        await enqueueSync({ collection: 'organizations', action: 'update', path, data: updates });
+      }
     } catch (e) {
       console.error(e);
       showFeedback('Failed to save changes', 'error');
@@ -219,10 +328,25 @@ export default function OrganizationsPage() {
     if (!confirm) return;
     setDeletingOrg(true);
     try {
-      await remove(ref(database, `organizations/${selectedOrg.id}`));
+      const orgId = selectedOrg.id;
+      // Optimistic delete
       setSelectedOrg(null);
+      setAllOrgsRaw(prev => prev.filter(o => o.id !== orgId));
+      setOrganizations(prev => prev.filter(o => o.id !== orgId));
+      await deleteFromStore('organizations', orgId);
+
       showFeedback('Organization deleted');
-      fetchOrganizations();
+
+      const path = `organizations/${orgId}`;
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          await remove(ref(database, path));
+        } catch {
+          await enqueueSync({ collection: 'organizations', action: 'remove', path });
+        }
+      } else {
+        await enqueueSync({ collection: 'organizations', action: 'remove', path });
+      }
     } catch (e) {
       console.error(e);
       showFeedback('Failed to delete organization', 'error');
@@ -251,13 +375,27 @@ export default function OrganizationsPage() {
     setMemberLoading(true);
     try {
       const updatedEmails = [...currentEmails, email];
-      await update(ref(database, `organizations/${selectedOrg.id}`), {
-        allowedEmails: updatedEmails,
-      });
-      setSelectedOrg((prev: any) => ({ ...prev, allowedEmails: updatedEmails }));
+      const updatedOrg = { ...selectedOrg, allowedEmails: updatedEmails };
+
+      // Optimistic update
+      setSelectedOrg(updatedOrg);
+      setAllOrgsRaw(prev => prev.map(o => o.id === selectedOrg.id ? updatedOrg : o));
+      setOrganizations(prev => prev.map(o => o.id === selectedOrg.id ? updatedOrg : o));
+      await putInStore('organizations', updatedOrg);
+
       setNewMemberEmail('');
       showFeedback(`Assigned ${email} to ${selectedOrg.name}!`);
-      fetchOrganizations();
+
+      const path = `organizations/${selectedOrg.id}`;
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          await update(ref(database, path), { allowedEmails: updatedEmails });
+        } catch {
+          await enqueueSync({ collection: 'organizations', action: 'update', path, data: { allowedEmails: updatedEmails } });
+        }
+      } else {
+        await enqueueSync({ collection: 'organizations', action: 'update', path, data: { allowedEmails: updatedEmails } });
+      }
     } catch (e) {
       console.error(e);
       showFeedback('Failed to assign user', 'error');
@@ -275,12 +413,26 @@ export default function OrganizationsPage() {
     setMemberLoading(true);
     try {
       const updatedEmails = (selectedOrg.allowedEmails || []).filter((e: string) => e !== emailToRemove);
-      await update(ref(database, `organizations/${selectedOrg.id}`), {
-        allowedEmails: updatedEmails,
-      });
-      setSelectedOrg((prev: any) => ({ ...prev, allowedEmails: updatedEmails }));
+      const updatedOrg = { ...selectedOrg, allowedEmails: updatedEmails };
+
+      // Optimistic update
+      setSelectedOrg(updatedOrg);
+      setAllOrgsRaw(prev => prev.map(o => o.id === selectedOrg.id ? updatedOrg : o));
+      setOrganizations(prev => prev.map(o => o.id === selectedOrg.id ? updatedOrg : o));
+      await putInStore('organizations', updatedOrg);
+
       showFeedback(`Removed access for ${emailToRemove}`);
-      fetchOrganizations();
+
+      const path = `organizations/${selectedOrg.id}`;
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          await update(ref(database, path), { allowedEmails: updatedEmails });
+        } catch {
+          await enqueueSync({ collection: 'organizations', action: 'update', path, data: { allowedEmails: updatedEmails } });
+        }
+      } else {
+        await enqueueSync({ collection: 'organizations', action: 'update', path, data: { allowedEmails: updatedEmails } });
+      }
     } catch (e) {
       console.error(e);
       showFeedback('Failed to remove member', 'error');
@@ -288,6 +440,7 @@ export default function OrganizationsPage() {
       setMemberLoading(false);
     }
   };
+
 
   // Hierarchy grouping
   const wardOrgs = organizations.filter(o => o.type === 'ward');
