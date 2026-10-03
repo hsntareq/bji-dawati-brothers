@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGradMask" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1b4b" />
+      <stop offset="50%" stop-color="#312e81" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="accentGradMask" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8" />
+      <stop offset="50%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#4f46e5" />
+    </linearGradient>
+    <linearGradient id="goldGradMask" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047" />
+      <stop offset="50%" stop-color="#eab308" />
+      <stop offset="100%" stop-color="#ca8a04" />
+    </linearGradient>
+  </defs>
+
+  <!-- Full Bleed Background for Maskable Icon -->
+  <rect width="512" height="512" fill="url(#bgGradMask)" />
+
+  <!-- Centered Scaled Content in Safe Area (80%) -->
+  <g transform="translate(51, 51) scale(0.8)">
+    <circle cx="256" cy="256" r="180" fill="url(#accentGradMask)" fill-opacity="0.15" />
+    <circle cx="256" cy="256" r="160" fill="none" stroke="url(#accentGradMask)" stroke-width="3" stroke-dasharray="8 6" stroke-opacity="0.4" />
+
+    <!-- Crescent Symbol -->
+    <path d="M 275 140 A 120 120 0 1 0 345 350 A 100 100 0 1 1 275 140 Z" fill="url(#goldGradMask)" />
+
+    <!-- Star Symbol -->
+    <polygon points="350,185 358,206 380,208 363,222 368,244 350,232 332,244 337,222 320,208 342,206" fill="#fef08a" />
+
+    <!-- Phone Handset -->
+    <g transform="translate(195, 230) scale(1.3)">
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" 
+            fill="#38bdf8" />
+    </g>
+
+    <text x="256" y="420" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="34" fill="#f8fafc" letter-spacing="4">
+      BJI DAWATI
+    </text>
+    <text x="256" y="452" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="20" fill="#94a3b8" letter-spacing="2">
+      BROTHERS
+    </text>
+  </g>
+</svg>
