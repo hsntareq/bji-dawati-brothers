@@ -318,7 +318,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto bji-bg relative" onScroll={handleScroll}>
-        <header className={`fixed top-0 left-0 md:left-64 right-0 pt-[env(safe-area-inset-top)] h-[calc(4rem+env(safe-area-inset-top))] bji-border-b bji-header backdrop-blur-xl flex items-center justify-between px-4 md:px-6 z-30 gap-3 transition-transform duration-300 ${showNav ? 'translate-y-0' : '-translate-y-full'}`}>
+        <header className={`fixed top-0 left-0 md:left-64 right-0 h-16 bji-border-b bji-header backdrop-blur-xl flex items-center justify-between px-4 md:px-6 z-30 gap-3 transition-transform duration-300 ${showNav ? 'translate-y-0' : '-translate-y-full'}`}>
           {/* Side Panel Toggler & Brand Logo */}
           <div className="flex items-center gap-2.5 min-w-0">
             {/* Mobile Brand Logo */}
@@ -534,7 +534,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           </div>
         </header>
 
-        <div className="p-4 pt-[calc(5rem+env(safe-area-inset-top))] md:p-8 md:pt-24 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8 flex-1">
+        <div className="p-4 pt-20 md:p-8 md:pt-24 pb-20 md:pb-8 flex-1">
           {!isOnline && (
             <div className="mb-6 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-200 text-xs flex items-center gap-3">
               <WifiOff className="w-4 h-4 text-amber-400 flex-shrink-0" />
@@ -548,7 +548,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       </main>
 
       {/* Mobile Bottom Nav */}
-      <nav className={`md:hidden fixed bottom-0 left-0 right-0 z-40 pb-[env(safe-area-inset-bottom)] bji-header border-t border-white/10 backdrop-blur-xl transition-transform duration-300 ${showNav ? 'translate-y-0' : 'translate-y-full'}`}>
+      <nav className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bji-header border-t border-white/10 backdrop-blur-xl transition-transform duration-300 ${showNav ? 'translate-y-0' : 'translate-y-full'}`}>
         <div className="flex items-center justify-around h-16 px-2">
           {navItems.map(({ name, href, icon: Icon }) => {
             const isActive = pathname === href;
