@@ -115,8 +115,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const pathname = usePathname();
   const [drawerOpen,    setDrawerOpen]    = useState(false);
   const [bellOpen,      setBellOpen]      = useState(false);
+  const [profileOpen,   setProfileOpen]   = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const bellRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   const [profile, setProfile] = useState<{ displayName?: string; gradientId?: string } | null>(null);
   const [theme,   setTheme]   = useState<'dark' | 'light'>('dark');
@@ -197,10 +199,12 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     const handler = (e: MouseEvent) => {
       if (bellRef.current && !bellRef.current.contains(e.target as Node))
         setBellOpen(false);
+      if (profileRef.current && !profileRef.current.contains(e.target as Node))
+        setProfileOpen(false);
     };
-    if (bellOpen) document.addEventListener('mousedown', handler);
+    if (bellOpen || profileOpen) document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [bellOpen]);
+  }, [bellOpen, profileOpen]);
 
   const unread = notifications.filter(n => !n.read).length;
 
@@ -251,17 +255,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       </nav>
 
       <div className="p-4 border-t border-white/10 space-y-2">
-        {!isInstalled && (
-          <button
-            onClick={installApp}
-            className="flex items-center gap-3 px-4 py-2.5 w-full bg-gradient-to-r from-blue-600/25 via-indigo-600/25 to-purple-600/25 hover:from-blue-600/40 hover:via-indigo-600/40 hover:to-purple-600/40 border border-blue-500/30 text-blue-300 hover:text-white rounded-xl transition-all font-semibold text-sm cursor-pointer shadow-sm group"
-            title="Install Dawati Brothers App on your device"
-          >
-            <Download className="w-4 h-4 flex-shrink-0 text-blue-400 group-hover:scale-110 transition-transform" />
-            <span>Install App</span>
-            <span className="ml-auto text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded font-bold border border-blue-500/30">PWA</span>
-          </button>
-        )}
         <Link href="/dashboard/profile" className="flex items-center gap-3 px-4 py-2 rounded-xl hover:bg-white/5 transition-colors">
           <ProfileAvatar profile={profile} user={user} size="sm" />
           <div className="min-w-0">
@@ -399,35 +392,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           </div>
 
           <div className="flex items-center gap-1.5">
-            {/* Header Install App Button */}
-            {!isInstalled && (
-              <button
-                onClick={installApp}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/25 text-blue-300 hover:text-white text-xs font-semibold transition-all shadow-sm cursor-pointer group"
-                title="Install Dawati Brothers App on your device"
-              >
-                <Download className="w-3.5 h-3.5 text-blue-400 group-hover:translate-y-0.5 transition-transform flex-shrink-0" />
-                <span className="hidden sm:inline">Install App</span>
-                <span className="sm:hidden text-[10px] font-bold">App</span>
-              </button>
-            )}
-
-            {/* Compact toggle */}
-            <button onClick={toggleCompact} title={compact ? 'Normal view' : 'Compact view'}
-              className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${
-                compact ? 'bg-blue-500/15 text-blue-400' : 'bji-btn-ghost'
-              }`}>
-              {compact ? <AlignJustify className="w-4 h-4" /> : <LayoutList className="w-4 h-4" />}
-            </button>
-
-            {/* Theme toggle */}
-            <button onClick={toggleTheme} title={isLight ? 'Dark mode' : 'Light mode'}
-              className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${
-                isLight ? 'bg-amber-400/15 text-amber-400' : 'bji-btn-ghost'
-              }`}>
-              {isLight ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-
             <div className="w-px h-5 bji-divider mx-1" />
 
             {/* Bell notification */}
@@ -518,9 +482,76 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               )}
             </div>
 
-            <Link href="/dashboard/profile" title="My Profile">
-              <ProfileAvatar profile={profile} user={user} size="md" />
-            </Link>
+            <div className="relative" ref={profileRef}>
+              <button
+                onClick={() => setProfileOpen(o => !o)}
+                className="focus:outline-none flex items-center justify-center"
+                title="My Profile"
+              >
+                <ProfileAvatar profile={profile} user={user} size="md" />
+              </button>
+
+              {profileOpen && (
+                <div className="absolute right-0 top-full mt-2 w-56 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
+                  <div className="p-3 border-b border-white/10">
+                    <p className="text-sm text-white font-semibold truncate">
+                      {profile?.displayName || 'My Profile'}
+                    </p>
+                    <p className="text-xs text-slate-400 truncate">{user.email}</p>
+                  </div>
+                  
+                  <div className="p-1.5 space-y-0.5">
+                    <Link
+                      href="/dashboard/profile"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-colors w-full"
+                    >
+                      <UserCircle2 className="w-4 h-4" />
+                      View Profile
+                    </Link>
+
+                    <button
+                      onClick={() => { toggleTheme(); setProfileOpen(false); }}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-colors w-full"
+                    >
+                      {isLight ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+                      {isLight ? 'Dark Mode' : 'Light Mode'}
+                    </button>
+
+                    <button
+                      onClick={() => { toggleCompact(); setProfileOpen(false); }}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-colors w-full"
+                    >
+                      {compact ? <AlignJustify className="w-4 h-4" /> : <LayoutList className="w-4 h-4" />}
+                      {compact ? 'Normal View' : 'Compact View'}
+                    </button>
+
+                    {!isInstalled && (
+                      <button
+                        onClick={() => { installApp(); setProfileOpen(false); }}
+                        className="flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium text-blue-400 hover:bg-blue-500/10 transition-colors w-full group"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Download className="w-4 h-4" />
+                          Install App
+                        </div>
+                        <span className="text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded font-bold border border-blue-500/30">PWA</span>
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="p-1.5 border-t border-white/10">
+                    <button
+                      onClick={() => { logout(); setProfileOpen(false); }}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors w-full"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
