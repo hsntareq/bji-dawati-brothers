@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"next dev -p 3015\" \"npm run emulators\"",
+    "dev": "next dev -p 3015",
+    "dev:emulators": "concurrently \"next dev -p 3015\" \"npm run emulators\"",
     "build": "next build",
     "start": "next start -p 3015",
     "lint": "eslint",
