@@ -257,9 +257,14 @@ export default function ContactsPage() {
       let myOrgs: any[] = [];
       if (orgsSnap.exists()) {
         const orgList = Object.entries(orgsSnap.val()).map(([id, v]: any) => ({ id, ...v }));
-        myOrgs = orgList.filter(o =>
-          o.createdBy === user.uid || o.allowedEmails?.includes(user.email)
-        );
+        myOrgs = orgList.filter(o => {
+          if (o.createdBy === user.uid || (o.allowedEmails && o.allowedEmails.includes(user.email))) return true;
+          if (o.type === 'unit' && o.parentOrgId) {
+            const parent = orgList.find(p => p.id === o.parentOrgId);
+            return parent && (parent.createdBy === user.uid || (parent.allowedEmails && parent.allowedEmails.includes(user.email)));
+          }
+          return false;
+        });
         setOrganizations(myOrgs);
       }
       const cSnap = await get(ref(database, 'contacts'));

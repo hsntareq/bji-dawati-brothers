@@ -59,7 +59,14 @@ export default function ProfilePage() {
         const orgsSnap = await get(ref(database, 'organizations'));
         if (orgsSnap.exists()) {
           const all = Object.entries(orgsSnap.val()).map(([id, v]: any) => ({ id, ...v }));
-          setOrgs(all.filter(o => o.createdBy === user.uid || o.allowedEmails?.includes(user.email)));
+          setOrgs(all.filter(o => {
+            if (o.createdBy === user.uid || (o.allowedEmails && o.allowedEmails.includes(user.email))) return true;
+            if (o.type === 'unit' && o.parentOrgId) {
+              const parent = all.find(p => p.id === o.parentOrgId);
+              return parent && (parent.createdBy === user.uid || (parent.allowedEmails && parent.allowedEmails.includes(user.email)));
+            }
+            return false;
+          }));
         }
         // Load profile via onValue for real-time
         const unsub = onValue(ref(database, `users/${user.uid}/profile`), snap => {
