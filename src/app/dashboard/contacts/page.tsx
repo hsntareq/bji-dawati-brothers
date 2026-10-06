@@ -7,9 +7,10 @@ import { ref, get, push, set, remove, update, onValue } from 'firebase/database'
 import {
   Users, Loader2, Phone, Search, Building2,
   Pencil, Trash2, X, Mail, MapPin, Calendar, SlidersHorizontal, ChevronDown,
-  Plus, BookOpen, BookMarked, Library, Check, Trash2 as Delete,
+  Plus, BookOpen, BookMarked, Library, Check, Trash2 as Delete, Send,
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
+import { useLanguage } from '@/context/LanguageContext';
 
 import {
   getAllFromStore,
@@ -22,7 +23,7 @@ import {
 } from '@/lib/offlineSync';
 
 const PREFIX = '01';
-const emptyForm = { name: '', mobile: PREFIX, note: '', organizationId: '', email: '', address: '' };
+const emptyForm = { name: '', mobile: PREFIX, note: '', organizationId: '', email: '', address: '', category: 'shohojogi' as 'shohojogi' | 'kormi' };
 
 // Format digits into 01XXX-XXXXXX (local BD format)
 const formatBDPhone = (raw: string): string => {
@@ -129,6 +130,7 @@ const fmtShort = (iso: string) =>
 
 export default function ContactsPage() {
   const { user } = useAuth();
+  const { language, t } = useLanguage();
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,11 +139,24 @@ export default function ContactsPage() {
   const [form,     setForm]     = useState(emptyForm);
   const [saving,   setSaving]   = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+  const addPersonRef = useRef<HTMLDivElement>(null);
+
+  // Close add person dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (addPersonRef.current && !addPersonRef.current.contains(e.target as Node)) {
+        setFormOpen(false);
+      }
+    };
+    if (formOpen) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [formOpen]);
 
   // ── Filters ────────────────────────────────────────
   const [searchQuery,    setSearchQuery]    = useState('');
   const [filterStatuses, setFilterStatuses] = useState<Set<string>>(new Set());
   const [filterOrgIds,   setFilterOrgIds]   = useState<Set<string>>(new Set());
+  const [filterCategory, setFilterCategory] = useState<'shohojogi' | 'kormi' | 'all'>('shohojogi');
   const [filterOpen,     setFilterOpen]     = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
 
@@ -160,7 +175,7 @@ export default function ContactsPage() {
     setFilterStatuses(prev => { const s = new Set(prev); s.has(v) ? s.delete(v) : s.add(v); return s; });
   const toggleOrg = (id: string) =>
     setFilterOrgIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
-  const activeFilterCount = filterStatuses.size + filterOrgIds.size;
+  const activeFilterCount = filterStatuses.size + filterOrgIds.size + (filterCategory !== 'shohojogi' ? 1 : 0);
 
   // ── Detail panel ───────────────────────────────────
   const [selectedContact, setSelectedContact] = useState<any | null>(null);
@@ -501,6 +516,7 @@ export default function ContactsPage() {
       const contactData = {
         name: form.name.trim(),
         mobile: form.mobile.trim(),
+        category: form.category || 'shohojogi',
         note: form.note.trim() || null,
         email: form.email.trim() || null,
         address: form.address.trim() || null,
@@ -541,6 +557,7 @@ export default function ContactsPage() {
     setEditForm({
       name: c.name ?? '',
       mobile: c.mobile ?? PREFIX,
+      category: c.category || 'shohojogi',
       note: c.note ?? '',
       organizationId: c.organizationId ?? '',
       email: c.email ?? '',
@@ -558,6 +575,7 @@ export default function ContactsPage() {
       const updated = {
         name: editForm.name.trim(),
         mobile: editForm.mobile.trim(),
+        category: editForm.category || 'shohojogi',
         note: editForm.note.trim() || null,
         email: editForm.email.trim() || null,
         address: editForm.address.trim() || null,
@@ -591,9 +609,62 @@ export default function ContactsPage() {
     }
   };
 
-  // ── Delete ─────────────────────────────────────────
+  // ── Permission & Delete ────────────────────────────
+  const isHasanTareq = Boolean(
+    user?.email?.toLowerCase().includes('hsntareq') ||
+    user?.email?.toLowerCase().includes('hasantareq') ||
+    user?.email?.toLowerCase().includes('hasan')
+  );
+
+  const canUserDeleteDirectly = (c: any) => {
+    if (isHasanTareq) return true;
+    const org = organizations.find((o: any) => o.id === c?.organizationId);
+    if (!org) return false;
+    if (org.type === 'ward' && org.createdBy === user?.uid) return true;
+    if (org.parentOrgId) {
+      const parentWard = organizations.find((o: any) => o.id === org.parentOrgId);
+      if (parentWard && parentWard.createdBy === user?.uid) return true;
+    }
+    return false;
+  };
+
   const handleDelete = async (c: any, e: React.MouseEvent) => {
     e.stopPropagation();
+    const canDirect = canUserDeleteDirectly(c);
+
+    if (!canDirect) {
+      if (!confirm(`You do not have direct deletion permission. Send a delete request for "${c.name}" to the Ward Admin?`)) return;
+      setDeletingId(c.id);
+      try {
+        const org = organizations.find((o: any) => o.id === c.organizationId);
+        const parentWard = org?.parentOrgId ? organizations.find((o: any) => o.id === org.parentOrgId) : null;
+        const targetAdminUid = parentWard?.createdBy || org?.createdBy;
+
+        if (targetAdminUid) {
+          const notifData = {
+            type: 'delete_request',
+            contactId: c.id,
+            contactName: c.name,
+            organizationId: c.organizationId,
+            organizationName: org?.name || '—',
+            requestedBy: user?.uid,
+            requestedByEmail: user?.email,
+            timestamp: new Date().toISOString(),
+            read: false,
+          };
+          const notifRef = push(ref(database, `notifications/${targetAdminUid}`));
+          await set(notifRef, notifData);
+        }
+        alert(`Delete request for "${c.name}" has been sent to the Ward Admin.`);
+      } catch (err) {
+        console.error(err);
+        alert('Failed to send delete request.');
+      } finally {
+        setDeletingId(null);
+      }
+      return;
+    }
+
     if (!confirm(`Delete "${c.name}"? This cannot be undone.`)) return;
     setDeletingId(c.id);
     try {
@@ -673,7 +744,9 @@ export default function ContactsPage() {
     const matchSearch = !q || c.name?.toLowerCase().includes(q) || c.mobile?.includes(q);
     const matchStatus = filterStatuses.size === 0 || filterStatuses.has(c.status ?? '');
     const matchOrg    = filterOrgIds.size   === 0 || filterOrgIds.has(c.organizationId);
-    return matchSearch && matchStatus && matchOrg;
+    const contactCat  = c.category || 'shohojogi';
+    const matchCat    = filterCategory === 'all' || contactCat === filterCategory;
+    return matchSearch && matchStatus && matchOrg && matchCat;
   });
 
   const orgName = (id: string) => organizations.find(o => o.id === id)?.name ?? '—';
@@ -687,7 +760,7 @@ export default function ContactsPage() {
     <div className="max-w-6xl mx-auto space-y-8">
 
       {/* ── Add Person dropdown ───────────────────────── */}
-      <div className="relative">
+      <div className="relative" ref={addPersonRef}>
         {/* Header trigger */}
         <button
           type="button"
@@ -697,7 +770,7 @@ export default function ContactsPage() {
           <div className="w-7 h-7 rounded-md bg-blue-500/15 flex items-center justify-center flex-shrink-0">
             <Users className="w-4 h-4 text-blue-400" />
           </div>
-          <h2 className="font-semibold text-white flex-1 text-left">Add Person</h2>
+          <h2 className="font-semibold text-white flex-1 text-left">{t('addPerson')}</h2>
           <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${formOpen ? 'rotate-180' : ''}`} />
         </button>
 
@@ -706,10 +779,55 @@ export default function ContactsPage() {
           <div className="absolute top-full left-0 right-0 mt-2 z-20 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl px-6 pb-6">
             {organizations.length === 0 ? (
               <p className="text-sm text-slate-400 text-center py-6">
-                Create an organization first to start adding contacts.
+                {t('createOrgFirst')}
               </p>
             ) : (
               <div className="space-y-3 pt-5">
+                {/* ── Shohojogi (default) & Kormi radio full width button ── */}
+                <div className="w-full">
+                  <div className="grid grid-cols-2 p-1 bg-slate-800/80 border border-white/10 rounded-xl gap-1 w-full">
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, category: 'shohojogi' }))}
+                      className={`w-full py-2.5 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
+                        form.category === 'shohojogi'
+                          ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm shadow-blue-500/10'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
+                      }`}
+                    >
+                      <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 transition-all ${
+                        form.category === 'shohojogi' ? 'border-blue-400 bg-blue-500/20' : 'border-slate-600'
+                      }`}>
+                        {form.category === 'shohojogi' && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.8)]" />}
+                      </span>
+                      <span>{t('shohojogi')}</span>
+                      <span className="text-[10px] sm:text-xs opacity-70 font-normal">
+                        {language === 'bn' ? '(Shohojogi)' : '(সহযোগী)'}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, category: 'kormi' }))}
+                      className={`w-full py-2.5 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
+                        form.category === 'kormi'
+                          ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm shadow-blue-500/10'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
+                      }`}
+                    >
+                      <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 transition-all ${
+                        form.category === 'kormi' ? 'border-blue-400 bg-blue-500/20' : 'border-slate-600'
+                      }`}>
+                        {form.category === 'kormi' && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.8)]" />}
+                      </span>
+                      <span>{t('kormi')}</span>
+                      <span className="text-[10px] sm:text-xs opacity-70 font-normal">
+                        {language === 'bn' ? '(Kormi)' : '(কর্মী)'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
                 <div className="hidden md:grid grid-cols-[1fr_1fr_1.2fr_auto] gap-3">
                   {['Name', 'Mobile', 'Organization', ''].map((h, i) => (
                     <span key={i} className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{h}</span>
@@ -757,6 +875,15 @@ export default function ContactsPage() {
             {!loading && (
               <span className="text-xs bg-white/10 text-slate-300 rounded-full px-2 py-0.5">{filtered.length}</span>
             )}
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${
+              filterCategory === 'kormi'
+                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                : filterCategory === 'all'
+                ? 'bg-purple-500/15 text-purple-400 border-purple-500/30'
+                : 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+            }`}>
+              {filterCategory === 'kormi' ? 'Kormi' : filterCategory === 'all' ? 'All' : 'Shohojogi'}
+            </span>
           </div>
 
           <div className="flex items-center gap-2 flex-1 justify-end">
@@ -794,12 +921,67 @@ export default function ContactsPage() {
                 <div className="absolute right-0 top-full mt-2 z-30 w-80 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
                     <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Filters</span>
-                    {activeFilterCount > 0 && (
+                    {(activeFilterCount > 0 || filterCategory !== 'shohojogi') && (
                       <button
-                        onClick={() => { setFilterStatuses(new Set()); setFilterOrgIds(new Set()); }}
+                        onClick={() => { setFilterStatuses(new Set()); setFilterOrgIds(new Set()); setFilterCategory('shohojogi'); }}
                         className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
                       >Clear all</button>
                     )}
+                  </div>
+
+                  {/* ── Category radio at top ── */}
+                  <div className="px-4 py-3 border-b border-white/10">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Category</p>
+                      {filterCategory !== 'all' ? (
+                        <button
+                          type="button"
+                          onClick={() => setFilterCategory('all')}
+                          className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+                        >
+                          Show all
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-slate-500">All shown</span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 p-1 bg-slate-800/80 border border-white/10 rounded-xl gap-1 w-full">
+                      <button
+                        type="button"
+                        onClick={() => setFilterCategory('shohojogi')}
+                        className={`w-full py-2 px-2.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                          filterCategory === 'shohojogi'
+                            ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm shadow-blue-500/10'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
+                        }`}
+                      >
+                        <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 transition-all ${
+                          filterCategory === 'shohojogi' ? 'border-blue-400 bg-blue-500/20' : 'border-slate-600'
+                        }`}>
+                          {filterCategory === 'shohojogi' && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.8)]" />}
+                        </span>
+                        <span>{t('shohojogi')}</span>
+                        <span className="text-[10px] opacity-70 font-normal">{language === 'bn' ? '(Shohojogi)' : '(সহযোগী)'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setFilterCategory('kormi')}
+                        className={`w-full py-2 px-2.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                          filterCategory === 'kormi'
+                            ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm shadow-blue-500/10'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
+                        }`}
+                      >
+                        <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 transition-all ${
+                          filterCategory === 'kormi' ? 'border-blue-400 bg-blue-500/20' : 'border-slate-600'
+                        }`}>
+                          {filterCategory === 'kormi' && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.8)]" />}
+                        </span>
+                        <span>{t('kormi')}</span>
+                        <span className="text-[10px] opacity-70 font-normal">{language === 'bn' ? '(Kormi)' : '(কর্মী)'}</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* ── Disposition codes ── */}
@@ -890,6 +1072,13 @@ export default function ContactsPage() {
                       <StarBadge level={getPerfLevel(actSummary[c.id] ?? 0)} compact />
                     </div>
                     <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                        c.category === 'kormi'
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                          : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                      }`}>
+                        {c.category === 'kormi' ? 'Kormi' : 'Shohojogi'}
+                      </span>
                       <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded text-[10px]">
                         {orgName(c.organizationId)}
                       </span>
@@ -951,6 +1140,13 @@ export default function ContactsPage() {
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium text-white">{c.name}</span>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                            c.category === 'kormi'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                              : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                          }`}>
+                            {c.category === 'kormi' ? 'Kormi' : 'Shohojogi'}
+                          </span>
                           <StarBadge level={getPerfLevel(actSummary[c.id] ?? 0)} compact />
                         </div>
                       </td>
@@ -1174,9 +1370,18 @@ export default function ContactsPage() {
                   <StarBadge level={getPerfLevel(actSummary[selectedContact.id] ?? 0)} />
                 </div>
                 <p className="text-sm text-slate-400 font-mono mt-0.5">{selectedContact.mobile}</p>
-                <span className="mt-1.5 inline-block px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-md text-xs">
-                  {orgName(selectedContact.organizationId)}
-                </span>
+                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                  <span className={`px-2 py-0.5 rounded-md text-xs font-medium border ${
+                    selectedContact.category === 'kormi'
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                      : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                  }`}>
+                    {selectedContact.category === 'kormi' ? 'Kormi (কর্মী)' : 'Shohojogi (সহযোগী)'}
+                  </span>
+                  <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-md text-xs">
+                    {orgName(selectedContact.organizationId)}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -1269,56 +1474,7 @@ export default function ContactsPage() {
               )}
             </div>
 
-            {/* ── Activities accordion ────────────────── */}
-            {activities.length > 0 && (
-              <div className="border-t border-white/10">
-                <button
-                  onClick={() => toggleSec('activities')}
-                  className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-white/[0.02] transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Activities</p>
-                    <span className="px-1.5 py-0.5 rounded-full bg-white/8 text-slate-500 text-[9px] font-semibold">
-                      {activities.length}
-                    </span>
-                  </div>
-                  <ChevronDown className={`w-3.5 h-3.5 text-slate-600 transition-transform duration-200 ${secOpen.activities ? 'rotate-180' : ''}`} />
-                </button>
-                {secOpen.activities && (
-                  <div className="px-6 pb-6">
-                    <div className="grid grid-cols-2 gap-2">
-                      {activities.map(a => {
-                        const t   = ACTIVITY_TYPES.find(x => x.value === a.type);
-                        const col = ACT_COLORS[a.type as keyof typeof ACT_COLORS] ?? ACT_COLORS.other;
-                        let detail = '';
-                        if (a.type === 'quran')      detail = `${a.suraName ?? '—'} · Ayat ${a.ayatNumber ?? '?'}`;
-                        else if (a.type === 'hadis') detail = `${a.hadisBook ?? '—'} · #${a.hadisNumber ?? '?'}`;
-                        else if (a.type === 'book')  detail = a.bookName ?? '—';
-                        return (
-                          <div
-                            key={a.id}
-                            className="relative group rounded-2xl p-3 border transition-all"
-                            style={{ background: col.bg, borderColor: col.border }}
-                          >
-                            <button
-                              onClick={() => handleDeleteActivity(a.id)}
-                              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-md bg-black/30 hover:bg-red-500/40 text-slate-500 hover:text-red-300 transition-all"
-                            >
-                              <Trash2 className="w-2.5 h-2.5" />
-                            </button>
-                            <div className="text-2xl mb-1.5">{t?.emoji ?? '📌'}</div>
-                            <p className="text-[11px] font-bold leading-tight" style={{ color: col.text }}>{t?.label ?? a.type}</p>
-                            {detail && <p className="text-[10px] text-slate-300 mt-0.5 leading-snug break-words">{detail}</p>}
-                            {a.note  && <p className="text-[10px] text-slate-500 mt-0.5 italic leading-snug">{a.note}</p>}
-                            <p className="text-[9px] text-slate-600 mt-1.5">{fmtShort(a.date)}</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Activities accordion was moved above */}
           </div>
         </div>
       )}
@@ -1345,6 +1501,46 @@ export default function ContactsPage() {
             </div>
 
             <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">{t('category')} *</label>
+                <div className="grid grid-cols-2 p-1 bg-slate-800/80 border border-white/10 rounded-xl gap-1 w-full">
+                  <button
+                    type="button"
+                    onClick={() => setEditForm(f => ({ ...f, category: 'shohojogi' }))}
+                    className={`w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-2 ${
+                      editForm.category === 'shohojogi'
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-500/10'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
+                    }`}
+                  >
+                    <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                      editForm.category === 'shohojogi' ? 'border-amber-400 bg-amber-500/20' : 'border-slate-600'
+                    }`}>
+                      {editForm.category === 'shohojogi' && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]" />}
+                    </span>
+                    <span>{t('shohojogi')}</span>
+                    <span className="text-[10px] opacity-75 font-normal">{language === 'bn' ? '(Shohojogi)' : '(সহযোগী)'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditForm(f => ({ ...f, category: 'kormi' }))}
+                    className={`w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-2 ${
+                      editForm.category === 'kormi'
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-500/10'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
+                    }`}
+                  >
+                    <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                      editForm.category === 'kormi' ? 'border-amber-400 bg-amber-500/20' : 'border-slate-600'
+                    }`}>
+                      {editForm.category === 'kormi' && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]" />}
+                    </span>
+                    <span>{t('kormi')}</span>
+                    <span className="text-[10px] opacity-75 font-normal">{language === 'bn' ? '(Kormi)' : '(কর্মী)'}</span>
+                  </button>
+                </div>
+              </div>
               <div>
                 <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Name *</label>
                 <input type="text" value={editForm.name} placeholder="Full name"

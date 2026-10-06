@@ -7,11 +7,12 @@ import { ref, onValue, update, query, orderByChild, limitToLast } from 'firebase
 import {
   LogOut, Bell, LayoutDashboard, Building2, Users,
   Menu, X, Sun, Moon, AlignJustify, LayoutList, CheckCheck, ArrowRight,
-  UserCircle2, Download, WifiOff, RefreshCw,
+  UserCircle2, Download, WifiOff, RefreshCw, Globe,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { usePWA } from '@/components/PWAProvider';
+import { useLanguage } from '@/context/LanguageContext';
 import { addSyncListener, syncQueueWithFirebase } from '@/lib/offlineSync';
 
 // ── Disposition label helper ──────────────────────────
@@ -112,6 +113,7 @@ function BrandLogo({ size = 36, className = "" }: { size?: number; className?: s
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const { isInstallable, isInstalled, installApp } = usePWA();
+  const { language, setLanguage, t } = useLanguage();
   const pathname = usePathname();
   const [bellOpen,      setBellOpen]      = useState(false);
   const [profileOpen,   setProfileOpen]   = useState(false);
@@ -244,10 +246,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   if (!user) return null;
 
   const navItems = [
-    { name: 'Overview',      href: '/dashboard',              icon: LayoutDashboard },
-    { name: 'Organizations', href: '/dashboard/organizations', icon: Building2 },
-    { name: 'Contacts',      href: '/dashboard/contacts',      icon: Users },
-    { name: 'Profile',       href: '/dashboard/profile',       icon: UserCircle2 },
+    { name: t('overview'),      href: '/dashboard',              icon: LayoutDashboard },
+    { name: t('organizations'), href: '/dashboard/organizations', icon: Building2 },
+    { name: t('contacts'),      href: '/dashboard/contacts',      icon: Users },
+    { name: t('profile'),       href: '/dashboard/profile',       icon: UserCircle2 },
   ];
 
   const NavLinks = ({ onNavigate }: { onNavigate?: () => void }) => (
@@ -337,10 +339,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             {/* Desktop Section indicator */}
             <div className="hidden md:flex items-center gap-2.5">
               <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400">
-                {pathname === '/dashboard' ? 'Overview' :
-                 pathname === '/dashboard/organizations' ? 'Organizations' :
-                 pathname === '/dashboard/contacts' ? 'Contacts' :
-                 pathname === '/dashboard/profile' ? 'Profile' : 'Dashboard'}
+                {pathname === '/dashboard' ? t('overview') :
+                 pathname === '/dashboard/organizations' ? t('organizations') :
+                 pathname === '/dashboard/contacts' ? t('contacts') :
+                 pathname === '/dashboard/profile' ? t('profile') : t('dashboard')}
               </span>
             </div>
           </div>
@@ -486,8 +488,40 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                       className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-colors w-full"
                     >
                       <UserCircle2 className="w-4 h-4" />
-                      View Profile
+                      {t('viewProfile')}
                     </Link>
+
+                    {/* Language Switcher under user dropdown */}
+                    <div className="flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-white/5 transition-colors">
+                      <div className="flex items-center gap-2.5">
+                        <Globe className="w-4 h-4 text-blue-400" />
+                        <span>{t('language')}</span>
+                      </div>
+                      <div className="flex items-center bg-slate-800 border border-white/10 rounded-lg p-0.5 text-xs font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => setLanguage('en')}
+                          className={`px-2 py-0.5 rounded-md transition-all ${
+                            language === 'en'
+                              ? 'bg-blue-600/30 text-blue-300 border border-blue-500/40 shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          EN
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setLanguage('bn')}
+                          className={`px-2 py-0.5 rounded-md transition-all ${
+                            language === 'bn'
+                              ? 'bg-blue-600/30 text-blue-300 border border-blue-500/40 shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          বাং
+                        </button>
+                      </div>
+                    </div>
 
                     <button
                       onClick={() => { toggleTheme(); setProfileOpen(false); }}
@@ -525,7 +559,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                       className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors w-full"
                     >
                       <LogOut className="w-4 h-4" />
-                      Sign Out
+                      {t('signOut')}
                     </button>
                   </div>
                 </div>
