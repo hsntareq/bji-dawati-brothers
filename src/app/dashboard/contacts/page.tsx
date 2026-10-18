@@ -1215,12 +1215,32 @@ export default function ContactsPage() {
                 >
                   {/* Top Section: Avatar + Name + Tags + Actions */}
                   <div className="flex items-start gap-3">
-                    {/* Avatar (Item photo) with initial + Category badge (S / K) – Clickable */}
+                    {/* Avatar (Item photo) with initial + Category badge (S / K) + Star Rank – Clickable */}
                     <div
                       onClick={() => setSelectedContact(c)}
                       className="relative shrink-0 cursor-pointer group/avatar"
                       title="View contact details"
                     >
+                      {/* Center top star badge */}
+                      {(() => {
+                        const perf = getPerfLevel(actSummary[c.id] ?? 0);
+                        if (!perf) return null;
+                        return (
+                          <span
+                            className="absolute -top-2 left-1/2 -translate-x-1/2 z-10 px-1.5 py-0.5 rounded-full text-[9px] font-black border leading-none shadow-md flex items-center justify-center pointer-events-none select-none tracking-widest backdrop-blur-md"
+                            style={{
+                              color: perf.color,
+                              background: 'rgba(10, 15, 29, 0.95)',
+                              borderColor: perf.border,
+                              boxShadow: `0 0 10px ${perf.color}35`,
+                            }}
+                            title={`${perf.label} (${perf.stars} star${perf.stars > 1 ? 's' : ''})`}
+                          >
+                            {'★'.repeat(perf.stars)}
+                          </span>
+                        );
+                      })()}
+
                       <div
                         className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm shadow-inner border select-none transition-transform group-hover/avatar:scale-105 active:scale-95 ${
                           c.category === 'kormi'
@@ -1255,7 +1275,6 @@ export default function ContactsPage() {
                         >
                           {c.name}
                         </button>
-                        <StarBadge level={getPerfLevel(actSummary[c.id] ?? 0)} compact />
                       </div>
 
                       {/* Org info - clean, spacious */}
@@ -1359,6 +1378,26 @@ export default function ContactsPage() {
                             className="relative shrink-0 cursor-pointer hover:scale-105 active:scale-95 transition-transform"
                             title="View contact details"
                           >
+                            {/* Center top star badge */}
+                            {(() => {
+                              const perf = getPerfLevel(actSummary[c.id] ?? 0);
+                              if (!perf) return null;
+                              return (
+                                <span
+                                  className="absolute -top-1.5 left-1/2 -translate-x-1/2 z-10 px-1 py-0.2 rounded-full text-[7px] font-black border leading-none shadow-sm flex items-center justify-center pointer-events-none select-none tracking-widest backdrop-blur-md"
+                                  style={{
+                                    color: perf.color,
+                                    background: 'rgba(10, 15, 29, 0.95)',
+                                    borderColor: perf.border,
+                                    boxShadow: `0 0 6px ${perf.color}35`,
+                                  }}
+                                  title={`${perf.label} (${perf.stars} star${perf.stars > 1 ? 's' : ''})`}
+                                >
+                                  {'★'.repeat(perf.stars)}
+                                </span>
+                              );
+                            })()}
+
                             <div
                               className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs border select-none ${
                                 c.category === 'kormi'
@@ -1387,7 +1426,6 @@ export default function ContactsPage() {
                           >
                             {c.name}
                           </button>
-                          <StarBadge level={getPerfLevel(actSummary[c.id] ?? 0)} compact />
                         </div>
                       </td>
                       {/* Status column */}
