@@ -8,7 +8,7 @@ import {
   Users, Loader2, Phone, Search, Building2,
   Pencil, Trash2, X, Mail, MapPin, Calendar, SlidersHorizontal, ChevronDown, ChevronLeft,
   Plus, BookOpen, BookMarked, Library, Check, Trash2 as Delete, Send, UserPlus,
-  MoreVertical, Download, RefreshCw, RotateCcw,
+  MoreVertical, Download, RefreshCw, RotateCcw, CheckSquare,
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useLanguage } from '@/context/LanguageContext';
@@ -217,6 +217,13 @@ export default function ContactsPage() {
   const [allowDeleteIndividual, setAllowDeleteIndividual] = useState(true);
   const [allowDeleteAll, setAllowDeleteAll] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
+
+  // ── Bulk Selection & Actions ─────────────────────────
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkOrgModalOpen, setBulkOrgModalOpen] = useState(false);
+  const [targetBulkOrgId, setTargetBulkOrgId] = useState('');
+  const [bulkUpdatingOrg, setBulkUpdatingOrg] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // ── Activities ─────────────────────────────────────
   const [activities,       setActivities]       = useState<any[]>([]);
@@ -955,6 +962,110 @@ export default function ContactsPage() {
   const fmtDate = (iso: string) =>
     iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
+  // ── Bulk selection helpers ──────────────────────────
+  const isAllSelected = filtered.length > 0 && filtered.every(c => selectedIds.has(c.id));
+  const isSomeSelected = selectedIds.size > 0 && !isAllSelected;
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(c => c.id)));
+    }
+  };
+
+  const toggleSelectOne = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const count = selectedIds.size;
+    if (!confirm(`Are you sure you want to permanently delete ${count} selected contact${count > 1 ? 's' : ''}? This action cannot be undone.`)) {
+      return;
+    }
+
+    setBulkDeleting(true);
+    try {
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        const updates: Record<string, any> = {};
+        selectedIds.forEach(id => {
+          updates[`contacts/${id}`] = null;
+          updates[`contact_activities/${id}`] = null;
+        });
+        await update(ref(database), updates);
+      } else {
+        for (const id of selectedIds) {
+          await enqueueSync({ collection: 'contacts', action: 'remove', path: `contacts/${id}` });
+        }
+      }
+
+      for (const id of selectedIds) {
+        await deleteFromStore('contacts', id);
+      }
+
+      setContacts(prev => prev.filter(c => !selectedIds.has(c.id)));
+      if (selectedContact && selectedIds.has(selectedContact.id)) {
+        setSelectedContact(null);
+      }
+      setSelectedIds(new Set());
+    } catch (err) {
+      console.error('Error during bulk delete:', err);
+      alert('Failed to delete selected contacts.');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const handleBulkChangeOrg = async () => {
+    if (selectedIds.size === 0 || !targetBulkOrgId) return;
+    const targetOrg = organizations.find(o => o.id === targetBulkOrgId);
+    const count = selectedIds.size;
+
+    setBulkUpdatingOrg(true);
+    try {
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        const updates: Record<string, any> = {};
+        selectedIds.forEach(id => {
+          updates[`contacts/${id}/organizationId`] = targetBulkOrgId;
+        });
+        await update(ref(database), updates);
+      } else {
+        for (const id of selectedIds) {
+          await enqueueSync({
+            collection: 'contacts',
+            action: 'update',
+            path: `contacts/${id}`,
+            data: { organizationId: targetBulkOrgId },
+          });
+        }
+      }
+
+      setContacts(prev => prev.map(c => selectedIds.has(c.id) ? { ...c, organizationId: targetBulkOrgId } : c));
+      for (const id of selectedIds) {
+        const item = contacts.find(c => c.id === id);
+        if (item) {
+          await putInStore('contacts', { ...item, organizationId: targetBulkOrgId });
+        }
+      }
+
+      setSelectedIds(new Set());
+      setBulkOrgModalOpen(false);
+      setTargetBulkOrgId('');
+    } catch (err) {
+      console.error('Error during bulk organization change:', err);
+      alert('Failed to change organization for selected contacts.');
+    } finally {
+      setBulkUpdatingOrg(false);
+    }
+  };
+
   if (!user) return null;
 
   return (
@@ -1091,6 +1202,19 @@ export default function ContactsPage() {
                     >
                       <RefreshCw className="w-4 h-4 text-emerald-400" />
                       <span>Refresh data</span>
+                    </button>
+
+                    {/* Quick Select All */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMoreOpen(false);
+                        toggleSelectAll();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors text-left cursor-pointer"
+                    >
+                      <CheckSquare className="w-4 h-4 text-cyan-400" />
+                      <span>{isAllSelected ? 'Deselect all' : `Select all visible (${filtered.length})`}</span>
                     </button>
 
                     {/* Export CSV */}
@@ -1333,15 +1457,88 @@ export default function ContactsPage() {
           </div>
         ) : (
           <>
+            {/* ── Selection & Bulk Bar ── */}
+            <div className="flex items-center justify-between p-2.5 px-3.5 bg-slate-900/80 border border-white/10 rounded-2xl backdrop-blur-md gap-2">
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  ref={el => { if (el) el.indeterminate = isSomeSelected; }}
+                  onChange={toggleSelectAll}
+                  className="w-4 h-4 rounded text-blue-600 bg-slate-800 border-white/20 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+                />
+                <span className="text-xs font-semibold text-slate-300">
+                  {selectedIds.size > 0 ? (
+                    <span className="text-blue-400">{selectedIds.size} of {filtered.length} selected</span>
+                  ) : (
+                    <span>Select All ({filtered.length})</span>
+                  )}
+                </span>
+              </label>
+
+              {selectedIds.size > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTargetBulkOrgId(organizations[0]?.id || '');
+                      setBulkOrgModalOpen(true);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs font-semibold transition-all cursor-pointer shadow-sm active:scale-95"
+                  >
+                    <Building2 className="w-3.5 h-3.5" />
+                    <span>Change Org ({selectedIds.size})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleBulkDelete}
+                    disabled={bulkDeleting}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-500/30 text-xs font-semibold transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+                  >
+                    {bulkDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    <span>Delete ({selectedIds.size})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedIds(new Set())}
+                    title="Clear selection"
+                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* ── Mobile card list (< md) ── */}
             <div className="md:hidden space-y-2.5 pt-1">
               {filtered.map(c => (
                 <div
                   key={c.id}
-                  className="group relative bg-slate-900/90 border border-white/[0.08] hover:border-white/15 rounded-2xl p-3.5 shadow-sm backdrop-blur-sm transition-colors"
+                  className={`group relative bg-slate-900/90 border rounded-2xl p-3.5 shadow-sm backdrop-blur-sm transition-all ${
+                    selectedIds.has(c.id)
+                      ? 'border-blue-500/50 bg-blue-950/20 shadow-blue-500/10 ring-1 ring-blue-500/30'
+                      : 'border-white/[0.08] hover:border-white/15'
+                  }`}
                 >
-                  {/* Top Section: Avatar + Name + Tags + Actions */}
-                  <div className="flex items-start gap-3">
+                  {/* Top Section: Checkbox + Avatar + Name + Tags + Actions */}
+                  <div className="flex items-start gap-2.5">
+                    {/* Bulk Selection Checkbox */}
+                    <div
+                      onClick={(e) => toggleSelectOne(c.id, e)}
+                      className="pt-2 shrink-0 cursor-pointer"
+                      title="Select contact"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(c.id)}
+                        onChange={() => {}}
+                        className="w-4 h-4 rounded text-blue-600 bg-slate-800 border-white/20 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+                      />
+                    </div>
+
                     {/* Avatar (Item photo) with initial + Category badge (S / K) + Star Rank – Clickable */}
                     <div
                       onClick={() => setSelectedContact(c)}
@@ -1495,6 +1692,15 @@ export default function ContactsPage() {
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-white/10 bg-white/5">
+                    <th className="w-10 px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={isAllSelected}
+                        ref={el => { if (el) el.indeterminate = isSomeSelected; }}
+                        onChange={toggleSelectAll}
+                        className="w-4 h-4 rounded text-blue-600 bg-slate-800 border-white/20 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+                      />
+                    </th>
                     <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Name</th>
                     <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Status</th>
                     <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Contact</th>
@@ -1505,8 +1711,18 @@ export default function ContactsPage() {
                   {filtered.map(c => (
                     <tr
                       key={c.id}
-                      className="hover:bg-white/[0.02] transition-colors"
+                      className={`hover:bg-white/[0.02] transition-colors ${
+                        selectedIds.has(c.id) ? 'bg-blue-950/25' : ''
+                      }`}
                     >
+                      <td className="w-10 px-4 py-3.5">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(c.id)}
+                          onChange={() => toggleSelectOne(c.id)}
+                          className="w-4 h-4 rounded text-blue-600 bg-slate-800 border-white/20 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+                        />
+                      </td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2.5">
                           {/* Mini avatar with category badge on desktop – Clickable */}
@@ -2397,6 +2613,136 @@ export default function ContactsPage() {
                 className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-all shadow-lg shadow-blue-600/25 active:scale-95 cursor-pointer"
               >
                 {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : 'Save Person'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Floating Bulk Action Bar (Mobile & Desktop) ── */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-20 md:bottom-8 left-4 right-4 md:left-auto md:right-8 md:w-auto z-40 bg-slate-900/95 border border-blue-500/40 rounded-2xl p-3 shadow-2xl backdrop-blur-xl flex items-center justify-between gap-4 animate-slide-in-right">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-lg bg-blue-600 text-white text-xs font-bold flex items-center justify-center">
+              {selectedIds.size}
+            </span>
+            <span className="text-xs font-semibold text-white">Contacts Selected</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setTargetBulkOrgId(organizations[0]?.id || '');
+                setBulkOrgModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
+            >
+              <Building2 className="w-3.5 h-3.5" />
+              <span>Change Org</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer disabled:opacity-50"
+            >
+              {bulkDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+              <span>Delete</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+              title="Cancel selection"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bulk Organization Change Modal ── */}
+      {bulkOrgModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-white/10 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-base">Change Organization</h3>
+                  <p className="text-xs text-slate-400">Moving {selectedIds.size} selected contacts</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBulkOrgModalOpen(false)}
+                className="w-8 h-8 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-medium text-slate-300">
+                Select Destination Organization
+              </label>
+              <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                {organizations.map(org => {
+                  const isSelected = targetBulkOrgId === org.id;
+                  return (
+                    <button
+                      type="button"
+                      key={org.id}
+                      onClick={() => setTargetBulkOrgId(org.id)}
+                      className={`w-full flex items-center justify-between p-3 rounded-xl border text-xs font-medium transition-all text-left cursor-pointer ${
+                        isSelected
+                          ? 'border-blue-500 bg-blue-500/15 text-white'
+                          : 'border-white/5 bg-slate-800/60 hover:bg-slate-800 text-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 truncate">
+                        <Building2 className={`w-4 h-4 ${isSelected ? 'text-blue-400' : 'text-slate-500'}`} />
+                        <span className="truncate">{org.name}</span>
+                      </div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
+                        {org.type === 'ward' ? 'Ward' : 'Unit'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => setBulkOrgModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkChangeOrg}
+                disabled={!targetBulkOrgId || bulkUpdatingOrg}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold shadow-lg shadow-blue-500/20 transition-all cursor-pointer"
+              >
+                {bulkUpdatingOrg ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Moving Contacts...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Move {selectedIds.size} Contacts</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
