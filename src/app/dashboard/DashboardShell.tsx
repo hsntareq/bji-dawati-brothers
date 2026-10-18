@@ -319,7 +319,11 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto bji-bg relative" onScroll={handleScroll}>
+      <main
+        className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto bji-bg relative"
+        onScroll={handleScroll}
+        style={{ '--header-offset': showNav ? '4rem' : '0rem' } as React.CSSProperties}
+      >
         <header className={`fixed top-0 left-0 md:left-64 right-0 h-16 bji-border-b bji-header backdrop-blur-xl flex items-center justify-between px-4 md:px-6 z-30 gap-3 transition-transform duration-300 ${showNav ? 'translate-y-0' : '-translate-y-full'}`}>
           {/* Side Panel Toggler & Brand Logo */}
           <div className="flex items-center gap-2.5 min-w-0">

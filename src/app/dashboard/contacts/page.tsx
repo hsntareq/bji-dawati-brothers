@@ -838,46 +838,46 @@ export default function ContactsPage() {
 
       {/* ── People List ──────────────────────────────── */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          {/* Title */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <h2 className="font-semibold text-white">People</h2>
-            {!loading && (
-              <span className="text-xs bg-white/10 text-slate-300 rounded-full px-2 py-0.5 font-mono">
-                {filtered.length === contacts.length ? contacts.length : `${filtered.length} / ${contacts.length}`}
-              </span>
-            )}
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${
-              filterCategory === 'kormi'
-                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                : filterCategory === 'all'
-                ? 'bg-purple-500/15 text-purple-400 border-purple-500/30'
-                : 'bg-blue-500/15 text-blue-400 border-blue-500/30'
-            }`}>
-              {filterCategory === 'kormi' ? 'Kormi' : filterCategory === 'all' ? 'All' : 'Shohojogi'}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 flex-1 justify-end">
-            {/* Search – grows to fill space */}
-            <div className="relative flex-1 max-w-xs">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <div className="sticky top-[var(--header-offset,0px)] z-20 py-2.5 -my-2.5 bg-slate-950/85 backdrop-blur-xl border-b border-white/5 transition-[top] duration-300">
+          <div className="flex items-center gap-2 w-full">
+            {/* Search Input – covers all remaining space */}
+            <div className="relative flex-1 min-w-0">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
-                type="text" placeholder="Search by name, phone, location…" value={searchQuery}
+                type="text"
+                placeholder="Search by name, phone, location…"
+                value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-900 border border-white/10 rounded-xl pl-9 pr-8 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                className="w-full bg-slate-900/90 border border-white/10 rounded-xl pl-10 pr-9 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all shadow-inner"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                   title="Clear search"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
+
+            {/* Quick Category Toggle Pill */}
+            <button
+              type="button"
+              onClick={() => setFilterCategory(c => c === 'shohojogi' ? 'kormi' : c === 'kormi' ? 'all' : 'shohojogi')}
+              title="Click to cycle: Shohojogi → Kormi → All"
+              className={`px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer active:scale-95 ${
+                filterCategory === 'kormi'
+                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25'
+                  : filterCategory === 'all'
+                  ? 'bg-purple-500/15 text-purple-400 border-purple-500/30 hover:bg-purple-500/25'
+                  : 'bg-blue-500/15 text-blue-400 border-blue-500/30 hover:bg-blue-500/25'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-current" />
+              <span>{filterCategory === 'kormi' ? 'Kormi' : filterCategory === 'all' ? 'All' : 'Shohojogi'}</span>
+            </button>
 
             {/* Filter button + dropdown */}
             <div className="relative" ref={filterRef}>
