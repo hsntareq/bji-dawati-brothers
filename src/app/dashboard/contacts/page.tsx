@@ -1234,7 +1234,7 @@ export default function ContactsPage() {
                       </span>
                     </div>
 
-                    {/* Middle Details: Name, Org, Location */}
+                    {/* Middle Details: Name, Org */}
                     <div className="flex-1 min-w-0 pt-0.5">
                       {/* Name line */}
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -1244,21 +1244,10 @@ export default function ContactsPage() {
                         <StarBadge level={getPerfLevel(actSummary[c.id] ?? 0)} compact />
                       </div>
 
-                      {/* Org and Location info - clean single-line metadata */}
-                      <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
-                        <span className="inline-flex items-center gap-1 text-slate-300 truncate max-w-[140px]">
-                          <Building2 className="w-3 h-3 text-slate-500 shrink-0" />
-                          <span className="truncate">{orgName(c.organizationId)}</span>
-                        </span>
-                        {c.location && (
-                          <>
-                            <span className="text-slate-600 shrink-0">•</span>
-                            <span className="inline-flex items-center gap-1 text-purple-300/90 truncate max-w-[130px]">
-                              <MapPin className="w-3 h-3 text-purple-400 shrink-0" />
-                              <span className="truncate">{c.location}</span>
-                            </span>
-                          </>
-                        )}
+                      {/* Org info - clean, spacious */}
+                      <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-400">
+                        <Building2 className="w-3 h-3 text-slate-500 shrink-0" />
+                        <span className="text-slate-300 truncate font-medium">{orgName(c.organizationId)}</span>
                       </div>
                     </div>
 
@@ -1283,11 +1272,11 @@ export default function ContactsPage() {
                     </div>
                   </div>
 
-                  {/* Bottom Bar: Status Selector & Phone number */}
+                  {/* Bottom Bar: Status Selector & Location */}
                   <div className="mt-2.5 pt-2.5 border-t border-white/[0.06] flex items-center justify-between gap-2">
                     {/* Status Dropdown Pill */}
                     <div
-                      className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all hover:brightness-110 cursor-pointer"
+                      className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all hover:brightness-110 cursor-pointer shrink-0"
                       style={{
                         backgroundColor: c.status ? `${statusMeta(c.status).dot}15` : 'rgba(255,255,255,0.03)',
                         borderColor: c.status ? `${statusMeta(c.status).dot}40` : 'rgba(255,255,255,0.08)',
@@ -1319,12 +1308,13 @@ export default function ContactsPage() {
                       </select>
                     </div>
 
-                    {/* Phone number */}
-                    {c.mobile && (
-                      <span className="text-[11px] font-mono text-slate-400 tracking-tight shrink-0">
-                        {c.mobile}
+                    {/* Location replacing the phone number */}
+                    {c.location ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-purple-300/90 truncate max-w-[180px]">
+                        <MapPin className="w-3 h-3 text-purple-400 shrink-0" />
+                        <span className="truncate">{c.location}</span>
                       </span>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               ))}
