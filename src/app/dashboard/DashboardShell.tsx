@@ -396,24 +396,40 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               </button>
 
               {bellOpen && (
-                <div className="absolute right-0 top-full mt-2 w-80 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-                    <div className="flex items-center gap-2">
-                      <Bell className="w-3.5 h-3.5 text-slate-400" />
-                      <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Notifications</span>
-                      {unread > 0 && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 text-[10px] font-semibold">
-                          {unread} new
-                        </span>
-                      )}
+                <>
+                  {/* Backdrop for mobile */}
+                  <div
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm sm:hidden z-40"
+                    onClick={() => setBellOpen(false)}
+                  />
+
+                  <div className="fixed sm:absolute left-1/2 -translate-x-1/2 sm:left-auto sm:right-0 sm:translate-x-0 top-16 sm:top-full mt-2 w-[calc(100vw-1.5rem)] max-w-sm sm:w-80 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                      <div className="flex items-center gap-2">
+                        <Bell className="w-3.5 h-3.5 text-slate-400" />
+                        <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Notifications</span>
+                        {unread > 0 && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 text-[10px] font-semibold">
+                            {unread} new
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {notifications.some(n => !n.read) && (
+                          <button onClick={markAllRead}
+                            className="flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 transition-colors">
+                            <CheckCheck className="w-3 h-3" /> Mark all read
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setBellOpen(false)}
+                          className="sm:hidden p-1 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+                          title="Close"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                    {notifications.some(n => !n.read) && (
-                      <button onClick={markAllRead}
-                        className="flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 transition-colors">
-                        <CheckCheck className="w-3 h-3" /> Mark all read
-                      </button>
-                    )}
-                  </div>
 
                   <div className="max-h-[420px] overflow-y-auto">
                     {notifications.length === 0 ? (
@@ -464,7 +480,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                     )}
                   </div>
                 </div>
-              )}
+              </>
+            )}
             </div>
 
             <div className="relative" ref={profileRef}>
