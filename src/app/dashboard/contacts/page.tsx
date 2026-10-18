@@ -1009,39 +1009,46 @@ export default function ContactsPage() {
 
                   {/* Name + org + status */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-2">
                       <p className="text-sm font-semibold text-white truncate">{c.name}</p>
+                      <span
+                        title={c.category === 'kormi' ? 'Kormi' : 'Shohojogi'}
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold font-mono tracking-tight border shrink-0 ${
+                          c.category === 'kormi'
+                            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                            : 'bg-blue-500/15 text-blue-300 border-blue-500/30'
+                        }`}
+                      >
+                        {c.category === 'kormi' ? '[K]' : '[S]'}
+                      </span>
                       <StarBadge level={getPerfLevel(actSummary[c.id] ?? 0)} compact />
                     </div>
-                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${
-                        c.category === 'kormi'
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                          : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                      }`}>
-                        {c.category === 'kormi' ? 'Kormi' : 'Shohojogi'}
-                      </span>
-                      <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded text-[10px]">
+
+                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                      <span className="px-2 py-0.5 bg-slate-800/80 text-slate-300 border border-white/5 rounded-md text-[10px] font-medium truncate max-w-[150px]">
                         {orgName(c.organizationId)}
                       </span>
                       {c.location && (
-                        <span className="px-1.5 py-0.5 bg-purple-500/10 text-purple-300 border border-purple-500/20 rounded text-[10px] flex items-center gap-1">
-                          <MapPin className="w-2.5 h-2.5 text-purple-400" />
-                          <span>{c.location}</span>
+                        <span className="px-2 py-0.5 bg-purple-500/10 text-purple-300 border border-purple-500/20 rounded-md text-[10px] font-medium flex items-center gap-1 truncate max-w-[150px]">
+                          <MapPin className="w-2.5 h-2.5 text-purple-400 shrink-0" />
+                          <span className="truncate">{c.location}</span>
                         </span>
                       )}
                       {/* Inline status select */}
-                      <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: statusMeta(c.status).dot }} />
+                      <div
+                        className="flex items-center gap-1.5 bg-slate-800/60 hover:bg-slate-800 border border-white/5 px-2 py-0.5 rounded-md transition-colors"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: statusMeta(c.status).dot }} />
                         <select
                           value={c.status ?? ''}
                           onChange={e => handleStatusChange(c, e.target.value, e)}
                           onClick={e => e.stopPropagation()}
-                          className="bg-transparent text-[10px] font-medium text-slate-300 focus:outline-none cursor-pointer pr-1 appearance-none"
+                          className="bg-transparent text-[10px] font-medium focus:outline-none cursor-pointer pr-0.5 appearance-none leading-none"
                           style={{ color: statusMeta(c.status).dot }}
                         >
                           {STATUSES.map(s => (
-                            <option key={s.value} value={s.value} style={{ background: '#1e293b', color: s.dot }}>
+                            <option key={s.value} value={s.value} style={{ background: '#0f172a', color: s.dot }}>
                               {s.label}
                             </option>
                           ))}
@@ -1088,12 +1095,15 @@ export default function ContactsPage() {
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium text-white">{c.name}</span>
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${
-                            c.category === 'kormi'
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                              : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                          }`}>
-                            {c.category === 'kormi' ? 'Kormi' : 'Shohojogi'}
+                          <span
+                            title={c.category === 'kormi' ? 'Kormi' : 'Shohojogi'}
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold font-mono tracking-tight border shrink-0 ${
+                              c.category === 'kormi'
+                                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                                : 'bg-blue-500/15 text-blue-300 border-blue-500/30'
+                            }`}
+                          >
+                            {c.category === 'kormi' ? '[K]' : '[S]'}
                           </span>
                           <StarBadge level={getPerfLevel(actSummary[c.id] ?? 0)} compact />
                         </div>
