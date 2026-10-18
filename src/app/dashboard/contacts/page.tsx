@@ -1458,7 +1458,7 @@ export default function ContactsPage() {
         ) : (
           <>
             {/* ── Selection & Bulk Bar ── */}
-            <div className="flex items-center justify-between p-2.5 px-3.5 bg-slate-900/80 border border-white/10 rounded-2xl backdrop-blur-md gap-2">
+            <div className="min-h-[52px] flex items-center justify-between p-2.5 px-3.5 bg-slate-900/80 border border-white/10 rounded-2xl backdrop-blur-md gap-2 transition-all">
               <label className="flex items-center gap-2.5 cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -1476,7 +1476,7 @@ export default function ContactsPage() {
                 </span>
               </label>
 
-              {selectedIds.size > 0 && (
+              {selectedIds.size > 0 ? (
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
@@ -1508,6 +1508,12 @@ export default function ContactsPage() {
                   >
                     <X className="w-4 h-4" />
                   </button>
+                </div>
+              ) : (
+                <div className="h-[30px] flex items-center">
+                  <span className="text-[11px] font-medium text-slate-500">
+                    {filtered.length} contact{filtered.length === 1 ? '' : 's'}
+                  </span>
                 </div>
               )}
             </div>
