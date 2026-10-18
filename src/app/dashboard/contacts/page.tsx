@@ -23,7 +23,7 @@ import {
 } from '@/lib/offlineSync';
 
 const PREFIX = '01';
-const emptyForm = { name: '', mobile: PREFIX, note: '', organizationId: '', email: '', address: '', category: 'shohojogi' as 'shohojogi' | 'kormi' };
+const emptyForm = { name: '', mobile: PREFIX, note: '', organizationId: '', email: '', location: '', address: '', category: 'shohojogi' as 'shohojogi' | 'kormi' };
 
 // Format digits into 01XXX-XXXXXX (local BD format)
 const formatBDPhone = (raw: string): string => {
@@ -132,8 +132,29 @@ export default function ContactsPage() {
   const { user } = useAuth();
   const { language, t } = useLanguage();
   const [organizations, setOrganizations] = useState<any[]>([]);
+  const [allOrgs, setAllOrgs] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Helper to resolve locations for a given organization (either from the ward directly or from parent ward)
+  const getLocationsForOrg = (orgId: string): { locations: string[]; wardName?: string } => {
+    if (!orgId) return { locations: [] };
+    const org = allOrgs.find(o => o.id === orgId) || organizations.find(o => o.id === orgId);
+    if (!org) return { locations: [] };
+
+    if (org.type === 'ward') {
+      const locs: string[] = org.locations || org.adminSettings?.locations || [];
+      return { locations: locs, wardName: org.name };
+    }
+
+    if (org.type === 'unit' && org.parentOrgId) {
+      const parent = allOrgs.find(o => o.id === org.parentOrgId) || organizations.find(o => o.id === org.parentOrgId);
+      const locs: string[] = parent?.locations || parent?.adminSettings?.locations || org.locations || org.adminSettings?.locations || [];
+      return { locations: locs, wardName: parent?.name || org.name };
+    }
+
+    return { locations: org.locations || org.adminSettings?.locations || [], wardName: org.name };
+  };
 
   // ── Add form ───────────────────────────────────────
   const [form,     setForm]     = useState(emptyForm);
@@ -357,6 +378,7 @@ export default function ContactsPage() {
       const cachedActs = await getAllFromStore('contact_activities');
 
       if (cachedOrgs.length > 0 || cachedContacts.length > 0) {
+        setAllOrgs(cachedOrgs);
         const myOrgs = cachedOrgs.filter((o: any) => {
           if (o.createdBy === user.uid || (o.allowedEmails && o.allowedEmails.includes(user.email))) return true;
           if (o.type === 'unit' && o.parentOrgId) {
@@ -403,6 +425,7 @@ export default function ContactsPage() {
       let allOrgs: any[] = [];
       if (orgsSnap.exists()) {
         allOrgs = Object.entries(orgsSnap.val()).map(([id, v]: any) => ({ id, ...v }));
+        setAllOrgs(allOrgs);
         myOrgs = allOrgs.filter(o => {
           if (o.createdBy === user.uid || (o.allowedEmails && o.allowedEmails.includes(user.email))) return true;
           if (o.type === 'unit' && o.parentOrgId) {
@@ -519,6 +542,7 @@ export default function ContactsPage() {
         category: form.category || 'shohojogi',
         note: form.note.trim() || null,
         email: form.email.trim() || null,
+        location: form.location.trim() || null,
         address: form.address.trim() || null,
         organizationId: form.organizationId,
         createdBy: user.uid,
@@ -561,6 +585,7 @@ export default function ContactsPage() {
       note: c.note ?? '',
       organizationId: c.organizationId ?? '',
       email: c.email ?? '',
+      location: c.location ?? '',
       address: c.address ?? '',
     });
   };
@@ -578,6 +603,7 @@ export default function ContactsPage() {
         category: editForm.category || 'shohojogi',
         note: editForm.note.trim() || null,
         email: editForm.email.trim() || null,
+        location: editForm.location.trim() || null,
         address: editForm.address.trim() || null,
         organizationId: editForm.organizationId,
         updatedAt: new Date().toISOString(),
@@ -846,7 +872,7 @@ export default function ContactsPage() {
                   />
                   <select
                     value={form.organizationId}
-                    onChange={e => setForm(f => ({ ...f, organizationId: e.target.value }))}
+                    onChange={e => setForm(f => ({ ...f, organizationId: e.target.value, location: '' }))}
                     className="bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer w-full"
                   >
                     <option value="" disabled>Select organization</option>
@@ -858,6 +884,59 @@ export default function ContactsPage() {
                   >
                     {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : 'Save'}
                   </button>
+                </div>
+
+                {/* ── Location dropdown above Address in Create Contact ── */}
+                <div className="pt-2 border-t border-white/5 space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-purple-400" />
+                        <span>Location</span>
+                      </label>
+                      {getLocationsForOrg(form.organizationId).wardName && (
+                        <span className="text-[10px] text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded font-medium border border-purple-500/20">
+                          {getLocationsForOrg(form.organizationId).wardName}
+                        </span>
+                      )}
+                    </div>
+                    {(() => {
+                      const { locations } = getLocationsForOrg(form.organizationId);
+                      return (
+                        <>
+                          <select
+                            value={form.location}
+                            onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
+                            disabled={!form.organizationId}
+                            className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer disabled:opacity-50"
+                          >
+                            <option value="">{form.organizationId ? 'Select location…' : 'Select organization first'}</option>
+                            {locations.map((loc: string) => (
+                              <option key={loc} value={loc}>{loc}</option>
+                            ))}
+                          </select>
+                          {form.organizationId && locations.length === 0 && (
+                            <p className="text-[10px] text-slate-500 mt-1 italic">
+                              No locations configured for this ward yet. Add locations under Organizations → Ward Admin Settings.
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
+                      Address
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Street, area, house (optional)"
+                      value={form.address}
+                      onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                      className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -1082,6 +1161,12 @@ export default function ContactsPage() {
                       <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded text-[10px]">
                         {orgName(c.organizationId)}
                       </span>
+                      {c.location && (
+                        <span className="px-1.5 py-0.5 bg-purple-500/10 text-purple-300 border border-purple-500/20 rounded text-[10px] flex items-center gap-1">
+                          <MapPin className="w-2.5 h-2.5 text-purple-400" />
+                          <span>{c.location}</span>
+                        </span>
+                      )}
                       {/* Inline status select */}
                       <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: statusMeta(c.status).dot }} />
@@ -1184,9 +1269,17 @@ export default function ContactsPage() {
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
-                        <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-md text-xs">
-                          {orgName(c.organizationId)}
-                        </span>
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-md text-xs">
+                            {orgName(c.organizationId)}
+                          </span>
+                          {c.location && (
+                            <span className="text-[10px] text-purple-300 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20 flex items-center gap-1">
+                              <MapPin className="w-2.5 h-2.5 text-purple-400" />
+                              <span>{c.location}</span>
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1200,7 +1293,7 @@ export default function ContactsPage() {
 
       {/* ── Detail Slide-over ─────────────────────────── */}
       {selectedContact && (
-        <div className="fixed inset-0 z-40 flex" onClick={() => setSelectedContact(null)}>
+        <div className="fixed inset-x-0 top-0 bottom-16 md:bottom-0 z-40 flex" onClick={() => setSelectedContact(null)}>
           <div className="flex-1 bg-black/50 backdrop-blur-sm" />
           <div
             className="animate-slide-in-right w-full max-w-md bg-slate-900 border-l border-white/10 h-full overflow-y-auto flex flex-col"
@@ -1455,6 +1548,7 @@ export default function ContactsPage() {
                   {([
                     { icon: Phone,     label: 'Mobile',       value: selectedContact.mobile },
                     { icon: Mail,      label: 'Email',        value: selectedContact.email },
+                    { icon: MapPin,    label: 'Location',     value: selectedContact.location },
                     { icon: MapPin,    label: 'Address',      value: selectedContact.address },
                     { icon: Building2, label: 'Organization', value: orgName(selectedContact.organizationId) },
                     { icon: Users,     label: 'Note',         value: selectedContact.note },
@@ -1572,6 +1666,47 @@ export default function ContactsPage() {
                   className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
                 />
               </div>
+
+              {/* ── Location Dropdown above Address ── */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Location</span>
+                  </label>
+                  {getLocationsForOrg(editForm.organizationId).wardName && (
+                    <span className="text-[10px] text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded font-medium border border-purple-500/20">
+                      {getLocationsForOrg(editForm.organizationId).wardName}
+                    </span>
+                  )}
+                </div>
+                {(() => {
+                  const { locations } = getLocationsForOrg(editForm.organizationId);
+                  return (
+                    <>
+                      <select
+                        value={editForm.location}
+                        onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))}
+                        className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white appearance-none focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all cursor-pointer"
+                      >
+                        <option value="">Select location…</option>
+                        {locations.map((loc: string) => (
+                          <option key={loc} value={loc}>{loc}</option>
+                        ))}
+                        {editForm.location && !locations.includes(editForm.location) && (
+                          <option value={editForm.location}>{editForm.location} (Custom)</option>
+                        )}
+                      </select>
+                      {locations.length === 0 && (
+                        <p className="text-[10px] text-slate-500 mt-1 italic">
+                          No locations configured for this ward yet. Add locations under Organizations → Ward Admin Settings.
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+
               <div>
                 <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Address</label>
                 <input type="text" value={editForm.address} placeholder="Street, city"

@@ -58,6 +58,10 @@ export default function OrganizationsPage() {
   const [memberLoading,   setMemberLoading]   = useState(false);
   const [feedback,        setFeedback]        = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Ward Admin Settings: Locations
+  const [newLocationInput, setNewLocationInput] = useState('');
+  const [locationSaving,   setLocationSaving]   = useState(false);
+
   // Registered users in project for member suggestion
   const [registeredUsers, setRegisteredUsers] = useState<{ uid: string; email: string; name?: string }[]>([]);
   // Contact counts per org
@@ -272,6 +276,7 @@ export default function OrganizationsPage() {
       parentOrgId: org.parentOrgId || '',
     });
     setNewMemberEmail('');
+    setNewLocationInput('');
     setFeedback(null);
   };
 
@@ -316,6 +321,110 @@ export default function OrganizationsPage() {
       showFeedback('Failed to save changes', 'error');
     } finally {
       setSavingOrg(false);
+    }
+  };
+
+  // Add Location to Ward Admin Settings
+  const handleAddWardLocation = async () => {
+    if (!selectedOrg || !newLocationInput.trim() || locationSaving) return;
+    const locName = newLocationInput.trim();
+    const currentLocs: string[] = selectedOrg.locations || selectedOrg.adminSettings?.locations || [];
+    if (currentLocs.some(l => l.toLowerCase() === locName.toLowerCase())) {
+      showFeedback('This location is already added', 'error');
+      return;
+    }
+    const updatedLocations = [...currentLocs, locName];
+    setLocationSaving(true);
+    try {
+      const updatedOrg = {
+        ...selectedOrg,
+        locations: updatedLocations,
+        adminSettings: {
+          ...(selectedOrg.adminSettings || {}),
+          locations: updatedLocations,
+        },
+      };
+
+      // Optimistic update
+      setSelectedOrg(updatedOrg);
+      setAllOrgsRaw(prev => prev.map(o => o.id === selectedOrg.id ? updatedOrg : o));
+      setOrganizations(prev => prev.map(o => o.id === selectedOrg.id ? updatedOrg : o));
+      await putInStore('organizations', updatedOrg);
+
+      setNewLocationInput('');
+      showFeedback('Ward location added!');
+
+      const updates = {
+        locations: updatedLocations,
+        adminSettings: {
+          ...(selectedOrg.adminSettings || {}),
+          locations: updatedLocations,
+        },
+      };
+      const path = `organizations/${selectedOrg.id}`;
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          await update(ref(database, path), updates);
+        } catch {
+          await enqueueSync({ collection: 'organizations', action: 'update', path, data: updates });
+        }
+      } else {
+        await enqueueSync({ collection: 'organizations', action: 'update', path, data: updates });
+      }
+    } catch (e) {
+      console.error(e);
+      showFeedback('Failed to add location', 'error');
+    } finally {
+      setLocationSaving(false);
+    }
+  };
+
+  // Remove Location from Ward Admin Settings
+  const handleRemoveWardLocation = async (locToRemove: string) => {
+    if (!selectedOrg || locationSaving) return;
+    const currentLocs: string[] = selectedOrg.locations || selectedOrg.adminSettings?.locations || [];
+    const updatedLocations = currentLocs.filter(l => l !== locToRemove);
+    setLocationSaving(true);
+    try {
+      const updatedOrg = {
+        ...selectedOrg,
+        locations: updatedLocations,
+        adminSettings: {
+          ...(selectedOrg.adminSettings || {}),
+          locations: updatedLocations,
+        },
+      };
+
+      // Optimistic update
+      setSelectedOrg(updatedOrg);
+      setAllOrgsRaw(prev => prev.map(o => o.id === selectedOrg.id ? updatedOrg : o));
+      setOrganizations(prev => prev.map(o => o.id === selectedOrg.id ? updatedOrg : o));
+      await putInStore('organizations', updatedOrg);
+
+      showFeedback('Ward location removed');
+
+      const updates = {
+        locations: updatedLocations,
+        adminSettings: {
+          ...(selectedOrg.adminSettings || {}),
+          locations: updatedLocations,
+        },
+      };
+      const path = `organizations/${selectedOrg.id}`;
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          await update(ref(database, path), updates);
+        } catch {
+          await enqueueSync({ collection: 'organizations', action: 'update', path, data: updates });
+        }
+      } else {
+        await enqueueSync({ collection: 'organizations', action: 'update', path, data: updates });
+      }
+    } catch (e) {
+      console.error(e);
+      showFeedback('Failed to remove location', 'error');
+    } finally {
+      setLocationSaving(false);
     }
   };
 
@@ -719,7 +828,7 @@ export default function OrganizationsPage() {
 
       {/* ── Organization Detail & Edit Slide-over Panel ── */}
       {selectedOrg && (
-        <div className="fixed inset-0 z-50 flex" onClick={() => setSelectedOrg(null)}>
+        <div className="fixed inset-x-0 top-0 bottom-16 md:bottom-0 z-50 flex" onClick={() => setSelectedOrg(null)}>
           <div className="flex-1 bg-black/60 backdrop-blur-sm" />
           <div
             className="animate-slide-in-right w-full max-w-lg bg-slate-900 border-l border-white/10 h-full overflow-y-auto flex flex-col shadow-2xl"
@@ -916,6 +1025,179 @@ export default function OrganizationsPage() {
                   )}
                 </div>
               </div>
+
+              {/* ── Section: Ward Admin Settings & Locations ────── */}
+              {selectedOrg.type === 'ward' ? (
+                <div className="space-y-4 bg-slate-950/40 border border-purple-500/20 rounded-2xl p-5 shadow-lg shadow-purple-950/10">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/30">
+                        <MapPin className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                          Ward Admin Settings
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300">
+                            Ward & Units
+                          </span>
+                        </h4>
+                        <p className="text-[11px] text-slate-400">
+                          Settings & locations configured here apply to this ward and its child units
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Locations Element Card */}
+                  <div className="pt-1 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-purple-300">
+                        <span>Locations of the Ward</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 text-[10px] font-mono border border-white/5">
+                        {(selectedOrg.locations || selectedOrg.adminSettings?.locations || []).length} added
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Add locations, areas, or roads for this ward. These will be available in the location dropdown when creating or editing contacts for this ward and any of its child units.
+                    </p>
+
+                    {/* Create more element: Input + Add Button */}
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <MapPin className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={newLocationInput}
+                          onChange={e => setNewLocationInput(e.target.value)}
+                          placeholder="e.g. Block C, Road 12, South Para…"
+                          className="w-full bg-slate-800 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddWardLocation();
+                            }
+                          }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddWardLocation}
+                        disabled={locationSaving || !newLocationInput.trim()}
+                        className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white text-xs font-semibold transition-all flex items-center gap-1.5 shadow-md shadow-purple-600/20 cursor-pointer active:scale-95 shrink-0"
+                      >
+                        {locationSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                        <span>Add Location</span>
+                      </button>
+                    </div>
+
+                    {/* List of locations added before */}
+                    <div className="space-y-1.5 pt-2">
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                        Locations List
+                      </p>
+
+                      {(selectedOrg.locations || selectedOrg.adminSettings?.locations || []).length === 0 ? (
+                        <div className="p-4 rounded-xl bg-slate-800/30 border border-dashed border-white/10 text-center">
+                          <MapPin className="w-5 h-5 text-slate-600 mx-auto mb-1" />
+                          <p className="text-xs text-slate-400">No locations added yet.</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5">Enter a location name above and click &quot;Add Location&quot;.</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-1.5 max-h-56 overflow-y-auto pr-1">
+                          {(selectedOrg.locations || selectedOrg.adminSettings?.locations || []).map((loc: string, idx: number) => (
+                            <div
+                              key={loc + '-' + idx}
+                              className="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/60 border border-white/5 hover:border-purple-500/25 transition-all group"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span className="w-5 h-5 rounded-md bg-purple-500/15 text-purple-400 flex items-center justify-center text-[10px] font-bold shrink-0">
+                                  {idx + 1}
+                                </span>
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <MapPin className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                                  <span className="text-xs font-medium text-white truncate">{loc}</span>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveWardLocation(loc)}
+                                disabled={locationSaving}
+                                title="Delete location"
+                                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : selectedOrg.type === 'unit' ? (
+                /* Unit organization: show inherited locations from its parent ward */
+                <div className="space-y-3 bg-slate-950/40 border border-blue-500/20 rounded-2xl p-5 shadow-lg shadow-blue-950/10">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center border border-blue-500/30">
+                        <MapPin className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                          Ward Admin Settings
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-300">
+                            Inherited
+                          </span>
+                        </h4>
+                        <p className="text-[11px] text-slate-400">
+                          {selectedOrg.parentOrgId
+                            ? `Locations inherited from Parent Ward: ${orgNameById(selectedOrg.parentOrgId)}`
+                            : 'Standalone unit (no parent ward assigned)'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {(() => {
+                    const parent = allOrgsRaw.find(o => o.id === selectedOrg.parentOrgId);
+                    const parentLocs: string[] = parent?.locations || parent?.adminSettings?.locations || [];
+                    if (!selectedOrg.parentOrgId) {
+                      return (
+                        <p className="text-xs text-slate-400 italic">
+                          This unit is standalone. Set a parent ward in the details below to inherit its ward locations.
+                        </p>
+                      );
+                    }
+                    if (parentLocs.length === 0) {
+                      return (
+                        <div className="p-3 rounded-xl bg-slate-800/40 border border-white/5 text-xs text-slate-400">
+                          Parent ward ({parent?.name || 'Ward'}) has not added locations yet. Add locations in the parent ward&apos;s admin settings to make them available for this unit.
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="space-y-2 pt-1">
+                        <p className="text-xs text-slate-300">
+                          Contacts under this unit have access to {parentLocs.length} locations configured by {parent?.name}:
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+                          {parentLocs.map((loc: string) => (
+                            <span
+                              key={loc}
+                              className="px-2.5 py-1 rounded-lg bg-slate-800 border border-white/5 text-xs text-slate-300 flex items-center gap-1.5"
+                            >
+                              <MapPin className="w-3 h-3 text-purple-400" />
+                              <span>{loc}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : null}
 
               {/* ── Section 2: Edit Organization Info ──────────── */}
               <div className="space-y-4 bg-slate-950/40 border border-white/10 rounded-2xl p-5">
