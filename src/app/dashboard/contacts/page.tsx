@@ -133,6 +133,37 @@ const actLabel = (a: any) => {
 const fmtShort = (iso: string) =>
   iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
 
+const CustomCheckbox = ({
+  checked,
+  indeterminate,
+  className = '',
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  className?: string;
+}) => (
+  <div
+    role="checkbox"
+    aria-checked={indeterminate ? 'mixed' : checked}
+    className={`w-5 h-5 rounded-lg flex items-center justify-center transition-all duration-200 select-none flex-shrink-0 ${
+      checked
+        ? 'bg-gradient-to-tr from-blue-600 via-indigo-600 to-blue-500 border border-blue-400 text-white shadow-md shadow-blue-500/30 scale-100 ring-2 ring-blue-500/20'
+        : indeterminate
+        ? 'bg-blue-600/30 border border-blue-400 text-blue-300'
+        : 'bg-slate-800/90 border border-white/20 hover:border-blue-400/60 hover:bg-slate-800/95 text-transparent'
+    } ${className}`}
+  >
+    {checked && (
+      <svg className="w-3.5 h-3.5 stroke-[3] text-white drop-shadow-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+    )}
+    {!checked && indeterminate && (
+      <span className="w-2.5 h-0.5 bg-blue-300 rounded-full" />
+    )}
+  </div>
+);
+
 export default function ContactsPage() {
   const { user } = useAuth();
   const { language, t } = useLanguage();
@@ -1458,23 +1489,38 @@ export default function ContactsPage() {
         ) : (
           <>
             {/* ── Selection & Bulk Bar ── */}
-            <div className="min-h-[52px] flex items-center justify-between p-2.5 px-3.5 bg-slate-900/80 border border-white/10 rounded-2xl backdrop-blur-md gap-2 transition-all">
-              <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={isAllSelected}
-                  ref={el => { if (el) el.indeterminate = isSomeSelected; }}
-                  onChange={toggleSelectAll}
-                  className="w-4 h-4 rounded text-blue-600 bg-slate-800 border-white/20 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
-                />
-                <span className="text-xs font-semibold text-slate-300">
-                  {selectedIds.size > 0 ? (
-                    <span className="text-blue-400">{selectedIds.size} of {filtered.length} selected</span>
-                  ) : (
-                    <span>Select All ({filtered.length})</span>
-                  )}
-                </span>
-              </label>
+            <div className={`min-h-[52px] flex items-center justify-between p-2.5 px-3.5 rounded-2xl backdrop-blur-xl gap-3 transition-all border ${
+              selectedIds.size > 0
+                ? 'bg-gradient-to-r from-blue-950/35 via-slate-900/95 to-slate-900/95 border-blue-500/35 shadow-lg shadow-blue-500/5'
+                : 'bg-slate-900/80 border-white/10'
+            }`}>
+              <div
+                onClick={toggleSelectAll}
+                className="flex items-center gap-2.5 cursor-pointer select-none group"
+              >
+                <div className="p-1 -ml-1 rounded-lg group-hover:bg-white/5 active:scale-95 transition-transform flex items-center justify-center">
+                  <CustomCheckbox
+                    checked={isAllSelected}
+                    indeterminate={isSomeSelected}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-200 group-hover:text-white transition-colors">
+                    {selectedIds.size > 0 ? (
+                      <span className="text-blue-300 font-bold">{selectedIds.size} of {filtered.length} selected</span>
+                    ) : (
+                      <span>Select All</span>
+                    )}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide border transition-all ${
+                    selectedIds.size > 0
+                      ? 'bg-blue-500/20 text-blue-300 border-blue-500/40 shadow-sm shadow-blue-500/20'
+                      : 'bg-slate-800 text-slate-400 border-white/10'
+                  }`}>
+                    {selectedIds.size > 0 ? `${selectedIds.size}/${filtered.length}` : filtered.length}
+                  </span>
+                </div>
+              </div>
 
               {selectedIds.size > 0 ? (
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1484,7 +1530,7 @@ export default function ContactsPage() {
                       setTargetBulkOrgId(organizations[0]?.id || '');
                       setBulkOrgModalOpen(true);
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs font-semibold transition-all cursor-pointer shadow-sm active:scale-95"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/20 transition-all cursor-pointer active:scale-95"
                   >
                     <Building2 className="w-3.5 h-3.5" />
                     <span>Change Org ({selectedIds.size})</span>
@@ -1523,26 +1569,21 @@ export default function ContactsPage() {
               {filtered.map(c => (
                 <div
                   key={c.id}
-                  className={`group relative bg-slate-900/90 border rounded-2xl p-3.5 shadow-sm backdrop-blur-sm transition-all ${
+                  className={`group relative border rounded-2xl p-3.5 shadow-sm backdrop-blur-sm transition-all ${
                     selectedIds.has(c.id)
-                      ? 'border-blue-500/50 bg-blue-950/20 shadow-blue-500/10 ring-1 ring-blue-500/30'
-                      : 'border-white/[0.08] hover:border-white/15'
+                      ? 'border-blue-500/40 bg-gradient-to-r from-blue-950/30 via-slate-900/95 to-slate-900/95 shadow-md shadow-blue-500/5 ring-1 ring-blue-500/20'
+                      : 'border-white/[0.08] hover:border-white/15 bg-slate-900/90'
                   }`}
                 >
                   {/* Top Section: Checkbox + Avatar + Name + Tags + Actions */}
                   <div className="flex items-start gap-2.5">
-                    {/* Bulk Selection Checkbox */}
+                    {/* Bulk Selection Checkbox - vertically aligned with avatar */}
                     <div
                       onClick={(e) => toggleSelectOne(c.id, e)}
-                      className="pt-2 shrink-0 cursor-pointer"
-                      title="Select contact"
+                      className="p-1 -ml-1 mt-1 rounded-lg hover:bg-white/5 active:scale-90 transition-all cursor-pointer flex-shrink-0 flex items-center justify-center"
+                      title={selectedIds.has(c.id) ? "Deselect contact" : "Select contact"}
                     >
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(c.id)}
-                        onChange={() => {}}
-                        className="w-4 h-4 rounded text-blue-600 bg-slate-800 border-white/20 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
-                      />
+                      <CustomCheckbox checked={selectedIds.has(c.id)} />
                     </div>
 
                     {/* Avatar (Item photo) with initial + Category badge (S / K) + Star Rank – Clickable */}
@@ -1698,14 +1739,10 @@ export default function ContactsPage() {
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-white/10 bg-white/5">
-                    <th className="w-10 px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={isAllSelected}
-                        ref={el => { if (el) el.indeterminate = isSomeSelected; }}
-                        onChange={toggleSelectAll}
-                        className="w-4 h-4 rounded text-blue-600 bg-slate-800 border-white/20 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
-                      />
+                    <th className="w-12 px-4 py-3 text-center">
+                      <div onClick={toggleSelectAll} className="inline-flex items-center justify-center cursor-pointer p-1 rounded-lg hover:bg-white/5">
+                        <CustomCheckbox checked={isAllSelected} indeterminate={isSomeSelected} />
+                      </div>
                     </th>
                     <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Name</th>
                     <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Status</th>
@@ -1721,13 +1758,10 @@ export default function ContactsPage() {
                         selectedIds.has(c.id) ? 'bg-blue-950/25' : ''
                       }`}
                     >
-                      <td className="w-10 px-4 py-3.5">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(c.id)}
-                          onChange={() => toggleSelectOne(c.id)}
-                          className="w-4 h-4 rounded text-blue-600 bg-slate-800 border-white/20 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
-                        />
+                      <td className="w-12 px-4 py-3.5 text-center">
+                        <div onClick={() => toggleSelectOne(c.id)} className="inline-flex items-center justify-center cursor-pointer p-1 rounded-lg hover:bg-white/5">
+                          <CustomCheckbox checked={selectedIds.has(c.id)} />
+                        </div>
                       </td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2.5">
