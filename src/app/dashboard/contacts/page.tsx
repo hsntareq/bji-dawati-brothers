@@ -123,9 +123,9 @@ const StarBadge = ({ level, compact = false }: { level: ReturnType<typeof getPer
 const actLabel = (a: any) => {
   const t = ACTIVITY_TYPES.find(x => x.value === a.type);
   if (!t) return a.type;
-  if (a.type === 'quran') return `${t.emoji} ${a.suraName ?? ''} : Ayat ${a.ayatNumber ?? ''}`;
-  if (a.type === 'hadis') return `${t.emoji} ${a.hadisBook ?? ''} #${a.hadisNumber ?? ''}`;
-  if (a.type === 'book')  return `${t.emoji} ${a.bookName ?? ''}`;
+  if (a.type === 'quran') return a.suraName ? `${t.emoji} ${a.suraName}${a.ayatNumber ? ` : Ayat ${a.ayatNumber}` : ''}` : `${t.emoji} ${t.label}`;
+  if (a.type === 'hadis') return a.hadisNumber ? `${t.emoji} ${a.hadisBook ?? ''} #${a.hadisNumber}` : `${t.emoji} ${a.hadisBook || t.label}`;
+  if (a.type === 'book')  return a.bookName ? `${t.emoji} ${a.bookName}` : `${t.emoji} ${t.label}`;
   return `${t.emoji} ${t.label}`;
 };
 
@@ -217,6 +217,7 @@ export default function ContactsPage() {
   // ── Activities ─────────────────────────────────────
   const [activities,       setActivities]       = useState<any[]>([]);
   const [actPanelOpen,     setActPanelOpen]     = useState(false);
+  const [selectedActs,     setSelectedActs]     = useState<string[]>([]);
   const [actType,          setActType]          = useState<string | null>(null);
   const [actForm,          setActForm]          = useState(emptyActForm);
   const [actSaving,        setActSaving]        = useState(false);
@@ -351,6 +352,64 @@ export default function ContactsPage() {
       await reloadActivitySummary();
     } catch (err) { console.error(err); }
     finally { setActSaving(false); }
+  };
+
+  const toggleSelectAct = (val: string) => {
+    setSelectedActs(prev =>
+      prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]
+    );
+  };
+
+  const handleSaveActivities = async () => {
+    if (!selectedContact || selectedActs.length === 0 || actSaving) return;
+    setActSaving(true);
+    try {
+      const now = new Date().toISOString();
+      const newActsList: any[] = [];
+      const syncItems: { path: string; data: any }[] = [];
+
+      for (const val of selectedActs) {
+        const actId = generateOfflineId('act');
+        const base = { type: val, date: now, addedBy: user?.uid ?? '' };
+        const extra = val === 'quran' ? (actForm.suraName || actForm.ayatNumber ? { suraName: actForm.suraName, ayatNumber: actForm.ayatNumber } : {})
+                    : val === 'hadis' ? (actForm.hadisNumber ? { hadisBook: actForm.hadisBook, hadisNumber: actForm.hadisNumber } : {})
+                    : val === 'book'  ? (actForm.bookName ? { bookName: actForm.bookName } : {})
+                    : {};
+        const notePart = actForm.note.trim() ? { note: actForm.note.trim() } : {};
+        const payload = { ...base, ...extra, ...notePart };
+        const newAct = { id: actId, contactId: selectedContact.id, ...payload };
+
+        newActsList.push(newAct);
+        syncItems.push({ path: `contact_activities/${selectedContact.id}/${actId}`, data: payload });
+      }
+
+      setActivities(prev => [...newActsList, ...prev]);
+      for (const it of newActsList) {
+        await putInStore('contact_activities', it);
+      }
+
+      setSelectedActs([]);
+      setActForm(emptyActForm);
+      setActPanelOpen(false);
+
+      for (const { path, data } of syncItems) {
+        if (typeof navigator !== 'undefined' && navigator.onLine) {
+          try {
+            await set(ref(database, path), data);
+          } catch {
+            await enqueueSync({ collection: 'contact_activities', action: 'set', path, data });
+          }
+        } else {
+          await enqueueSync({ collection: 'contact_activities', action: 'set', path, data });
+        }
+      }
+
+      await reloadActivitySummary();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActSaving(false);
+    }
   };
 
   const handleDeleteActivity = async (actId: string) => {
@@ -1524,8 +1583,14 @@ export default function ContactsPage() {
                   {/* Add Activity button */}
                   <button
                     ref={actButtonRef}
-                    onClick={() => { setActPanelOpen(o => !o); setActType(null); setActForm(emptyActForm); }}
-                    title={actPanelOpen ? 'Close activity menu' : 'Add activity'}
+                    onClick={() => {
+                      setActPanelOpen(o => !o);
+                      if (actPanelOpen) {
+                        setSelectedActs([]);
+                        setActForm(emptyActForm);
+                      }
+                    }}
+                    title={actPanelOpen ? 'Close activity dropdown' : 'Add activity'}
                     className={`h-8 px-2.5 sm:px-3 flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                       actPanelOpen
                         ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25 ring-1 ring-emerald-400'
@@ -1559,129 +1624,167 @@ export default function ContactsPage() {
                 </div>
               </div>
 
-              {/* Activity Drawer Panel */}
+              {/* Floating Multi-Select Dropdown */}
               {actPanelOpen && (
-                <div ref={actPanelRef} className="border-t border-white/10 bg-slate-950/95 backdrop-blur-xl px-5 sm:px-6 py-4 shadow-2xl transition-all">
-                  {!actType ? (
-                    <>
-                      <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-white/5">
-                        <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                          <p className="text-xs font-semibold text-slate-200 uppercase tracking-wider">Log Activity</p>
-                        </div>
+                <div
+                  ref={actPanelRef}
+                  className="absolute left-3 right-3 sm:left-auto sm:right-4 top-[calc(100%+0.5rem)] sm:w-[350px] bg-slate-900/98 border border-white/15 rounded-2xl shadow-2xl p-4 backdrop-blur-2xl z-30 animate-in fade-in zoom-in-95 duration-150 space-y-3"
+                >
+                  <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <p className="text-xs font-semibold text-slate-200 uppercase tracking-wider">Log Activities</p>
+                      {selectedActs.length > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold">
+                          {selectedActs.length} selected
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {selectedActs.length > 0 && (
                         <button
-                          onClick={() => setActPanelOpen(false)}
-                          className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                          title="Close"
+                          type="button"
+                          onClick={() => setSelectedActs([])}
+                          className="text-[10px] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
                         >
-                          <X className="w-3.5 h-3.5" />
+                          Clear
                         </button>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {ACTIVITY_TYPES.map(t => (
-                          <button
-                            key={t.value}
-                            onClick={() => {
-                              if (!t.hasForm) handleQuickActivity(t.value);
-                              else setActType(t.value);
-                            }}
-                            className="group flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/5 hover:border-emerald-500/40 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:shadow-emerald-500/10 cursor-pointer"
-                          >
-                            <span className="text-2xl transition-transform group-hover:scale-110">{t.emoji}</span>
-                            <span className="text-[11px] font-medium text-slate-300 text-center leading-tight group-hover:text-emerald-300">
-                              {t.label}
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => { setActPanelOpen(false); setSelectedActs([]); setActForm(emptyActForm); }}
+                        className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                        title="Close"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 3x3 Grid of Activities with Multi-Select checkmarks */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {ACTIVITY_TYPES.map(t => {
+                      const isSelected = selectedActs.includes(t.value);
+                      return (
+                        <button
+                          type="button"
+                          key={t.value}
+                          onClick={() => toggleSelectAct(t.value)}
+                          className={`relative group flex flex-col items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl border transition-all cursor-pointer select-none ${
+                            isSelected
+                              ? 'bg-emerald-500/20 border-emerald-500/60 shadow-md shadow-emerald-500/15 scale-[1.02]'
+                              : 'bg-slate-800/70 hover:bg-slate-800 border-white/5 hover:border-white/15 active:scale-95'
+                          }`}
+                        >
+                          {isSelected && (
+                            <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center shadow-sm">
+                              <Check className="w-2.5 h-2.5 stroke-[3]" />
                             </span>
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-white/5">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setActType(null)}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/10 text-xs text-slate-300 hover:text-white transition-colors cursor-pointer"
-                          >
-                            <ChevronLeft className="w-3.5 h-3.5" />
-                            <span>Back</span>
-                          </button>
-                          <span className="text-slate-600">/</span>
-                          <p className="text-xs font-semibold text-white flex items-center gap-1.5">
-                            <span>{ACTIVITY_TYPES.find(t => t.value === actType)?.emoji}</span>
-                            <span>{ACTIVITY_TYPES.find(t => t.value === actType)?.label}</span>
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => { setActPanelOpen(false); setActType(null); }}
-                          className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                          title="Close"
-                        >
-                          <X className="w-3.5 h-3.5" />
+                          )}
+                          <span className="text-2xl transition-transform group-hover:scale-110">{t.emoji}</span>
+                          <span className={`text-[10px] font-medium text-center leading-tight transition-colors ${
+                            isSelected ? 'text-emerald-200 font-semibold' : 'text-slate-300 group-hover:text-white'
+                          }`}>
+                            {t.label}
+                          </span>
                         </button>
-                      </div>
-                      <div className="space-y-3">
-                        {actType === 'quran' && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      );
+                    })}
+                  </div>
+
+                  {/* Optional details for Quran, Hadis, Book if selected */}
+                  {(selectedActs.includes('quran') || selectedActs.includes('hadis') || selectedActs.includes('book')) && (
+                    <div className="space-y-2 pt-2 border-t border-white/10">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Optional Details</p>
+
+                      {selectedActs.includes('quran') && (
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-medium text-emerald-400">📖 Quran Study</p>
+                          <div className="grid grid-cols-2 gap-2">
                             <input
-                              placeholder="Sura name (e.g. Al-Baqarah)"
+                              placeholder="Sura name (optional)"
                               value={actForm.suraName}
                               onChange={e => setActForm(f => ({ ...f, suraName: e.target.value }))}
-                              className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                              className="w-full bg-slate-800 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                             />
                             <input
-                              placeholder="Ayat number"
+                              placeholder="Ayat # (optional)"
                               type="number"
                               value={actForm.ayatNumber}
                               onChange={e => setActForm(f => ({ ...f, ayatNumber: e.target.value }))}
-                              className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                              className="w-full bg-slate-800 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                             />
                           </div>
-                        )}
-                        {actType === 'hadis' && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        </div>
+                      )}
+
+                      {selectedActs.includes('hadis') && (
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-medium text-amber-400">📜 Hadis</p>
+                          <div className="grid grid-cols-2 gap-2">
                             <select
                               value={actForm.hadisBook}
                               onChange={e => setActForm(f => ({ ...f, hadisBook: e.target.value }))}
-                              className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white appearance-none focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                              className="w-full bg-slate-800 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white appearance-none focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
                             >
                               {SIA_SITTA.map(b => <option key={b} value={b}>{b}</option>)}
                             </select>
                             <input
-                              placeholder="Hadis number"
+                              placeholder="Hadis # (optional)"
                               type="number"
                               value={actForm.hadisNumber}
                               onChange={e => setActForm(f => ({ ...f, hadisNumber: e.target.value }))}
-                              className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                              className="w-full bg-slate-800 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                             />
                           </div>
-                        )}
-                        {actType === 'book' && (
+                        </div>
+                      )}
+
+                      {selectedActs.includes('book') && (
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-medium text-blue-400">📚 Islamic Book</p>
                           <select
                             value={actForm.bookName}
                             onChange={e => setActForm(f => ({ ...f, bookName: e.target.value }))}
-                            className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white appearance-none focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                            className="w-full bg-slate-800 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white appearance-none focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
                           >
                             {ISLAMIC_BOOKS.map(b => <option key={b} value={b}>{b}</option>)}
                           </select>
-                        )}
-                        <input
-                          placeholder="Note (optional)"
-                          value={actForm.note}
-                          onChange={e => setActForm(f => ({ ...f, note: e.target.value }))}
-                          className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                        />
-                        <button
-                          onClick={handleAddActivity}
-                          disabled={!actFormValid || actSaving}
-                          className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-semibold shadow-lg shadow-emerald-600/20 transition-all cursor-pointer"
-                        >
-                          {actSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                          Save Activity
-                        </button>
-                      </div>
-                    </>
+                        </div>
+                      )}
+                    </div>
                   )}
+
+                  {/* Optional Note */}
+                  {selectedActs.length > 0 && (
+                    <input
+                      placeholder="Note for activities (optional)"
+                      value={actForm.note}
+                      onChange={e => setActForm(f => ({ ...f, note: e.target.value }))}
+                      className="w-full bg-slate-800 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    />
+                  )}
+
+                  {/* Save button */}
+                  <button
+                    type="button"
+                    onClick={handleSaveActivities}
+                    disabled={selectedActs.length === 0 || actSaving}
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold shadow-lg shadow-emerald-600/20 transition-all cursor-pointer"
+                  >
+                    {actSaving ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Check className="w-3.5 h-3.5" />
+                    )}
+                    <span>
+                      {selectedActs.length === 0
+                        ? 'Select activities above'
+                        : selectedActs.length === 1
+                        ? 'Log 1 Activity'
+                        : `Log ${selectedActs.length} Activities`}
+                    </span>
+                  </button>
                 </div>
               )}
             </div>
