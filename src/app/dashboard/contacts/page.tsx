@@ -431,10 +431,16 @@ export default function ContactsPage() {
         const allContacts = Object.entries(cSnap.val()).map(([id, v]: any) => ({ id, ...v }));
         const myOrgIds = myOrgs.map(o => o.id);
         const myContacts = allContacts.filter(c => myOrgIds.includes(c.organizationId));
-        setContacts(myContacts);
+        
+        // Preserve any optimistic locally added contacts that haven't reached Firebase yet
+        setContacts(prev => {
+          const cloudIds = new Set(myContacts.map(c => c.id));
+          const localOnly = prev.filter(c => !cloudIds.has(c.id));
+          return [...localOnly, ...myContacts];
+        });
         await putAllInStore('contacts', allContacts);
       } else {
-        setContacts([]);
+        setContacts(prev => prev.filter(c => c.id?.startsWith('offline_')));
       }
 
       await reloadActivitySummary();
@@ -541,6 +547,19 @@ export default function ContactsPage() {
       // Optimistic update
       setContacts(prev => [newContact, ...prev]);
       await putInStore('contacts', newContact);
+
+      // Reset search and ensure category filter matches so the new person is immediately visible
+      setSearchQuery('');
+      if (filterCategory !== 'all' && filterCategory !== (contactData.category || 'shohojogi')) {
+        setFilterCategory(contactData.category || 'shohojogi');
+      }
+      setFilterStatuses(new Set());
+      setFilterOrgIds(prev => {
+        if (prev.size > 0 && !prev.has(contactData.organizationId)) {
+          return new Set();
+        }
+        return prev;
+      });
 
       setForm(emptyForm);
       setFormOpen(false);
@@ -754,8 +773,14 @@ export default function ContactsPage() {
   };
 
   const filtered = contacts.filter(c => {
-    const q = searchQuery.toLowerCase();
-    const matchSearch = !q || c.name?.toLowerCase().includes(q) || c.mobile?.includes(q);
+    const q = searchQuery.toLowerCase().trim();
+    const matchSearch = !q ||
+      c.name?.toLowerCase().includes(q) ||
+      c.mobile?.includes(q) ||
+      c.location?.toLowerCase().includes(q) ||
+      c.address?.toLowerCase().includes(q) ||
+      c.email?.toLowerCase().includes(q) ||
+      c.note?.toLowerCase().includes(q);
     const matchStatus = filterStatuses.size === 0 || filterStatuses.has(c.status ?? '');
     const matchOrg    = filterOrgIds.size   === 0 || filterOrgIds.has(c.organizationId);
     const contactCat  = c.category || 'shohojogi';
@@ -784,7 +809,7 @@ export default function ContactsPage() {
               <span>{t('contacts')}</span>
               {!loading && (
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 font-mono">
-                  {filtered.length}
+                  {contacts.length}
                 </span>
               )}
             </h1>
@@ -797,7 +822,10 @@ export default function ContactsPage() {
         <button
           type="button"
           onClick={() => {
-            setForm(emptyForm);
+            setForm({
+              ...emptyForm,
+              organizationId: organizations.length === 1 ? organizations[0].id : '',
+            });
             setFormOpen(true);
           }}
           className="group inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-semibold shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50 border border-blue-400/30 active:scale-95 transition-all cursor-pointer shrink-0"
@@ -815,7 +843,9 @@ export default function ContactsPage() {
           <div className="flex items-center gap-2 flex-shrink-0">
             <h2 className="font-semibold text-white">People</h2>
             {!loading && (
-              <span className="text-xs bg-white/10 text-slate-300 rounded-full px-2 py-0.5">{filtered.length}</span>
+              <span className="text-xs bg-white/10 text-slate-300 rounded-full px-2 py-0.5 font-mono">
+                {filtered.length === contacts.length ? contacts.length : `${filtered.length} / ${contacts.length}`}
+              </span>
             )}
             <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${
               filterCategory === 'kormi'
@@ -833,10 +863,20 @@ export default function ContactsPage() {
             <div className="relative flex-1 max-w-xs">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
-                type="text" placeholder="Search…" value={searchQuery}
+                type="text" placeholder="Search by name, phone, location…" value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-900 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                className="w-full bg-slate-900 border border-white/10 rounded-xl pl-9 pr-8 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
             {/* Filter button + dropdown */}
@@ -986,11 +1026,28 @@ export default function ContactsPage() {
             <Loader2 className="w-7 h-7 animate-spin text-blue-500" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="bg-slate-900 border border-white/10 rounded-2xl p-12 text-center">
-            <Users className="w-12 h-12 text-slate-700 mx-auto mb-3" />
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-12 text-center space-y-3">
+            <Users className="w-12 h-12 text-slate-700 mx-auto" />
             <p className="text-slate-400 text-sm">
               {contacts.length === 0 ? 'No people added yet.' : 'No results match your filter.'}
             </p>
+            {contacts.length > 0 && (searchQuery || activeFilterCount > 0 || filterCategory !== 'all') && (
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setFilterStatuses(new Set());
+                    setFilterOrgIds(new Set());
+                    setFilterCategory('all');
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 rounded-xl transition-all cursor-pointer shadow-sm shadow-blue-500/10 active:scale-95"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Reset filters & search ({contacts.length} total)</span>
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <>
