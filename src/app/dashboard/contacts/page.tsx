@@ -1102,35 +1102,56 @@ export default function ContactsPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-4">
 
-      {/* ── Add Person & Action Buttons ────────── */}
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => {
-            setForm({
-              ...emptyForm,
-              organizationId: organizations.length === 1 ? organizations[0].id : '',
-            });
-            setFormOpen(true);
-          }}
-          className="group flex-1 py-3 px-5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 border border-blue-400/30 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2"
-        >
-          <UserPlus className="w-4.5 h-4.5 transition-transform group-hover:scale-110" />
-          <span>{t('addPerson')}</span>
-        </button>
+      {/* ── Page Header & Primary Actions ────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pb-1">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600/25 via-indigo-600/20 to-blue-400/10 border border-blue-500/30 flex items-center justify-center text-blue-400 shadow-sm shadow-blue-500/10 shrink-0">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                {t('contacts')}
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                {filtered.length}{filtered.length !== contacts.length ? ` / ${contacts.length}` : ''}
+              </span>
+            </div>
+            <p className="text-xs text-slate-400">
+              {language === 'bn' ? 'সকল পরিচিতি ও দাওয়াতি কার্যক্রম পরিচালনা করুন' : 'Manage dawati contacts & activity logs'}
+            </p>
+          </div>
+        </div>
 
-        {allowDeleteAll && (isSuperAdmin(user?.email) || isHasanTareq) && contacts.length > 0 && (
+        <div className="flex items-center gap-2.5">
+          {allowDeleteAll && (isSuperAdmin(user?.email) || isHasanTareq) && contacts.length > 0 && (
+            <button
+              type="button"
+              onClick={handleDeleteAllVisibleContacts}
+              disabled={deletingAll}
+              title="Delete All Contacts"
+              className="h-10 px-3.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 flex-shrink-0"
+            >
+              {deletingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">Delete All ({contacts.length})</span>
+            </button>
+          )}
+
           <button
             type="button"
-            onClick={handleDeleteAllVisibleContacts}
-            disabled={deletingAll}
-            title="Delete All Contacts"
-            className="py-3 px-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer shadow-sm active:scale-[0.99] flex-shrink-0"
+            onClick={() => {
+              setForm({
+                ...emptyForm,
+                organizationId: organizations.length === 1 ? organizations[0].id : '',
+              });
+              setFormOpen(true);
+            }}
+            className="group h-10 px-4 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-md shadow-blue-600/20 hover:shadow-blue-600/35 border border-blue-400/30 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 flex-1 sm:flex-initial"
           >
-            {deletingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-            <span className="hidden sm:inline">Delete All ({contacts.length})</span>
+            <UserPlus className="w-4 h-4 transition-transform group-hover:scale-110" />
+            <span>{t('addPerson')}</span>
           </button>
-        )}
+        </div>
       </div>
 
 
@@ -1138,8 +1159,8 @@ export default function ContactsPage() {
       <div className="space-y-4">
         <div className="sticky top-[var(--header-offset,0px)] z-20 py-3 mb-3 bg-slate-950/90 backdrop-blur-xl border-b border-white/10 shadow-sm shadow-black/20 transition-[top] duration-300">
           <div className="relative w-full">
-            <div className="flex items-center w-full">
-              {/* Search Input – covers remaining space, connected with filter */}
+            <div className="flex items-center w-full bg-slate-900/90 border border-white/10 rounded-2xl shadow-sm overflow-hidden focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+              {/* Search Input */}
               <div className="relative flex-1 min-w-0">
                 <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 <input
@@ -1147,7 +1168,7 @@ export default function ContactsPage() {
                   placeholder="Search by name, phone, location…"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full bg-slate-900/90 border border-white/10 border-r-0 rounded-l-xl rounded-r-none pl-10 pr-9 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all shadow-inner"
+                  className="w-full bg-transparent pl-10 pr-9 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none transition-all"
                 />
                 {searchQuery && (
                   <button
@@ -1161,7 +1182,9 @@ export default function ContactsPage() {
                 )}
               </div>
 
-              {/* Filter button – connected in middle */}
+              <div className="w-[1px] h-6 bg-white/10 shrink-0" />
+
+              {/* Filter button */}
               <button
                 ref={filterButtonRef}
                 type="button"
@@ -1169,13 +1192,13 @@ export default function ContactsPage() {
                   setFilterOpen(o => !o);
                   setMoreOpen(false);
                 }}
-                className={`relative flex items-center gap-1.5 px-3.5 py-2 border border-white/10 border-r-0 rounded-none text-sm font-medium transition-all cursor-pointer ${
+                className={`relative flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-semibold transition-all cursor-pointer ${
                   filterOpen || activeFilterCount > 0
-                    ? 'bg-blue-600/20 text-blue-400 border-blue-500/40 z-10'
-                    : 'bg-slate-900/90 text-slate-300 hover:text-white hover:bg-white/5'
+                    ? 'bg-blue-600/20 text-blue-400 font-bold'
+                    : 'text-slate-300 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <SlidersHorizontal className="w-4 h-4" />
+                <SlidersHorizontal className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Filter</span>
                 {activeFilterCount > 0 && (
                   <span className="w-4 h-4 rounded-full bg-blue-500 text-white text-[9px] font-bold flex items-center justify-center">
@@ -1184,7 +1207,9 @@ export default function ContactsPage() {
                 )}
               </button>
 
-              {/* Three dots dropdown at the end – connected on right */}
+              <div className="w-[1px] h-6 bg-white/10 shrink-0" />
+
+              {/* Three dots dropdown at the end */}
               <div className="relative shrink-0" ref={moreRef}>
                 <button
                   type="button"
@@ -1192,10 +1217,10 @@ export default function ContactsPage() {
                     setMoreOpen(o => !o);
                     setFilterOpen(false);
                   }}
-                  className={`flex items-center justify-center px-3 py-2 border border-white/10 rounded-r-xl rounded-l-none text-sm font-medium transition-all cursor-pointer ${
+                  className={`flex items-center justify-center px-3 py-2.5 text-xs font-medium transition-all cursor-pointer ${
                     moreOpen
-                      ? 'bg-blue-600/20 text-blue-400 border-blue-500/40 z-10'
-                      : 'bg-slate-900/90 text-slate-300 hover:text-white hover:bg-white/5'
+                      ? 'bg-blue-600/20 text-blue-400 font-bold'
+                      : 'text-slate-300 hover:text-white hover:bg-white/5'
                   }`}
                   title="More options"
                 >
@@ -1735,164 +1760,224 @@ export default function ContactsPage() {
             </div>
 
             {/* ── Desktop table (≥ md) ── */}
-            <div className="hidden md:block bg-slate-900 border border-white/10 rounded-2xl overflow-hidden mt-1">
-              <table className="w-full text-left">
+            <div className="hidden md:block bg-slate-900/90 border border-white/10 rounded-2xl overflow-hidden shadow-xl backdrop-blur-xl mt-2">
+              <table className="w-full text-left border-collapse table-fixed">
                 <thead>
-                  <tr className="border-b border-white/10 bg-white/5">
-                    <th className="w-12 px-4 py-3 text-center">
-                      <div onClick={toggleSelectAll} className="inline-flex items-center justify-center cursor-pointer p-1 rounded-lg hover:bg-white/5">
+                  <tr className="border-b border-white/10 bg-slate-800/60 backdrop-blur-sm">
+                    <th className="w-14 px-4 py-3.5 text-center">
+                      <div onClick={toggleSelectAll} className="inline-flex items-center justify-center cursor-pointer p-1 rounded-lg hover:bg-white/5 transition-colors">
                         <CustomCheckbox checked={isAllSelected} indeterminate={isSomeSelected} />
                       </div>
                     </th>
-                    <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Name</th>
-                    <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Status</th>
-                    <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Contact</th>
-                    <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Org</th>
+                    <th className="w-[36%] px-4 py-3.5 text-xs font-bold text-slate-300 uppercase tracking-wider">
+                      {t('name')}
+                    </th>
+                    <th className="w-[20%] px-4 py-3.5 text-xs font-bold text-slate-300 uppercase tracking-wider">
+                      {t('status')}
+                    </th>
+                    <th className="w-[24%] px-4 py-3.5 text-xs font-bold text-slate-300 uppercase tracking-wider">
+                      {t('contact')}
+                    </th>
+                    <th className="w-[20%] px-4 py-3.5 text-xs font-bold text-slate-300 uppercase tracking-wider">
+                      {t('org')}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {filtered.map(c => (
-                    <tr
-                      key={c.id}
-                      className={`hover:bg-white/[0.02] transition-colors ${
-                        selectedIds.has(c.id) ? 'bg-blue-950/25' : ''
-                      }`}
-                    >
-                      <td className="w-12 px-4 py-3.5 text-center">
-                        <div onClick={() => toggleSelectOne(c.id)} className="inline-flex items-center justify-center cursor-pointer p-1 rounded-lg hover:bg-white/5">
-                          <CustomCheckbox checked={selectedIds.has(c.id)} />
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2.5">
-                          {/* Mini avatar with category badge on desktop – Clickable */}
+                  {filtered.map(c => {
+                    const isSelected = selectedIds.has(c.id);
+                    const perf = getPerfLevel(actSummary[c.id] ?? 0);
+                    const st = statusMeta(c.status);
+                    const hasStatus = !!c.status;
+
+                    return (
+                      <tr
+                        key={c.id}
+                        className={`group/row transition-all duration-150 ${
+                          isSelected
+                            ? 'bg-blue-950/30 hover:bg-blue-950/40'
+                            : 'hover:bg-white/[0.03]'
+                        }`}
+                      >
+                        {/* Checkbox Column */}
+                        <td className="w-14 px-4 py-3.5 text-center align-middle">
                           <div
-                            onClick={() => setSelectedContact(c)}
-                            className="relative shrink-0 cursor-pointer hover:scale-105 active:scale-95 transition-transform"
-                            title="View contact details"
+                            onClick={() => toggleSelectOne(c.id)}
+                            className="inline-flex items-center justify-center cursor-pointer p-1 rounded-lg hover:bg-white/5 transition-colors"
                           >
-                            {/* Center top star badge */}
-                            {(() => {
-                              const perf = getPerfLevel(actSummary[c.id] ?? 0);
-                              if (!perf) return null;
-                              return (
+                            <CustomCheckbox checked={isSelected} />
+                          </div>
+                        </td>
+
+                        {/* Name Column */}
+                        <td className="px-4 py-3.5 align-middle">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {/* Avatar with Category & Stars */}
+                            <div
+                              onClick={() => setSelectedContact(c)}
+                              className="relative shrink-0 cursor-pointer group/av"
+                              title="View contact details"
+                            >
+                              {perf && (
                                 <span
                                   className="absolute -top-1.5 left-1/2 -translate-x-1/2 z-10 px-1 py-0.2 rounded-full text-[7px] font-black border leading-none shadow-sm flex items-center justify-center pointer-events-none select-none tracking-widest backdrop-blur-md"
                                   style={{
                                     color: perf.color,
                                     background: 'rgba(10, 15, 29, 0.95)',
                                     borderColor: perf.border,
-                                    boxShadow: `0 0 6px ${perf.color}35`,
+                                    boxShadow: `0 0 6px ${perf.color}40`,
                                   }}
-                                  title={`${perf.label} (${perf.stars} star${perf.stars > 1 ? 's' : ''})`}
+                                  title={`${perf.label} (${perf.stars} stars)`}
                                 >
                                   {'★'.repeat(perf.stars)}
                                 </span>
-                              );
-                            })()}
+                              )}
 
-                            <div
-                              className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs border select-none ${
-                                c.category === 'kormi'
-                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                                  : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
-                              }`}
-                            >
-                              {c.name?.[0]?.toUpperCase() ?? '?'}
+                              <div
+                                className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs border select-none transition-transform group-hover/av:scale-105 shadow-sm ${
+                                  c.category === 'kormi'
+                                    ? 'bg-gradient-to-br from-emerald-500/25 to-teal-600/30 text-emerald-300 border-emerald-500/30'
+                                    : 'bg-gradient-to-br from-blue-500/25 to-indigo-600/30 text-blue-300 border-blue-500/30'
+                                }`}
+                              >
+                                {c.name?.[0]?.toUpperCase() ?? '?'}
+                              </div>
+
+                              <span
+                                title={c.category === 'kormi' ? 'কর্মী (Kormi)' : 'সহযোগী (Shohojogi)'}
+                                className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black border-2 border-slate-900 shadow-sm ${
+                                  c.category === 'kormi'
+                                    ? 'bg-emerald-500 text-slate-950'
+                                    : 'bg-blue-500 text-white'
+                                }`}
+                              >
+                                {c.category === 'kormi' ? 'K' : 'S'}
+                              </span>
                             </div>
-                            <span
-                              title={c.category === 'kormi' ? 'কর্মী (Kormi)' : 'সহযোগী (Shohojogi)'}
-                              className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black border border-slate-900 shadow-sm ${
-                                c.category === 'kormi'
-                                  ? 'bg-emerald-500 text-slate-950'
-                                  : 'bg-blue-500 text-white'
-                              }`}
-                            >
-                              {c.category === 'kormi' ? 'K' : 'S'}
-                            </span>
+
+                            {/* Name and subtitle */}
+                            <div className="min-w-0 flex-1">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedContact(c)}
+                                className="text-sm font-semibold text-white hover:text-blue-400 transition-colors cursor-pointer text-left block truncate max-w-full focus:outline-none"
+                                title={c.name}
+                              >
+                                {c.name}
+                              </button>
+                              <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
+                                <span className={c.category === 'kormi' ? 'text-emerald-400/90 font-medium' : 'text-blue-400/90 font-medium'}>
+                                  {c.category === 'kormi' ? t('kormi') : t('shohojogi')}
+                                </span>
+                                {c.note && (
+                                  <>
+                                    <span className="text-slate-600">•</span>
+                                    <span className="truncate max-w-[140px] text-slate-500" title={c.note}>
+                                      {c.note}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedContact(c)}
-                            className="text-sm font-medium text-white hover:text-blue-400 transition-colors cursor-pointer text-left focus:outline-none"
-                            title="View contact details"
+                        </td>
+
+                        {/* Status Column */}
+                        <td className="px-4 py-3.5 align-middle" onClick={e => e.stopPropagation()}>
+                          <div
+                            className={`relative inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold backdrop-blur-sm transition-all hover:brightness-110 active:scale-95 cursor-pointer max-w-full ${
+                              hasStatus
+                                ? ''
+                                : 'border-dashed border-white/20 bg-white/[0.02] text-slate-400 hover:text-slate-200 hover:border-white/30'
+                            }`}
+                            style={hasStatus ? {
+                              backgroundColor: `${st.dot}18`,
+                              borderColor: `${st.dot}45`,
+                              color: st.dot,
+                              boxShadow: `0 0 12px ${st.dot}15`,
+                            } : {}}
                           >
-                            {c.name}
-                          </button>
-                        </div>
-                      </td>
-                      {/* Status column */}
-                      <td className="px-5 py-3.5" onClick={e => e.stopPropagation()}>
-                        <div
-                          className="relative inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all hover:brightness-110 cursor-pointer"
-                          style={{
-                            backgroundColor: c.status ? `${statusMeta(c.status).dot}15` : 'rgba(255,255,255,0.03)',
-                            borderColor: c.status ? `${statusMeta(c.status).dot}40` : 'rgba(255,255,255,0.08)',
-                            color: statusMeta(c.status).dot,
-                          }}
-                        >
-                          <span
-                            className="w-2 h-2 rounded-full flex-shrink-0 shadow-[0_0_6px_currentColor]"
-                            style={{ backgroundColor: statusMeta(c.status).dot }}
-                          />
-                          <span className="text-xs font-semibold">
-                            {statusMeta(c.status).label}
-                          </span>
-                          <ChevronDown className="w-3 h-3 opacity-60 ml-0.5 shrink-0" />
-                          <select
-                            value={c.status ?? ''}
-                            onChange={e => handleStatusChange(c, e.target.value, e)}
-                            onClick={e => e.stopPropagation()}
-                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                          >
-                            {STATUSES.map(s => (
-                              <option key={s.value} value={s.value} style={{ background: '#1e293b', color: s.dot }}>
-                                {s.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2">
-                          <a
-                            href={`tel:${clean(c.mobile)}`}
-                            title="Call"
-                            onClick={e => e.stopPropagation()}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 transition-all active:scale-95 shadow-sm"
-                          >
-                            <Phone className="w-3.5 h-3.5" />
-                          </a>
-                          <a
-                            href={`https://wa.me/${clean(c.mobile)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="WhatsApp"
-                            onClick={e => e.stopPropagation()}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all active:scale-95 shadow-sm"
-                          >
-                            <FaWhatsapp className="w-3.5 h-3.5" />
-                          </a>
-                          {c.mobile && (
-                            <span className="text-xs font-mono text-slate-400 ml-1">{c.mobile}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex flex-col gap-1 items-start">
-                          <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-md text-xs">
-                            {orgName(c.organizationId)}
-                          </span>
-                          {c.location && (
-                            <span className="text-[10px] text-purple-300 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20 flex items-center gap-1">
-                              <MapPin className="w-2.5 h-2.5 text-purple-400" />
-                              <span>{c.location}</span>
+                            <span
+                              className="w-2 h-2 rounded-full flex-shrink-0 transition-transform"
+                              style={{
+                                backgroundColor: st.dot,
+                                boxShadow: hasStatus ? `0 0 8px ${st.dot}` : 'none',
+                              }}
+                            />
+                            <span className="truncate max-w-[105px]">
+                              {st.label}
                             </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                            <ChevronDown className="w-3 h-3 opacity-60 ml-0.5 shrink-0" />
+                            <select
+                              value={c.status ?? ''}
+                              onChange={e => handleStatusChange(c, e.target.value, e)}
+                              onClick={e => e.stopPropagation()}
+                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                            >
+                              {STATUSES.map(s => (
+                                <option key={s.value} value={s.value} style={{ background: '#1e293b', color: s.dot }}>
+                                  {s.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </td>
+
+                        {/* Contact Column */}
+                        <td className="px-4 py-3.5 align-middle">
+                          <div className="flex items-center gap-2.5">
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <a
+                                href={`tel:${clean(c.mobile)}`}
+                                title="Call"
+                                onClick={e => e.stopPropagation()}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-500/10 hover:bg-blue-500/25 text-blue-400 border border-blue-500/25 transition-all hover:scale-105 active:scale-95 shadow-sm"
+                              >
+                                <Phone className="w-3.5 h-3.5" />
+                              </a>
+                              <a
+                                href={`https://wa.me/${clean(c.mobile)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="WhatsApp"
+                                onClick={e => e.stopPropagation()}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/25 transition-all hover:scale-105 active:scale-95 shadow-sm"
+                              >
+                                <FaWhatsapp className="w-3.5 h-3.5" />
+                              </a>
+                            </div>
+                            {c.mobile && (
+                              <span className="text-xs font-mono font-semibold text-slate-300 select-all truncate">
+                                {c.mobile}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Org & Location Column */}
+                        <td className="px-4 py-3.5 align-middle">
+                          <div className="flex flex-col gap-1 items-start min-w-0 max-w-full">
+                            <span
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 hover:bg-blue-500/15 text-blue-300 border border-blue-500/20 rounded-lg text-xs font-medium truncate max-w-full transition-colors"
+                              title={orgName(c.organizationId)}
+                            >
+                              <Building2 className="w-3 h-3 text-blue-400 shrink-0" />
+                              <span className="truncate">{orgName(c.organizationId)}</span>
+                            </span>
+                            {c.location && (
+                              <span
+                                className="inline-flex items-center gap-1 text-[11px] text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/20 truncate max-w-full"
+                                title={c.location}
+                              >
+                                <MapPin className="w-2.5 h-2.5 text-purple-400 shrink-0" />
+                                <span className="truncate">{c.location}</span>
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
