@@ -1159,7 +1159,7 @@ export default function ContactsPage() {
       <div className="space-y-4">
         <div className="sticky top-[var(--header-offset,0px)] z-20 py-1.5 transition-[top] duration-300">
           <div className="relative w-full">
-            <div className="flex items-center w-full bg-slate-900/90 border border-white/10 rounded-2xl shadow-sm overflow-hidden focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+            <div className="flex items-center w-full bg-slate-900/90 border border-white/10 rounded-2xl shadow-sm focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
               {/* Search Input */}
               <div className="relative flex-1 min-w-0">
                 <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -1168,7 +1168,7 @@ export default function ContactsPage() {
                   placeholder="Search by name, phone, location…"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full bg-transparent pl-10 pr-9 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none transition-all"
+                  className="w-full bg-transparent pl-10 pr-9 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none transition-all rounded-l-2xl"
                 />
                 {searchQuery && (
                   <button
@@ -1217,7 +1217,7 @@ export default function ContactsPage() {
                     setMoreOpen(o => !o);
                     setFilterOpen(false);
                   }}
-                  className={`flex items-center justify-center px-3 py-2.5 text-xs font-medium transition-all cursor-pointer ${
+                  className={`flex items-center justify-center px-3 py-2.5 text-xs font-medium rounded-r-2xl transition-all cursor-pointer ${
                     moreOpen
                       ? 'bg-blue-600/20 text-blue-400 font-bold'
                       : 'text-slate-300 hover:text-white hover:bg-white/5'
@@ -1229,7 +1229,7 @@ export default function ContactsPage() {
 
                 {/* Three dots dropdown menu */}
                 {moreOpen && (
-                  <div className="absolute right-0 top-full mt-2 z-30 w-56 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden py-1.5 backdrop-blur-xl">
+                  <div className="absolute right-0 top-full mt-2 z-50 w-56 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden py-1.5 backdrop-blur-xl">
                     {/* Add person quick action */}
                     <button
                       type="button"
