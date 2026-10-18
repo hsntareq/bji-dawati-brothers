@@ -18,6 +18,7 @@ const nextConfig: NextConfig = {
     trailingSlash: true,
   }),
   ...(allowedDevOrigins.length > 0 && { allowedDevOrigins }),
+  devIndicators: false,
   images: {
     unoptimized: true, // required for static export
   },
