@@ -150,7 +150,7 @@ const CustomCheckbox = ({
         ? 'bg-gradient-to-tr from-blue-600 via-indigo-600 to-blue-500 border border-blue-400 text-white shadow-md shadow-blue-500/30 scale-100 ring-2 ring-blue-500/20'
         : indeterminate
         ? 'bg-blue-600/30 border border-blue-400 text-blue-300'
-        : 'bg-slate-800/90 border border-white/20 hover:border-blue-400/60 hover:bg-slate-800/95 text-transparent'
+        : 'bji-checkbox-unchecked bg-slate-800/90 border border-white/20 hover:border-blue-400/60 hover:bg-slate-800/95 text-transparent'
     } ${className}`}
   >
     {checked && (
@@ -1623,10 +1623,10 @@ export default function ContactsPage() {
                         if (!perf) return null;
                         return (
                           <span
-                            className="absolute -top-2 left-1/2 -translate-x-1/2 z-10 px-1.5 py-0.5 rounded-full text-[9px] font-black border leading-none shadow-md flex items-center justify-center pointer-events-none select-none tracking-widest backdrop-blur-md"
+                            className="bji-star-badge absolute -top-2 left-1/2 -translate-x-1/2 z-10 px-1.5 py-0.5 rounded-full text-[9px] font-black border leading-none shadow-md flex items-center justify-center pointer-events-none select-none tracking-widest backdrop-blur-md"
                             style={{
                               color: perf.color,
-                              background: 'rgba(10, 15, 29, 0.95)',
+                              background: 'var(--bji-card-bg)',
                               borderColor: perf.border,
                               boxShadow: `0 0 10px ${perf.color}35`,
                             }}
@@ -1649,7 +1649,7 @@ export default function ContactsPage() {
                       {/* Meaningfully positioned Category badge (S / K) - no brackets */}
                       <span
                         title={c.category === 'kormi' ? 'কর্মী (Kormi)' : 'সহযোগী (Shohojogi)'}
-                        className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black border-2 border-slate-900 shadow-md ${
+                        className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black border-2 border-slate-900 bji-avatar-border shadow-md ${
                           c.category === 'kormi'
                             ? 'bg-emerald-500 text-slate-950 shadow-emerald-500/30'
                             : 'bg-blue-500 text-white shadow-blue-500/30'
@@ -1705,12 +1705,14 @@ export default function ContactsPage() {
                   <div className="mt-2.5 pt-2.5 border-t border-white/[0.06] flex items-center justify-between gap-2">
                     {/* Status Dropdown Pill */}
                     <div
-                      className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all hover:brightness-110 cursor-pointer shrink-0"
-                      style={{
-                        backgroundColor: c.status ? `${statusMeta(c.status).dot}15` : 'rgba(255,255,255,0.03)',
-                        borderColor: c.status ? `${statusMeta(c.status).dot}40` : 'rgba(255,255,255,0.08)',
+                      className={`relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all hover:brightness-110 cursor-pointer shrink-0 ${
+                        c.status ? '' : 'bji-status-unset border-dashed'
+                      }`}
+                      style={c.status ? {
+                        backgroundColor: `${statusMeta(c.status).dot}15`,
+                        borderColor: `${statusMeta(c.status).dot}40`,
                         color: statusMeta(c.status).dot,
-                      }}
+                      } : {}}
                       onClick={e => e.stopPropagation()}
                     >
                       <span
@@ -1820,10 +1822,10 @@ export default function ContactsPage() {
                             >
                               {perf && (
                                 <span
-                                  className="absolute -top-1.5 left-1/2 -translate-x-1/2 z-10 px-1 py-0.2 rounded-full text-[7px] font-black border leading-none shadow-sm flex items-center justify-center pointer-events-none select-none tracking-widest backdrop-blur-md"
+                                  className="bji-star-badge absolute -top-1.5 left-1/2 -translate-x-1/2 z-10 px-1 py-0.2 rounded-full text-[7px] font-black border leading-none shadow-sm flex items-center justify-center pointer-events-none select-none tracking-widest backdrop-blur-md"
                                   style={{
                                     color: perf.color,
-                                    background: 'rgba(10, 15, 29, 0.95)',
+                                    background: 'var(--bji-card-bg)',
                                     borderColor: perf.border,
                                     boxShadow: `0 0 6px ${perf.color}40`,
                                   }}
@@ -1845,7 +1847,7 @@ export default function ContactsPage() {
 
                               <span
                                 title={c.category === 'kormi' ? 'কর্মী (Kormi)' : 'সহযোগী (Shohojogi)'}
-                                className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black border-2 border-slate-900 shadow-sm ${
+                                className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black border-2 border-slate-900 bji-avatar-border shadow-sm ${
                                   c.category === 'kormi'
                                     ? 'bg-emerald-500 text-slate-950'
                                     : 'bg-blue-500 text-white'
@@ -1888,7 +1890,7 @@ export default function ContactsPage() {
                             className={`relative inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold backdrop-blur-sm transition-all hover:brightness-110 active:scale-95 cursor-pointer max-w-full ${
                               hasStatus
                                 ? ''
-                                : 'border-dashed border-white/20 bg-white/[0.02] text-slate-400 hover:text-slate-200 hover:border-white/30'
+                                : 'bji-status-unset border-dashed border-white/20 bg-white/[0.02] text-slate-400 hover:text-slate-200 hover:border-white/30'
                             }`}
                             style={hasStatus ? {
                               backgroundColor: `${st.dot}18`,
