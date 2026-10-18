@@ -629,76 +629,62 @@ export default function OrganizationsPage() {
                   onClick={() => openOrgDetail(ward)}
                   className="p-4 sm:p-5 cursor-pointer hover:bg-white/[0.02] transition-colors"
                 >
-                  <div className="flex items-start gap-3.5 sm:gap-4">
+                  {/* Top row: Avatar + Title & Subtitle + Action buttons */}
+                  <div className="flex items-center gap-3.5 sm:gap-4">
                     {/* Ward Icon */}
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500/20 via-indigo-500/15 to-purple-600/30 border border-purple-500/30 flex items-center justify-center text-purple-300 shrink-0 shadow-inner mt-0.5">
-                      <Shield className="w-6 h-6 text-purple-400" />
+                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-purple-500/20 via-indigo-500/15 to-purple-600/30 border border-purple-500/30 flex items-center justify-center text-purple-300 shrink-0 shadow-inner">
+                      <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" />
                     </div>
 
                     {/* Ward Info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-bold text-white text-base sm:text-lg hover:text-purple-300 transition-colors truncate">
-                          {ward.name}
-                        </h3>
-                        <span className="px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-300 border border-purple-500/30 text-[10px] font-bold uppercase tracking-wider">
-                          Ward
-                        </span>
-                        {ward.createdBy === user.uid && (
-                          <span className="px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-semibold flex items-center gap-1">
-                            <Crown className="w-3 h-3 text-amber-400" /> Owner
-                          </span>
-                        )}
-                      </div>
+                      <h3 className="font-bold text-white text-base sm:text-lg hover:text-purple-300 transition-colors truncate">
+                        {ward.name}
+                      </h3>
 
                       {/* Ward name / subtitle */}
-                      <div className="mt-1.5">
-                        {editingWardId === ward.id ? (
-                          <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                            <input
-                              value={editWardName}
-                              onChange={e => setEditWardName(e.target.value)}
-                              placeholder="e.g. Ward No. 5"
-                              className="flex-1 bg-slate-800 border border-purple-500/30 rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-500 focus:outline-none"
-                              onKeyDown={e => { if (e.key === 'Enter') saveWardName(ward.id); if (e.key === 'Escape') setEditingWardId(null); }}
-                              autoFocus
-                            />
-                            <button onClick={() => saveWardName(ward.id)} className="text-emerald-400 hover:text-emerald-300 p-1">
-                              <Check className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => setEditingWardId(null)} className="text-slate-500 hover:text-slate-300 p-1">
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            className="flex items-center gap-1.5 text-xs group"
-                            onClick={(e) => { e.stopPropagation(); setEditingWardId(ward.id); setEditWardName(ward.wardName ?? ''); }}
-                          >
-                            <MapPin className="w-3.5 h-3.5 text-slate-500 group-hover:text-purple-400 transition-colors shrink-0" />
-                            <span className={`transition-colors ${ward.wardName ? 'text-slate-300 group-hover:text-purple-300' : 'text-slate-500 italic group-hover:text-purple-400'}`}>
-                              {ward.wardName ?? 'Set ward name…'}
-                            </span>
-                            <Pencil className="w-2.5 h-2.5 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      {editingWardId === ward.id ? (
+                        <div className="flex items-center gap-2 mt-1.5" onClick={e => e.stopPropagation()}>
+                          <input
+                            value={editWardName}
+                            onChange={e => setEditWardName(e.target.value)}
+                            placeholder="e.g. Ward No. 5"
+                            className="flex-1 bg-slate-800 border border-purple-500/30 rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-500 focus:outline-none"
+                            onKeyDown={e => { if (e.key === 'Enter') saveWardName(ward.id); if (e.key === 'Escape') setEditingWardId(null); }}
+                            autoFocus
+                          />
+                          <button onClick={() => saveWardName(ward.id)} className="text-emerald-400 hover:text-emerald-300 p-1 cursor-pointer">
+                            <Check className="w-4 h-4" />
                           </button>
-                        )}
-                      </div>
-
-                      {/* Stats bar */}
-                      <div className="flex items-center gap-2 mt-2 text-xs text-slate-400 flex-wrap">
-                        <span className="font-medium text-slate-300">
-                          {children.length} unit{children.length !== 1 ? 's' : ''}
-                        </span>
-                        <span className="text-slate-600">•</span>
-                        <span className="text-indigo-300 font-medium inline-flex items-center gap-1">
-                          <Users className="w-3.5 h-3.5 text-indigo-400" />
-                          {wardMembers} member{wardMembers !== 1 ? 's' : ''}
-                        </span>
-                        <span className="text-slate-600">•</span>
-                        <span className="text-slate-300 font-medium">
-                          {count} contact{count !== 1 ? 's' : ''}
-                        </span>
-                      </div>
+                          <button onClick={() => setEditingWardId(null)} className="text-slate-500 hover:text-slate-300 p-1 cursor-pointer">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <button
+                            className="inline-flex items-center gap-1.5 text-xs text-purple-300/90 hover:text-purple-200 group cursor-pointer"
+                            onClick={(e) => { e.stopPropagation(); setEditingWardId(ward.id); setEditWardName(ward.wardName ?? ''); }}
+                            title="Click to edit ward number/location"
+                          >
+                            <MapPin className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                            <span className="font-medium truncate max-w-[160px] sm:max-w-none">
+                              {ward.wardName
+                                ? (isNaN(Number(ward.wardName)) ? ward.wardName : `Ward No. ${ward.wardName}`)
+                                : 'Set ward number…'}
+                            </span>
+                            <Pencil className="w-2.5 h-2.5 text-purple-400/60 opacity-0 group-hover:opacity-100 transition-opacity ml-0.5" />
+                          </button>
+                          {ward.createdBy === user.uid && (
+                            <>
+                              <span className="text-slate-600">•</span>
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-semibold">
+                                <Crown className="w-3 h-3 text-amber-400" /> Owner
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Action buttons (Manage + Expand/Collapse) */}
@@ -721,6 +707,22 @@ export default function OrganizationsPage() {
                           <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
                         </button>
                       )}
+                    </div>
+                  </div>
+
+                  {/* Bottom Stats Row across full card width */}
+                  <div className="mt-3.5 pt-3 border-t border-white/[0.06] grid grid-cols-3 gap-2 text-xs">
+                    <div className="flex items-center gap-1.5 text-slate-300 font-medium truncate">
+                      <Building2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                      <span className="truncate">{children.length} unit{children.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-1.5 text-indigo-300 font-medium truncate">
+                      <Users className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                      <span className="truncate">{wardMembers} member{wardMembers !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="flex items-center justify-end gap-1.5 text-emerald-300 font-medium truncate">
+                      <Phone className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span className="truncate">{count} contact{count !== 1 ? 's' : ''}</span>
                     </div>
                   </div>
                 </div>
