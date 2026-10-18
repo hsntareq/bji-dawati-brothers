@@ -1516,7 +1516,7 @@ export default function ContactsPage() {
             {/* ── Selection & Bulk Bar ── */}
             <div className={`min-h-[52px] flex items-center justify-between p-2.5 px-3.5 rounded-2xl backdrop-blur-xl gap-3 transition-all border ${
               selectedIds.size > 0
-                ? 'bg-gradient-to-r from-blue-950/35 via-slate-900/95 to-slate-900/95 border-blue-500/35 shadow-lg shadow-blue-500/5'
+                ? 'bji-bulk-bar-active border-blue-500/35'
                 : 'bg-slate-900/80 border-white/10'
             }`}>
               <div
@@ -1532,12 +1532,12 @@ export default function ContactsPage() {
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold text-slate-200 group-hover:text-white transition-colors">
                     {selectedIds.size > 0 ? (
-                      <span className="text-blue-300 font-bold">{selectedIds.size} of {filtered.length} selected</span>
+                      <span className="text-blue-300 font-bold bji-bulk-label">{selectedIds.size} of {filtered.length} selected</span>
                     ) : (
                       <span>Select All</span>
                     )}
                   </span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide border transition-all ${
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide border transition-all bji-bulk-badge ${
                     selectedIds.size > 0
                       ? 'bg-blue-500/20 text-blue-300 border-blue-500/40 shadow-sm shadow-blue-500/20'
                       : 'bg-slate-800 text-slate-400 border-white/10'
@@ -1555,17 +1555,17 @@ export default function ContactsPage() {
                       setTargetBulkOrgId(organizations[0]?.id || '');
                       setBulkOrgModalOpen(true);
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/20 transition-all cursor-pointer active:scale-95"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/20 transition-all cursor-pointer active:scale-95 bji-keep-white"
                   >
-                    <Building2 className="w-3.5 h-3.5" />
-                    <span>Change Org ({selectedIds.size})</span>
+                    <Building2 className="w-3.5 h-3.5 text-white bji-keep-white" />
+                    <span className="text-white bji-keep-white">Change Org ({selectedIds.size})</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={handleBulkDelete}
                     disabled={bulkDeleting}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-500/30 text-xs font-semibold transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-500/30 text-xs font-semibold transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50 bji-bulk-delete-btn"
                   >
                     {bulkDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                     <span>Delete ({selectedIds.size})</span>
@@ -1575,7 +1575,7 @@ export default function ContactsPage() {
                     type="button"
                     onClick={() => setSelectedIds(new Set())}
                     title="Clear selection"
-                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer bji-bulk-close-btn"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -1596,7 +1596,7 @@ export default function ContactsPage() {
                   key={c.id}
                   className={`group relative border rounded-2xl p-3.5 shadow-sm backdrop-blur-sm transition-all ${
                     selectedIds.has(c.id)
-                      ? 'border-blue-500/40 bg-gradient-to-r from-blue-950/30 via-slate-900/95 to-slate-900/95 shadow-md shadow-blue-500/5 ring-1 ring-blue-500/20'
+                      ? 'bji-selected-card border-blue-500/40'
                       : 'border-white/[0.08] hover:border-white/15 bg-slate-900/90'
                   }`}
                 >
@@ -1797,7 +1797,7 @@ export default function ContactsPage() {
                         key={c.id}
                         className={`group/row transition-all duration-150 ${
                           isSelected
-                            ? 'bg-blue-950/30 hover:bg-blue-950/40'
+                            ? 'bji-selected-row'
                             : 'hover:bg-white/[0.03]'
                         }`}
                       >
@@ -2748,7 +2748,7 @@ export default function ContactsPage() {
 
       {/* ── Floating Bulk Action Bar (Mobile & Desktop) ── */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-20 md:bottom-8 left-4 right-4 md:left-auto md:right-8 md:w-auto z-40 bg-slate-900/95 border border-blue-500/40 rounded-2xl p-3 shadow-2xl backdrop-blur-xl flex items-center justify-between gap-4 animate-slide-in-right">
+        <div className="bji-floating-bulk-bar fixed bottom-20 md:bottom-8 left-4 right-4 md:left-auto md:right-8 md:w-auto z-40 bg-slate-900/95 border border-blue-500/40 rounded-2xl p-3 shadow-2xl backdrop-blur-xl flex items-center justify-between gap-4 animate-slide-in-right">
           <div className="flex items-center gap-2">
             <span className="w-6 h-6 rounded-lg bg-blue-600 text-white text-xs font-bold flex items-center justify-center">
               {selectedIds.size}

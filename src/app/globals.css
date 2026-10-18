@@ -500,6 +500,107 @@ nextjs-portal,
 .bji-compact .rounded-2xl { border-radius: 0.75rem !important; }
 .bji-compact .py-3\.5   { padding-top: 0.35rem !important; padding-bottom: 0.35rem !important; }
 
+/* ═══════════════════════════════════════════════════════
+   Selection States (Card, Table Row, Bulk Action Bar)
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Selected Contact Card ── */
+.bji-selected-card {
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bji-dark .bji-selected-card {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.32) 0%, rgba(15, 23, 42, 0.95) 100%) !important;
+  border-color: rgba(59, 130, 246, 0.5) !important;
+  box-shadow: 0 4px 16px -2px rgba(37, 99, 235, 0.2), 0 0 0 1px rgba(59, 130, 246, 0.3) !important;
+}
+
+.bji-light .bji-selected-card {
+  background: linear-gradient(135deg, rgba(239, 246, 255, 0.96) 0%, rgba(240, 249, 255, 0.92) 100%) !important;
+  border-color: rgba(59, 130, 246, 0.5) !important;
+  box-shadow: 0 4px 16px -2px rgba(37, 99, 235, 0.1), 0 0 0 1.5px rgba(59, 130, 246, 0.35) !important;
+}
+
+.bji-light .bji-selected-card button,
+.bji-light .bji-selected-card .text-slate-100 {
+  color: #0f172a !important;
+}
+
+.bji-light .bji-selected-card .text-slate-300,
+.bji-light .bji-selected-card .text-slate-400 {
+  color: #334155 !important;
+}
+
+/* ── Selected Desktop Table Row ── */
+.bji-dark .bji-selected-row {
+  background-color: rgba(30, 58, 138, 0.28) !important;
+}
+.bji-dark .bji-selected-row:hover {
+  background-color: rgba(30, 58, 138, 0.38) !important;
+}
+
+.bji-light .bji-selected-row {
+  background-color: rgba(239, 246, 255, 0.85) !important;
+}
+.bji-light .bji-selected-row:hover {
+  background-color: rgba(219, 234, 254, 0.7) !important;
+}
+
+/* ── Top Selection & Bulk Action Bar ── */
+.bji-dark .bji-bulk-bar-active {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.4) 0%, rgba(15, 23, 42, 0.95) 100%) !important;
+  border-color: rgba(59, 130, 246, 0.45) !important;
+  box-shadow: 0 4px 16px -2px rgba(37, 99, 235, 0.2) !important;
+}
+
+.bji-light .bji-bulk-bar-active {
+  background: linear-gradient(135deg, rgba(239, 246, 255, 0.98) 0%, rgba(241, 245, 249, 0.98) 100%) !important;
+  border-color: rgba(59, 130, 246, 0.45) !important;
+  box-shadow: 0 4px 16px -2px rgba(37, 99, 235, 0.08) !important;
+}
+
+.bji-light .bji-bulk-bar-active .bji-bulk-label {
+  color: #1d4ed8 !important;
+}
+
+.bji-light .bji-bulk-bar-active .bji-bulk-badge {
+  background-color: rgba(37, 99, 235, 0.12) !important;
+  color: #1d4ed8 !important;
+  border-color: rgba(37, 99, 235, 0.3) !important;
+}
+
+.bji-light .bji-bulk-bar-active .bji-bulk-delete-btn {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+  color: #dc2626 !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+.bji-light .bji-bulk-bar-active .bji-bulk-delete-btn:hover {
+  background-color: rgba(239, 68, 68, 0.2) !important;
+}
+
+.bji-light .bji-bulk-bar-active .bji-bulk-close-btn {
+  color: #64748b !important;
+}
+.bji-light .bji-bulk-bar-active .bji-bulk-close-btn:hover {
+  color: #0f172a !important;
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* ── Floating Bulk Action Bar (bottom on mobile) ── */
+.bji-light .bji-floating-bulk-bar {
+  background: rgba(255, 255, 255, 0.97) !important;
+  border-color: rgba(59, 130, 246, 0.45) !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(37, 99, 235, 0.12) !important;
+  color: #0f172a !important;
+}
+
+.bji-light .bji-floating-bulk-bar span,
+.bji-light .bji-floating-bulk-bar p {
+  color: #0f172a !important;
+}
+
+
 
 :root {
   --background: #ffffff;
