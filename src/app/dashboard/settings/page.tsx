@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { database } from '@/lib/firebase';
-import { ref, get, set, onValue } from 'firebase/database';
+import { ref, get, set, onValue, remove } from 'firebase/database';
 import { isSuperAdmin, SUPERADMIN_EMAIL } from '@/lib/superadmin';
 import { useLanguage } from '@/context/LanguageContext';
 import { clearAllCachedData } from '@/lib/offlineSync';
@@ -22,6 +22,8 @@ interface SystemSettings {
   bannerText: string;
   bannerType: 'info' | 'warning' | 'success';
   requireStrictPhone: boolean;
+  allowDeleteIndividual: boolean;
+  allowDeleteAll: boolean;
   updatedAt?: string;
   updatedBy?: string;
 }
@@ -33,6 +35,8 @@ const defaultSettings: SystemSettings = {
   bannerText: '',
   bannerType: 'info',
   requireStrictPhone: false,
+  allowDeleteIndividual: true,
+  allowDeleteAll: false,
 };
 
 interface UserRecord {
@@ -67,10 +71,16 @@ export default function SuperAdminSettingsPage() {
   const [userSearch, setUserSearch] = useState('');
   const [loadingUsers, setLoadingUsers] = useState(true);
 
-  // Backup state
+  // Backup & Danger Zone state
   const [exporting, setExporting] = useState(false);
   const [cacheClearing, setCacheClearing] = useState(false);
   const [cacheCleared, setCacheCleared] = useState(false);
+  const [contactsList, setContactsList] = useState<any[]>([]);
+  const [purgeMode, setPurgeMode] = useState<'individual' | 'all'>('individual');
+  const [confirmDeleteText, setConfirmDeleteText] = useState('');
+  const [deletingAllContacts, setDeletingAllContacts] = useState(false);
+  const [deletingContactId, setDeletingContactId] = useState<string | null>(null);
+  const [purgeContactSearch, setPurgeContactSearch] = useState('');
 
   const superUser = isSuperAdmin(user?.email);
 
@@ -130,6 +140,19 @@ export default function SuperAdminSettingsPage() {
           activities: actCount,
         });
 
+        // Parse contacts for deletion tools
+        if (contactsSnap.exists()) {
+          const cVal = contactsSnap.val();
+          const parsed = Object.entries(cVal).map(([id, val]: [string, any]) => ({
+            id,
+            name: val?.name || 'Unnamed',
+            phone: val?.phone || '',
+            category: val?.category || '',
+            status: val?.status || '',
+          }));
+          setContactsList(parsed);
+        }
+
         // Parse user records
         if (usersSnap.exists()) {
           const parsedUsers: UserRecord[] = [];
@@ -179,6 +202,57 @@ export default function SuperAdminSettingsPage() {
       alert('Failed to save settings. Please try again.');
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  // Handle Individual Contact Deletion
+  const handleDeleteIndividual = async (cid: string, name: string) => {
+    if (!settings.allowDeleteIndividual) {
+      alert('Individual deletion is currently disabled by policy. Enable the "Allow Individual Deletion" switch in General Settings.');
+      return;
+    }
+    if (!confirm(`Permanently delete contact "${name}"? This action cannot be undone.`)) return;
+    setDeletingContactId(cid);
+    try {
+      await remove(ref(database, `contacts/${cid}`));
+      await remove(ref(database, `contact_activities/${cid}`));
+      setContactsList(prev => prev.filter(c => c.id !== cid));
+      setStats(prev => ({ ...prev, contacts: Math.max(0, prev.contacts - 1) }));
+    } catch (err) {
+      console.error('Failed to delete contact:', err);
+      alert('Failed to delete contact. Please check your connection.');
+    } finally {
+      setDeletingContactId(null);
+    }
+  };
+
+  // Handle Delete All Contacts
+  const handleDeleteAll = async () => {
+    if (!settings.allowDeleteAll) {
+      alert('Mass deletion is currently disabled by policy. Enable the "Allow Delete All" switch in General Settings.');
+      return;
+    }
+    if (confirmDeleteText.trim() !== 'DELETE ALL') {
+      alert('Please type "DELETE ALL" into the confirmation field.');
+      return;
+    }
+    if (!confirm(`FINAL CONFIRMATION: Are you completely certain you want to PERMANENTLY ERASE ALL ${stats.contacts} contacts and their activities?`)) {
+      return;
+    }
+
+    setDeletingAllContacts(true);
+    try {
+      await remove(ref(database, 'contacts'));
+      await remove(ref(database, 'contact_activities'));
+      setContactsList([]);
+      setStats(prev => ({ ...prev, contacts: 0, activities: 0 }));
+      setConfirmDeleteText('');
+      alert('All contacts and activities have been successfully removed.');
+    } catch (err) {
+      console.error('Failed to delete all contacts:', err);
+      alert('Failed to delete all contacts.');
+    } finally {
+      setDeletingAllContacts(false);
     }
   };
 
@@ -498,6 +572,80 @@ export default function SuperAdminSettingsPage() {
                   <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                 </label>
               </div>
+
+              {/* Data Deletion Policy: Delete All or Individual One */}
+              <div className="pt-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-white">Data Deletion Permissions</p>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                        settings.allowDeleteAll && settings.allowDeleteIndividual
+                          ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                          : settings.allowDeleteAll
+                          ? 'bg-red-500/10 text-red-300 border-red-500/30'
+                          : settings.allowDeleteIndividual
+                          ? 'bg-blue-500/10 text-blue-300 border-blue-500/30'
+                          : 'bg-slate-800 text-slate-400 border-white/10'
+                      }`}>
+                        {settings.allowDeleteAll && settings.allowDeleteIndividual
+                          ? 'All & Individual Allowed'
+                          : settings.allowDeleteAll
+                          ? 'Delete All Allowed'
+                          : settings.allowDeleteIndividual
+                          ? 'Individual Only'
+                          : 'Deletion Blocked'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 max-w-md">
+                      Control whether coordinators and administrators can delete contacts individually, perform &apos;Delete All&apos; mass purge, or both.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  {/* Switch 1: Individual Deletion */}
+                  <div className="p-4 rounded-2xl bg-slate-800/60 border border-white/5 flex items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-semibold text-white">Allow Individual Deletion</p>
+                      <p className="text-[11px] text-slate-400">
+                        Delete individual contacts one-by-one
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={settings.allowDeleteIndividual}
+                        onChange={(e) => setSettings({ ...settings, allowDeleteIndividual: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+
+                  {/* Switch 2: Delete All (Mass Deletion) */}
+                  <div className="p-4 rounded-2xl bg-slate-800/60 border border-white/5 flex items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-semibold text-white">Allow &apos;Delete All&apos;</p>
+                        <span className="text-[9px] font-bold text-red-400 bg-red-500/10 px-1.5 py-0.2 rounded border border-red-500/20">Danger</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Enable mass wipe / delete all contacts
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={settings.allowDeleteAll}
+                        onChange={(e) => setSettings({ ...settings, allowDeleteAll: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                    </label>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -699,6 +847,167 @@ export default function SuperAdminSettingsPage() {
                 </>
               )}
             </button>
+          </div>
+
+          {/* Danger Zone: Data Deletion & Purge */}
+          <div className="bg-slate-900 border border-red-500/20 rounded-3xl p-6 md:p-8 space-y-6">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-bold text-white">Danger Zone: Data Deletion</h2>
+                    <span className="text-[10px] uppercase font-extrabold text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">
+                      Superadmin Only
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400">Execute mass deletion or remove individual contacts</p>
+                </div>
+              </div>
+
+              {/* Mode Switcher */}
+              <div className="flex items-center bg-slate-800 border border-white/10 rounded-xl p-1 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setPurgeMode('individual')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${
+                    purgeMode === 'individual'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Delete Individual ({contactsList.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPurgeMode('all')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${
+                    purgeMode === 'all'
+                      ? 'bg-red-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Delete All Contacts
+                </button>
+              </div>
+            </div>
+
+            {/* Mode 1: Delete All */}
+            {purgeMode === 'all' && (
+              <div className="p-5 rounded-2xl bg-red-500/5 border border-red-500/20 space-y-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-red-200">Wipe All Contacts and Activities</p>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      This will permanently erase all <span className="text-white font-bold">{stats.contacts} contacts</span> and <span className="text-white font-bold">{stats.activities} activity records</span> from the database. Organizations will remain intact.
+                    </p>
+                  </div>
+                </div>
+
+                {!settings.allowDeleteAll ? (
+                  <div className="p-3.5 bg-amber-500/10 border border-amber-500/25 rounded-xl text-xs text-amber-300 flex items-center gap-2">
+                    <Lock className="w-4 h-4 flex-shrink-0" />
+                    <span>&apos;Delete All&apos; is currently disabled by system policy. Turn on the <strong>Allow &apos;Delete All&apos;</strong> switch under General Settings to unlock this action.</span>
+                  </div>
+                ) : (
+                  <div className="space-y-3 pt-2">
+                    <label className="block text-xs font-medium text-slate-300">
+                      To confirm, type <span className="font-mono font-bold text-red-400 select-all">DELETE ALL</span> below:
+                    </label>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <input
+                        type="text"
+                        value={confirmDeleteText}
+                        onChange={(e) => setConfirmDeleteText(e.target.value)}
+                        placeholder="Type DELETE ALL"
+                        className="bg-slate-800 border border-red-500/30 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-red-500 font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleDeleteAll}
+                        disabled={confirmDeleteText.trim() !== 'DELETE ALL' || deletingAllContacts}
+                        className="flex items-center justify-center gap-2 px-6 py-2 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white font-semibold text-xs transition-all shadow-lg shadow-red-600/30"
+                      >
+                        {deletingAllContacts ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            <span>Purging All Contacts...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="w-4 h-4" />
+                            <span>Permanently Delete All Contacts</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Mode 2: Delete Individual */}
+            {purgeMode === 'individual' && (
+              <div className="space-y-4">
+                {!settings.allowDeleteIndividual && (
+                  <div className="p-3.5 bg-amber-500/10 border border-amber-500/25 rounded-xl text-xs text-amber-300 flex items-center gap-2">
+                    <Lock className="w-4 h-4 flex-shrink-0" />
+                    <span>Individual deletion is currently disabled by system policy. Turn on the <strong>Allow Individual Deletion</strong> switch under General Settings to unlock this action.</span>
+                  </div>
+                )}
+
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={purgeContactSearch}
+                    onChange={(e) => setPurgeContactSearch(e.target.value)}
+                    placeholder="Search contact to delete by name or phone..."
+                    className="w-full bg-slate-800/80 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                  {contactsList
+                    .filter(c => {
+                      const q = purgeContactSearch.toLowerCase();
+                      return c.name.toLowerCase().includes(q) || c.phone.includes(q);
+                    })
+                    .slice(0, 30)
+                    .map(c => (
+                      <div
+                        key={c.id}
+                        className="p-3 rounded-xl bg-slate-800/50 border border-white/5 flex items-center justify-between gap-3 hover:bg-slate-800 transition-colors"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-white truncate">{c.name}</p>
+                          <p className="text-[11px] text-slate-400 truncate">{c.phone || 'No phone'} · {c.status || 'No status'}</p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteIndividual(c.id, c.name)}
+                          disabled={!settings.allowDeleteIndividual || deletingContactId === c.id}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 disabled:opacity-40 text-red-400 font-medium text-xs transition-colors cursor-pointer"
+                        >
+                          {deletingContactId === c.id ? (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-3.5 h-3.5" />
+                          )}
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    ))}
+                  {contactsList.length === 0 && (
+                    <p className="text-xs text-slate-500 text-center py-6">No contacts available in database.</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

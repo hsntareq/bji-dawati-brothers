@@ -22,6 +22,7 @@ import {
   generateOfflineId,
   getActivitiesForContact,
 } from '@/lib/offlineSync';
+import { isSuperAdmin } from '@/lib/superadmin';
 
 const PREFIX = '01';
 const emptyForm = { name: '', mobile: PREFIX, note: '', organizationId: '', email: '', location: '', address: '', category: 'shohojogi' as 'shohojogi' | 'kormi' };
@@ -213,6 +214,9 @@ export default function ContactsPage() {
 
   // ── Delete ─────────────────────────────────────────
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [allowDeleteIndividual, setAllowDeleteIndividual] = useState(true);
+  const [allowDeleteAll, setAllowDeleteAll] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
 
   // ── Activities ─────────────────────────────────────
   const [activities,       setActivities]       = useState<any[]>([]);
@@ -234,6 +238,18 @@ export default function ContactsPage() {
   useEffect(() => {
     fetchData();
   }, [user]);
+
+  // Listen to system settings for deletion permissions
+  useEffect(() => {
+    const unsub = onValue(ref(database, 'system_settings'), snap => {
+      if (snap.exists()) {
+        const val = snap.val();
+        if (typeof val.allowDeleteIndividual === 'boolean') setAllowDeleteIndividual(val.allowDeleteIndividual);
+        if (typeof val.allowDeleteAll === 'boolean') setAllowDeleteAll(val.allowDeleteAll);
+      }
+    });
+    return () => unsub();
+  }, []);
 
   // Listen for online sync completion to refresh data automatically
   useEffect(() => {
@@ -745,6 +761,10 @@ export default function ContactsPage() {
 
   const handleDelete = async (c: any, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!allowDeleteIndividual && !isSuperAdmin(user?.email) && !isHasanTareq) {
+      alert('Individual contact deletion is currently disabled by system policy.');
+      return;
+    }
     const canDirect = canUserDeleteDirectly(c);
 
     if (!canDirect) {
@@ -801,6 +821,39 @@ export default function ContactsPage() {
       console.error(e);
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleDeleteAllVisibleContacts = async () => {
+    if (!allowDeleteAll && !isSuperAdmin(user?.email)) {
+      alert('Mass deletion is currently disabled by system policy.');
+      return;
+    }
+    const count = contacts.length;
+    if (count === 0) {
+      alert('There are no contacts to delete.');
+      return;
+    }
+    const confirmInput = prompt(`DANGER: You are about to permanently delete all ${count} contacts. Type "DELETE ALL" to confirm:`);
+    if (confirmInput?.trim() !== 'DELETE ALL') return;
+
+    setDeletingAll(true);
+    try {
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        await remove(ref(database, 'contacts'));
+        await remove(ref(database, 'contact_activities'));
+      }
+      for (const c of contacts) {
+        await deleteFromStore('contacts', c.id);
+      }
+      setContacts([]);
+      setSelectedContact(null);
+      alert(`Successfully deleted all ${count} contacts.`);
+    } catch (err) {
+      console.error('Failed to delete all contacts:', err);
+      alert('Failed to delete contacts.');
+    } finally {
+      setDeletingAll(false);
     }
   };
 
@@ -907,21 +960,36 @@ export default function ContactsPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-4">
 
-      {/* ── Add Person Button ────────── */}
-      <button
-        type="button"
-        onClick={() => {
-          setForm({
-            ...emptyForm,
-            organizationId: organizations.length === 1 ? organizations[0].id : '',
-          });
-          setFormOpen(true);
-        }}
-        className="group w-full py-3 px-5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 border border-blue-400/30 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2"
-      >
-        <UserPlus className="w-4.5 h-4.5 transition-transform group-hover:scale-110" />
-        <span>{t('addPerson')}</span>
-      </button>
+      {/* ── Add Person & Action Buttons ────────── */}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            setForm({
+              ...emptyForm,
+              organizationId: organizations.length === 1 ? organizations[0].id : '',
+            });
+            setFormOpen(true);
+          }}
+          className="group flex-1 py-3 px-5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 border border-blue-400/30 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2"
+        >
+          <UserPlus className="w-4.5 h-4.5 transition-transform group-hover:scale-110" />
+          <span>{t('addPerson')}</span>
+        </button>
+
+        {allowDeleteAll && (isSuperAdmin(user?.email) || isHasanTareq) && contacts.length > 0 && (
+          <button
+            type="button"
+            onClick={handleDeleteAllVisibleContacts}
+            disabled={deletingAll}
+            title="Delete All Contacts"
+            className="py-3 px-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer shadow-sm active:scale-[0.99] flex-shrink-0"
+          >
+            {deletingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            <span className="hidden sm:inline">Delete All ({contacts.length})</span>
+          </button>
+        )}
+      </div>
 
 
       {/* ── People List ──────────────────────────────── */}
@@ -1615,18 +1683,20 @@ export default function ContactsPage() {
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-xs font-medium transition-colors cursor-pointer">
                     <Pencil className="w-3 h-3" /> Edit
                   </button>
-                  <button
-                    onClick={e => {
-                      handleDelete(selectedContact, e);
-                      setSelectedContact(null);
-                    }}
-                    disabled={deletingId === selectedContact.id}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs font-medium transition-colors disabled:opacity-50 cursor-pointer"
-                  >
-                    {deletingId === selectedContact.id
-                      ? <Loader2 className="w-3 h-3 animate-spin" />
-                      : <Trash2 className="w-3 h-3" />} Delete
-                  </button>
+                  {(allowDeleteIndividual || isSuperAdmin(user?.email) || isHasanTareq) && (
+                    <button
+                      onClick={e => {
+                        handleDelete(selectedContact, e);
+                        setSelectedContact(null);
+                      }}
+                      disabled={deletingId === selectedContact.id}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs font-medium transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      {deletingId === selectedContact.id
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : <Trash2 className="w-3 h-3" />} Delete
+                    </button>
+                  )}
                   <button onClick={() => setSelectedContact(null)}
                     className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer">
                     <X className="w-4 h-4" />
