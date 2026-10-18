@@ -838,7 +838,7 @@ export default function ContactsPage() {
 
       {/* ── People List ──────────────────────────────── */}
       <div className="space-y-4">
-        <div className="sticky top-[var(--header-offset,0px)] z-20 py-2.5 -my-2.5 bg-slate-950/85 backdrop-blur-xl border-b border-white/5 transition-[top] duration-300">
+        <div className="sticky top-[var(--header-offset,0px)] z-20 py-3 mb-3 bg-slate-950/90 backdrop-blur-xl border-b border-white/10 shadow-sm shadow-black/20 transition-[top] duration-300">
           <div className="flex items-center gap-2 w-full">
             {/* Search Input – covers all remaining space */}
             <div className="relative flex-1 min-w-0">
@@ -1052,7 +1052,7 @@ export default function ContactsPage() {
         ) : (
           <>
             {/* ── Mobile card list (< md) ── */}
-            <div className="md:hidden space-y-2">
+            <div className="md:hidden space-y-2.5 pt-1">
               {filtered.map(c => (
                 <div
                   key={c.id}
@@ -1132,7 +1132,7 @@ export default function ContactsPage() {
             </div>
 
             {/* ── Desktop table (≥ md) ── */}
-            <div className="hidden md:block bg-slate-900 border border-white/10 rounded-2xl overflow-hidden">
+            <div className="hidden md:block bg-slate-900 border border-white/10 rounded-2xl overflow-hidden mt-1">
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-white/10 bg-white/5">
