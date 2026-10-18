@@ -168,7 +168,8 @@ export default function ContactsPage() {
   const [filterOrgIds,   setFilterOrgIds]   = useState<Set<string>>(new Set());
   const [filterCategory, setFilterCategory] = useState<'shohojogi' | 'kormi' | 'all'>('shohojogi');
   const [filterOpen,     setFilterOpen]     = useState(false);
-  const filterRef = useRef<HTMLDivElement>(null);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
 
   // ── Three-dots dropdown state ───────────────────────
   const [moreOpen, setMoreOpen] = useState(false);
@@ -177,7 +178,12 @@ export default function ContactsPage() {
   // Close filter & more dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+      if (
+        filterDropdownRef.current &&
+        !filterDropdownRef.current.contains(e.target as Node) &&
+        filterButtonRef.current &&
+        !filterButtonRef.current.contains(e.target as Node)
+      ) {
         setFilterOpen(false);
       }
       if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
@@ -853,34 +859,38 @@ export default function ContactsPage() {
       {/* ── People List ──────────────────────────────── */}
       <div className="space-y-4">
         <div className="sticky top-[var(--header-offset,0px)] z-20 py-3 mb-3 bg-slate-950/90 backdrop-blur-xl border-b border-white/10 shadow-sm shadow-black/20 transition-[top] duration-300">
-          <div className="flex items-center w-full">
-            {/* Search Input – covers remaining space, connected with filter */}
-            <div className="relative flex-1 min-w-0">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search by name, phone, location…"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-900/90 border border-white/10 border-r-0 rounded-l-xl rounded-r-none pl-10 pr-9 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all shadow-inner"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                  title="Clear search"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
+          <div className="relative w-full">
+            <div className="flex items-center w-full">
+              {/* Search Input – covers remaining space, connected with filter */}
+              <div className="relative flex-1 min-w-0">
+                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search by name, phone, location…"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full bg-slate-900/90 border border-white/10 border-r-0 rounded-l-xl rounded-r-none pl-10 pr-9 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all shadow-inner"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                    title="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
 
-            {/* Filter button + dropdown – connected in middle */}
-            <div className="relative shrink-0" ref={filterRef}>
+              {/* Filter button – connected in middle */}
               <button
+                ref={filterButtonRef}
                 type="button"
-                onClick={() => setFilterOpen(o => !o)}
+                onClick={() => {
+                  setFilterOpen(o => !o);
+                  setMoreOpen(false);
+                }}
                 className={`relative flex items-center gap-1.5 px-3.5 py-2 border border-white/10 border-r-0 rounded-none text-sm font-medium transition-all cursor-pointer ${
                   filterOpen || activeFilterCount > 0
                     ? 'bg-blue-600/20 text-blue-400 border-blue-500/40 z-10'
@@ -896,28 +906,166 @@ export default function ContactsPage() {
                 )}
               </button>
 
-              {/* Dropdown panel */}
-              {filterOpen && (
-                <div className="absolute right-0 top-full mt-2 z-30 w-80 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Filters</span>
-                    {(activeFilterCount > 0 || filterCategory !== 'shohojogi') && (
-                      <button
-                        onClick={() => { setFilterStatuses(new Set()); setFilterOrgIds(new Set()); setFilterCategory('shohojogi'); }}
-                        className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                      >Clear all</button>
+              {/* Three dots dropdown at the end – connected on right */}
+              <div className="relative shrink-0" ref={moreRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMoreOpen(o => !o);
+                    setFilterOpen(false);
+                  }}
+                  className={`flex items-center justify-center px-3 py-2 border border-white/10 rounded-r-xl rounded-l-none text-sm font-medium transition-all cursor-pointer ${
+                    moreOpen
+                      ? 'bg-blue-600/20 text-blue-400 border-blue-500/40 z-10'
+                      : 'bg-slate-900/90 text-slate-300 hover:text-white hover:bg-white/5'
+                  }`}
+                  title="More options"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+
+                {/* Three dots dropdown menu */}
+                {moreOpen && (
+                  <div className="absolute right-0 top-full mt-2 z-30 w-56 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden py-1.5 backdrop-blur-xl">
+                    {/* Add person quick action */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMoreOpen(false);
+                        setForm({
+                          ...emptyForm,
+                          organizationId: organizations.length === 1 ? organizations[0].id : '',
+                        });
+                        setFormOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors text-left cursor-pointer"
+                    >
+                      <UserPlus className="w-4 h-4 text-blue-400" />
+                      <span>{t('addPerson')}</span>
+                    </button>
+
+                    {/* Refresh / sync data */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMoreOpen(false);
+                        fetchData();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors text-left cursor-pointer"
+                    >
+                      <RefreshCw className="w-4 h-4 text-emerald-400" />
+                      <span>Refresh data</span>
+                    </button>
+
+                    {/* Export CSV */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMoreOpen(false);
+                        handleExportCSV();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors text-left cursor-pointer"
+                    >
+                      <Download className="w-4 h-4 text-purple-400" />
+                      <span>Export contacts (CSV)</span>
+                    </button>
+
+                    <div className="my-1 border-t border-white/10" />
+
+                    {/* Quick Rank/Category switch */}
+                    <div className="px-3.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                      Category Filter
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFilterCategory('all');
+                        setMoreOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3.5 py-1.5 text-xs font-medium transition-colors text-left cursor-pointer ${
+                        filterCategory === 'all' ? 'text-blue-400 bg-blue-500/10' : 'text-slate-300 hover:bg-white/5'
+                      }`}
+                    >
+                      <span>All categories</span>
+                      {filterCategory === 'all' && <Check className="w-3.5 h-3.5" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFilterCategory('shohojogi');
+                        setMoreOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3.5 py-1.5 text-xs font-medium transition-colors text-left cursor-pointer ${
+                        filterCategory === 'shohojogi' ? 'text-blue-400 bg-blue-500/10' : 'text-slate-300 hover:bg-white/5'
+                      }`}
+                    >
+                      <span>Shohojogi</span>
+                      {filterCategory === 'shohojogi' && <Check className="w-3.5 h-3.5" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFilterCategory('kormi');
+                        setMoreOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3.5 py-1.5 text-xs font-medium transition-colors text-left cursor-pointer ${
+                        filterCategory === 'kormi' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-300 hover:bg-white/5'
+                      }`}
+                    >
+                      <span>Kormi</span>
+                      {filterCategory === 'kormi' && <Check className="w-3.5 h-3.5" />}
+                    </button>
+
+                    {(searchQuery || activeFilterCount > 0 || filterCategory !== 'all') && (
+                      <>
+                        <div className="my-1 border-t border-white/10" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchQuery('');
+                            setFilterStatuses(new Set());
+                            setFilterOrgIds(new Set());
+                            setFilterCategory('all');
+                            setMoreOpen(false);
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition-colors text-left cursor-pointer"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                          <span>Reset all filters</span>
+                        </button>
+                      </>
                     )}
                   </div>
+                )}
+              </div>
+            </div>
 
+            {/* Filter Dropdown – Equal width as the bar, opens in the middle / full-width */}
+            {filterOpen && (
+              <div
+                ref={filterDropdownRef}
+                className="absolute left-0 right-0 top-full mt-2 z-30 w-full bg-slate-900/95 border border-white/10 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl max-h-[75vh] flex flex-col"
+              >
+                <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Filters</span>
+                  {(activeFilterCount > 0 || filterCategory !== 'shohojogi') && (
+                    <button
+                      onClick={() => { setFilterStatuses(new Set()); setFilterOrgIds(new Set()); setFilterCategory('shohojogi'); }}
+                      className="text-xs text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+                    >Clear all</button>
+                  )}
+                </div>
+
+                <div className="overflow-y-auto flex-1 divide-y divide-white/10">
                   {/* ── Category radio at top ── */}
-                  <div className="px-4 py-3 border-b border-white/10">
+                  <div className="px-4 py-3">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Category</p>
                       {filterCategory !== 'all' ? (
                         <button
                           type="button"
                           onClick={() => setFilterCategory('all')}
-                          className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+                          className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
                         >
                           Show all
                         </button>
@@ -929,7 +1077,7 @@ export default function ContactsPage() {
                       <button
                         type="button"
                         onClick={() => setFilterCategory('shohojogi')}
-                        className={`w-full py-2 px-2.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                        className={`w-full py-2 px-2.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                           filterCategory === 'shohojogi'
                             ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm shadow-blue-500/10'
                             : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
@@ -947,7 +1095,7 @@ export default function ContactsPage() {
                       <button
                         type="button"
                         onClick={() => setFilterCategory('kormi')}
-                        className={`w-full py-2 px-2.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                        className={`w-full py-2 px-2.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                           filterCategory === 'kormi'
                             ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm shadow-blue-500/10'
                             : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
@@ -965,16 +1113,16 @@ export default function ContactsPage() {
                   </div>
 
                   {/* ── Disposition codes ── */}
-                  <div className="px-4 py-3 border-b border-white/10">
+                  <div className="px-4 py-3">
                     <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Disposition</p>
-                    <div className="grid grid-cols-2 gap-1.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5">
                       {STATUSES.filter(s => s.value !== '').map(s => {
                         const active = filterStatuses.has(s.value);
                         return (
                           <button
                             key={s.value}
                             onClick={() => toggleStatus(s.value)}
-                            className={`flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium transition-all border text-left ${
+                            className={`flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium transition-all border text-left cursor-pointer ${
                               active
                                 ? 'border-white/20 bg-white/10'
                                 : 'border-white/5 bg-slate-800/50 hover:bg-white/5'
@@ -992,14 +1140,14 @@ export default function ContactsPage() {
                   {/* ── Organizations ── */}
                   <div className="px-4 py-3">
                     <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Organizations</p>
-                    <div className="space-y-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                       {organizations.map(o => {
                         const active = filterOrgIds.has(o.id);
                         return (
                           <button
                             key={o.id}
                             onClick={() => toggleOrg(o.id)}
-                            className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium transition-all border text-left ${
+                            className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium transition-all border text-left cursor-pointer ${
                               active
                                 ? 'border-white/20 bg-white/10 text-white'
                                 : 'border-white/5 bg-slate-800/50 hover:bg-white/5 text-slate-300'
@@ -1014,138 +1162,8 @@ export default function ContactsPage() {
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
-
-            {/* Three dots dropdown at the end – connected on right */}
-            <div className="relative shrink-0" ref={moreRef}>
-              <button
-                type="button"
-                onClick={() => setMoreOpen(o => !o)}
-                className={`flex items-center justify-center px-3 py-2 border border-white/10 rounded-r-xl rounded-l-none text-sm font-medium transition-all cursor-pointer ${
-                  moreOpen
-                    ? 'bg-blue-600/20 text-blue-400 border-blue-500/40 z-10'
-                    : 'bg-slate-900/90 text-slate-300 hover:text-white hover:bg-white/5'
-                }`}
-                title="More options"
-              >
-                <MoreVertical className="w-4 h-4" />
-              </button>
-
-              {/* Three dots dropdown menu */}
-              {moreOpen && (
-                <div className="absolute right-0 top-full mt-2 z-30 w-56 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden py-1.5 backdrop-blur-xl">
-                  {/* Add person quick action */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMoreOpen(false);
-                      setForm({
-                        ...emptyForm,
-                        organizationId: organizations.length === 1 ? organizations[0].id : '',
-                      });
-                      setFormOpen(true);
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors text-left cursor-pointer"
-                  >
-                    <UserPlus className="w-4 h-4 text-blue-400" />
-                    <span>{t('addPerson')}</span>
-                  </button>
-
-                  {/* Refresh / sync data */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMoreOpen(false);
-                      fetchData();
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors text-left cursor-pointer"
-                  >
-                    <RefreshCw className="w-4 h-4 text-emerald-400" />
-                    <span>Refresh data</span>
-                  </button>
-
-                  {/* Export CSV */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMoreOpen(false);
-                      handleExportCSV();
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors text-left cursor-pointer"
-                  >
-                    <Download className="w-4 h-4 text-purple-400" />
-                    <span>Export contacts (CSV)</span>
-                  </button>
-
-                  <div className="my-1 border-t border-white/10" />
-
-                  {/* Quick Rank/Category switch */}
-                  <div className="px-3.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                    Category Filter
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFilterCategory('all');
-                      setMoreOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between px-3.5 py-1.5 text-xs font-medium transition-colors text-left cursor-pointer ${
-                      filterCategory === 'all' ? 'text-blue-400 bg-blue-500/10' : 'text-slate-300 hover:bg-white/5'
-                    }`}
-                  >
-                    <span>All categories</span>
-                    {filterCategory === 'all' && <Check className="w-3.5 h-3.5" />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFilterCategory('shohojogi');
-                      setMoreOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between px-3.5 py-1.5 text-xs font-medium transition-colors text-left cursor-pointer ${
-                      filterCategory === 'shohojogi' ? 'text-blue-400 bg-blue-500/10' : 'text-slate-300 hover:bg-white/5'
-                    }`}
-                  >
-                    <span>Shohojogi</span>
-                    {filterCategory === 'shohojogi' && <Check className="w-3.5 h-3.5" />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFilterCategory('kormi');
-                      setMoreOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between px-3.5 py-1.5 text-xs font-medium transition-colors text-left cursor-pointer ${
-                      filterCategory === 'kormi' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-300 hover:bg-white/5'
-                    }`}
-                  >
-                    <span>Kormi</span>
-                    {filterCategory === 'kormi' && <Check className="w-3.5 h-3.5" />}
-                  </button>
-
-                  {(searchQuery || activeFilterCount > 0 || filterCategory !== 'all') && (
-                    <>
-                      <div className="my-1 border-t border-white/10" />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSearchQuery('');
-                          setFilterStatuses(new Set());
-                          setFilterOrgIds(new Set());
-                          setFilterCategory('all');
-                          setMoreOpen(false);
-                        }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition-colors text-left cursor-pointer"
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                        <span>Reset all filters</span>
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
 
