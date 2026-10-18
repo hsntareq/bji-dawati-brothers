@@ -1205,15 +1205,18 @@ export default function ContactsPage() {
               {filtered.map(c => (
                 <div
                   key={c.id}
-                  onClick={() => setSelectedContact(c)}
-                  className="group relative bg-slate-900/90 hover:bg-slate-900 border border-white/[0.08] hover:border-blue-500/30 rounded-2xl p-3.5 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-lg hover:shadow-black/30 backdrop-blur-sm active:scale-[0.995]"
+                  className="group relative bg-slate-900/90 border border-white/[0.08] hover:border-white/15 rounded-2xl p-3.5 shadow-sm backdrop-blur-sm transition-colors"
                 >
                   {/* Top Section: Avatar + Name + Tags + Actions */}
                   <div className="flex items-start gap-3">
-                    {/* Avatar with initial + Category badge (S / K) */}
-                    <div className="relative shrink-0">
+                    {/* Avatar (Item photo) with initial + Category badge (S / K) – Clickable */}
+                    <div
+                      onClick={() => setSelectedContact(c)}
+                      className="relative shrink-0 cursor-pointer group/avatar"
+                      title="View contact details"
+                    >
                       <div
-                        className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm shadow-inner border select-none transition-transform group-hover:scale-105 ${
+                        className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm shadow-inner border select-none transition-transform group-hover/avatar:scale-105 active:scale-95 ${
                           c.category === 'kormi'
                             ? 'bg-gradient-to-br from-emerald-500/20 via-teal-500/15 to-emerald-600/30 text-emerald-300 border-emerald-500/30'
                             : 'bg-gradient-to-br from-blue-500/20 via-indigo-500/15 to-blue-600/30 text-blue-300 border-blue-500/30'
@@ -1236,11 +1239,16 @@ export default function ContactsPage() {
 
                     {/* Middle Details: Name, Org */}
                     <div className="flex-1 min-w-0 pt-0.5">
-                      {/* Name line */}
+                      {/* Name line – Clickable Name */}
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <h3 className="text-sm font-semibold text-slate-100 group-hover:text-blue-300 transition-colors truncate max-w-[190px] sm:max-w-xs">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedContact(c)}
+                          className="text-sm font-semibold text-slate-100 hover:text-blue-400 transition-colors truncate max-w-[190px] sm:max-w-xs cursor-pointer text-left focus:outline-none"
+                          title="View contact details"
+                        >
                           {c.name}
-                        </h3>
+                        </button>
                         <StarBadge level={getPerfLevel(actSummary[c.id] ?? 0)} compact />
                       </div>
 
@@ -1335,13 +1343,16 @@ export default function ContactsPage() {
                   {filtered.map(c => (
                     <tr
                       key={c.id}
-                      onClick={() => setSelectedContact(c)}
-                      className="hover:bg-white/[0.03] transition-colors cursor-pointer"
+                      className="hover:bg-white/[0.02] transition-colors"
                     >
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2.5">
-                          {/* Mini avatar with category badge on desktop */}
-                          <div className="relative shrink-0">
+                          {/* Mini avatar with category badge on desktop – Clickable */}
+                          <div
+                            onClick={() => setSelectedContact(c)}
+                            className="relative shrink-0 cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+                            title="View contact details"
+                          >
                             <div
                               className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs border select-none ${
                                 c.category === 'kormi'
@@ -1362,7 +1373,14 @@ export default function ContactsPage() {
                               {c.category === 'kormi' ? 'K' : 'S'}
                             </span>
                           </div>
-                          <span className="text-sm font-medium text-white">{c.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedContact(c)}
+                            className="text-sm font-medium text-white hover:text-blue-400 transition-colors cursor-pointer text-left focus:outline-none"
+                            title="View contact details"
+                          >
+                            {c.name}
+                          </button>
                           <StarBadge level={getPerfLevel(actSummary[c.id] ?? 0)} compact />
                         </div>
                       </td>
