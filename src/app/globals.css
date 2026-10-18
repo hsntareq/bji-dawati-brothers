@@ -322,36 +322,52 @@ nextjs-portal,
 .bji-light .bji-keep-white *,
 .bji-light .bji-btn-primary,
 .bji-light .bji-btn-primary *,
-.bji-light button[class*="bg-blue"],
-.bji-light button[class*="bg-blue"] *,
-.bji-light button[class*="from-blue"],
-.bji-light button[class*="from-blue"] *,
-.bji-light button[class*="bg-gradient"],
-.bji-light button[class*="bg-gradient"] *,
-.bji-light button[class*="bg-red"],
-.bji-light button[class*="bg-red"] *,
-.bji-light button[class*="bg-emerald"],
-.bji-light button[class*="bg-emerald"] *,
-.bji-light [class*="bg-blue-600"],
-.bji-light [class*="bg-blue-600"] *,
-.bji-light [class*="bg-indigo-600"],
-.bji-light [class*="bg-indigo-600"] *,
+.bji-light button.bg-blue-600,
+.bji-light button.bg-blue-600 *,
+.bji-light button.bg-blue-700,
+.bji-light button.bg-blue-700 *,
+.bji-light button.bg-red-600,
+.bji-light button.bg-red-600 *,
+.bji-light button.bg-emerald-600,
+.bji-light button.bg-emerald-600 *,
+.bji-light button[class*="from-blue-600"],
+.bji-light button[class*="from-blue-600"] *,
+.bji-light button[class*="bg-gradient"]:not([class*="/"]),
+.bji-light button[class*="bg-gradient"]:not([class*="/"]) *,
+.bji-light [class*="bg-blue-600"]:not([class*="/"]),
+.bji-light [class*="bg-blue-600"]:not([class*="/"]) *,
+.bji-light [class*="bg-indigo-600"]:not([class*="/"]),
+.bji-light [class*="bg-indigo-600"]:not([class*="/"]) *,
 .bji-light [class*="from-blue-600"],
-.bji-light [class*="from-blue-600"] *,
-.bji-light [style*="gradient"],
-.bji-light [style*="gradient"] * {
+.bji-light [class*="from-blue-600"] * {
   color: #ffffff !important;
 }
 
 .bji-light .bji-keep-white svg,
 .bji-light .bji-btn-primary svg,
-.bji-light button[class*="bg-blue"] svg,
-.bji-light button[class*="from-blue"] svg,
-.bji-light button[class*="bg-gradient"] svg,
-.bji-light [class*="bg-blue-600"] svg,
-.bji-light [style*="gradient"] svg {
+.bji-light button.bg-blue-600 svg,
+.bji-light button.bg-blue-700 svg,
+.bji-light button.bg-red-600 svg,
+.bji-light button.bg-emerald-600 svg,
+.bji-light button[class*="from-blue-600"] svg,
+.bji-light [class*="bg-blue-600"]:not([class*="/"]) svg {
   color: #ffffff !important;
   stroke: #ffffff !important;
+}
+
+/* Tinted and ghost buttons in light mode must preserve their text and stroke colors */
+.bji-light button[class*="/10"] svg,
+.bji-light button[class*="/15"] svg,
+.bji-light button[class*="/20"] svg,
+.bji-light button[class*="/25"] svg,
+.bji-light button[class*="bg-blue-50"] svg,
+.bji-light button[class*="bg-purple-50"] svg,
+.bji-light button[class*="bg-red-50"] svg,
+.bji-light button[class*="bg-emerald-50"] svg,
+.bji-light button[class*="bg-amber-50"] svg,
+.bji-light button.bji-btn-ghost svg {
+  color: inherit !important;
+  stroke: currentColor !important;
 }
 
 /* Bottom & Sidebar Navigation active states */
@@ -452,6 +468,22 @@ nextjs-portal,
 }
 .bji-light .border-red-500\/30 {
   border-color: rgba(220, 38, 38, 0.22) !important;
+}
+
+.bji-light .text-amber-500 { color: #b45309 !important; }
+.bji-light .text-amber-400 { color: #92400e !important; }
+.bji-light .text-amber-300 { color: #78350f !important; }
+.bji-light .bg-amber-500\/10,
+.bji-light .bg-amber-500\/15,
+.bji-light .bg-amber-500\/20 {
+  background-color: rgba(245, 158, 11, 0.14) !important;
+}
+.bji-light .border-amber-500\/20,
+.bji-light .border-amber-500\/30,
+.bji-light .border-amber-500\/40,
+.bji-light .border-amber-400\/40,
+.bji-light .border-amber-400\/50 {
+  border-color: rgba(217, 119, 6, 0.38) !important;
 }
 
 /* 8. Light mode custom checkbox */

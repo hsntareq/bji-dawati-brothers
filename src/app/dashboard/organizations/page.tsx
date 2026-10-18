@@ -677,9 +677,9 @@ export default function OrganizationsPage() {
                           </button>
                           {ward.createdBy === user.uid && (
                             <>
-                              <span className="text-slate-600">•</span>
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-semibold">
-                                <Crown className="w-3 h-3 text-amber-400" /> Owner
+                              <span className="text-slate-400 dark:text-slate-600">•</span>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-400/50 dark:border-amber-500/30 text-[10px] font-bold shadow-xs">
+                                <Crown className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" /> Owner
                               </span>
                             </>
                           )}
@@ -692,9 +692,9 @@ export default function OrganizationsPage() {
                       <button
                         onClick={() => openOrgDetail(ward)}
                         title="Manage details & users"
-                        className="p-2 sm:px-3 sm:py-2 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-sm"
+                        className="p-2 sm:px-3 sm:py-2 rounded-xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-500/15 dark:hover:bg-purple-500/25 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-sm"
                       >
-                        <Settings className="w-4 h-4" />
+                        <Settings className="w-4 h-4 text-purple-600 dark:text-purple-300 shrink-0" />
                         <span className="hidden sm:inline">Manage</span>
                       </button>
 
@@ -762,14 +762,17 @@ export default function OrganizationsPage() {
                                 <Users className="w-3 h-3 text-blue-400" />
                                 {uMembers} member{uMembers !== 1 ? 's' : ''}
                               </span>
-                              <span className="text-slate-600">•</span>
+                              <span className="text-slate-400 dark:text-slate-600">•</span>
                               <span className="text-slate-300 font-medium">
                                 {uCount} contact{uCount !== 1 ? 's' : ''}
                               </span>
                               {unit.createdBy === user.uid && (
                                 <>
-                                  <span className="text-slate-600">•</span>
-                                  <span className="text-amber-400/90 font-medium">Owner</span>
+                                  <span className="text-slate-400 dark:text-slate-600">•</span>
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-400/40 dark:border-amber-500/30 text-[10px] font-bold shadow-xs">
+                                    <Crown className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                                    <span>Owner</span>
+                                  </span>
                                 </>
                               )}
                             </div>
@@ -778,10 +781,10 @@ export default function OrganizationsPage() {
                           {/* Manage Button */}
                           <button
                             onClick={e => { e.stopPropagation(); openOrgDetail(unit); }}
-                            className="w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shrink-0 active:scale-95 shadow-sm"
+                            className="w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shrink-0 active:scale-95 shadow-sm cursor-pointer"
                             title="Manage unit"
                           >
-                            <Settings className="w-3.5 h-3.5" />
+                            <Settings className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
                             <span className="hidden sm:inline">Manage</span>
                           </button>
                         </div>
@@ -903,8 +906,8 @@ export default function OrganizationsPage() {
                       {selectedOrg.type?.toUpperCase() ?? 'UNIT'}
                     </span>
                     {selectedOrg.createdBy === user.uid && (
-                      <span className="text-[10px] text-amber-400 flex items-center gap-1">
-                        <Crown className="w-3 h-3" /> Owner
+                      <span className="text-[10px] text-amber-800 dark:text-amber-400 flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-400/40 dark:border-amber-500/30 font-semibold shadow-xs">
+                        <Crown className="w-3 h-3 text-amber-600 dark:text-amber-400" /> Owner
                       </span>
                     )}
                   </div>
@@ -1028,8 +1031,8 @@ export default function OrganizationsPage() {
                           <p className="text-[10px] text-slate-500">Created this organization</p>
                         </div>
                       </div>
-                      <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[10px] font-semibold flex items-center gap-1">
-                        <Crown className="w-3 h-3" /> Owner
+                      <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-800 dark:text-amber-400 border border-amber-400/40 dark:border-amber-500/30 text-[10px] font-semibold flex items-center gap-1 shadow-xs">
+                        <Crown className="w-3 h-3 text-amber-600 dark:text-amber-400" /> Owner
                       </span>
                     </div>
                   )}
