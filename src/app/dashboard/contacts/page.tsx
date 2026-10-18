@@ -831,44 +831,23 @@ export default function ContactsPage() {
   if (!user) return null;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-4">
 
-      {/* ── Page Header & Add Person Button ────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 border border-white/10 rounded-2xl p-4 sm:p-5 backdrop-blur-sm shadow-xl">
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 via-indigo-500/20 to-purple-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 shadow-inner shrink-0">
-            <Users className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-              <span>{t('contacts')}</span>
-              {!loading && (
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 font-mono">
-                  {contacts.length}
-                </span>
-              )}
-            </h1>
-            <p className="text-xs text-slate-400">
-              Manage contacts, workers, and dawati follow-ups
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => {
-            setForm({
-              ...emptyForm,
-              organizationId: organizations.length === 1 ? organizations[0].id : '',
-            });
-            setFormOpen(true);
-          }}
-          className="group inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-semibold shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50 border border-blue-400/30 active:scale-95 transition-all cursor-pointer shrink-0"
-        >
-          <UserPlus className="w-4 h-4 transition-transform group-hover:scale-110" />
-          <span>{t('addPerson')}</span>
-        </button>
-      </div>
+      {/* ── Add Person Button ────────── */}
+      <button
+        type="button"
+        onClick={() => {
+          setForm({
+            ...emptyForm,
+            organizationId: organizations.length === 1 ? organizations[0].id : '',
+          });
+          setFormOpen(true);
+        }}
+        className="group w-full py-3 px-5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 border border-blue-400/30 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2"
+      >
+        <UserPlus className="w-4.5 h-4.5 transition-transform group-hover:scale-110" />
+        <span>{t('addPerson')}</span>
+      </button>
 
 
       {/* ── People List ──────────────────────────────── */}
