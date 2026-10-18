@@ -7,7 +7,7 @@ import { ref, get, push, set, remove, update, onValue } from 'firebase/database'
 import {
   Users, Loader2, Phone, Search, Building2,
   Pencil, Trash2, X, Mail, MapPin, Calendar, SlidersHorizontal, ChevronDown,
-  Plus, BookOpen, BookMarked, Library, Check, Trash2 as Delete, Send,
+  Plus, BookOpen, BookMarked, Library, Check, Trash2 as Delete, Send, UserPlus,
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useLanguage } from '@/context/LanguageContext';
@@ -156,22 +156,10 @@ export default function ContactsPage() {
     return { locations: org.locations || org.adminSettings?.locations || [], wardName: org.name };
   };
 
-  // ── Add form ───────────────────────────────────────
+  // ── Add Person modal state ────────────────────────
   const [form,     setForm]     = useState(emptyForm);
   const [saving,   setSaving]   = useState(false);
   const [formOpen, setFormOpen] = useState(false);
-  const addPersonRef = useRef<HTMLDivElement>(null);
-
-  // Close add person dropdown on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (addPersonRef.current && !addPersonRef.current.contains(e.target as Node)) {
-        setFormOpen(false);
-      }
-    };
-    if (formOpen) document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [formOpen]);
 
   // ── Filters ────────────────────────────────────────
   const [searchQuery,    setSearchQuery]    = useState('');
@@ -785,163 +773,38 @@ export default function ContactsPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-8">
 
-      {/* ── Add Person dropdown ───────────────────────── */}
-      <div className="relative" ref={addPersonRef}>
-        {/* Header trigger */}
+      {/* ── Page Header & Add Person Button ────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 border border-white/10 rounded-2xl p-4 sm:p-5 backdrop-blur-sm shadow-xl">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 via-indigo-500/20 to-purple-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 shadow-inner shrink-0">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <span>{t('contacts')}</span>
+              {!loading && (
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 font-mono">
+                  {filtered.length}
+                </span>
+              )}
+            </h1>
+            <p className="text-xs text-slate-400">
+              Manage contacts, workers, and dawati follow-ups
+            </p>
+          </div>
+        </div>
+
         <button
           type="button"
-          onClick={() => setFormOpen(o => !o)}
-          className="w-full flex items-center gap-3 px-6 py-4 bg-slate-900 border border-white/10 rounded-2xl hover:bg-white/[0.02] transition-colors"
+          onClick={() => {
+            setForm(emptyForm);
+            setFormOpen(true);
+          }}
+          className="group inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-semibold shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50 border border-blue-400/30 active:scale-95 transition-all cursor-pointer shrink-0"
         >
-          <div className="w-7 h-7 rounded-md bg-blue-500/15 flex items-center justify-center flex-shrink-0">
-            <Users className="w-4 h-4 text-blue-400" />
-          </div>
-          <h2 className="font-semibold text-white flex-1 text-left">{t('addPerson')}</h2>
-          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${formOpen ? 'rotate-180' : ''}`} />
+          <UserPlus className="w-4 h-4 transition-transform group-hover:scale-110" />
+          <span>{t('addPerson')}</span>
         </button>
-
-        {/* Floating form panel */}
-        {formOpen && (
-          <div className="absolute top-full left-0 right-0 mt-2 z-20 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl px-6 pb-6">
-            {organizations.length === 0 ? (
-              <p className="text-sm text-slate-400 text-center py-6">
-                {t('createOrgFirst')}
-              </p>
-            ) : (
-              <div className="space-y-3 pt-5">
-                {/* ── Shohojogi (default) & Kormi radio full width button ── */}
-                <div className="w-full">
-                  <div className="grid grid-cols-2 p-1 bg-slate-800/80 border border-white/10 rounded-xl gap-1 w-full">
-                    <button
-                      type="button"
-                      onClick={() => setForm(f => ({ ...f, category: 'shohojogi' }))}
-                      className={`w-full py-2.5 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
-                        form.category === 'shohojogi'
-                          ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm shadow-blue-500/10'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
-                      }`}
-                    >
-                      <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 transition-all ${
-                        form.category === 'shohojogi' ? 'border-blue-400 bg-blue-500/20' : 'border-slate-600'
-                      }`}>
-                        {form.category === 'shohojogi' && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.8)]" />}
-                      </span>
-                      <span>{t('shohojogi')}</span>
-                      <span className="text-[10px] sm:text-xs opacity-70 font-normal">
-                        {language === 'bn' ? '(Shohojogi)' : '(সহযোগী)'}
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setForm(f => ({ ...f, category: 'kormi' }))}
-                      className={`w-full py-2.5 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
-                        form.category === 'kormi'
-                          ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm shadow-blue-500/10'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
-                      }`}
-                    >
-                      <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 transition-all ${
-                        form.category === 'kormi' ? 'border-blue-400 bg-blue-500/20' : 'border-slate-600'
-                      }`}>
-                        {form.category === 'kormi' && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.8)]" />}
-                      </span>
-                      <span>{t('kormi')}</span>
-                      <span className="text-[10px] sm:text-xs opacity-70 font-normal">
-                        {language === 'bn' ? '(Kormi)' : '(কর্মী)'}
-                      </span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="hidden md:grid grid-cols-[1fr_1fr_1.2fr_auto] gap-3">
-                  {['Name', 'Mobile', 'Organization', ''].map((h, i) => (
-                    <span key={i} className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{h}</span>
-                  ))}
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1.2fr_auto] gap-3 items-center">
-                  <input
-                    type="text" placeholder="Full name" value={form.name}
-                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                    className="bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all w-full"
-                  />
-                  <input
-                    type="tel" value={form.mobile} maxLength={12}
-                    {...addMobileHandlers}
-                    className="bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all w-full"
-                  />
-                  <select
-                    value={form.organizationId}
-                    onChange={e => setForm(f => ({ ...f, organizationId: e.target.value, location: '' }))}
-                    className="bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer w-full"
-                  >
-                    <option value="" disabled>Select organization</option>
-                    {organizations.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-                  </select>
-                  <button
-                    type="button" onClick={handleAddPerson} disabled={!isFormValid || saving}
-                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-colors whitespace-nowrap"
-                  >
-                    {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : 'Save'}
-                  </button>
-                </div>
-
-                {/* ── Location dropdown above Address in Create Contact ── */}
-                <div className="pt-2 border-t border-white/5 space-y-3">
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-purple-400" />
-                        <span>Location</span>
-                      </label>
-                      {getLocationsForOrg(form.organizationId).wardName && (
-                        <span className="text-[10px] text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded font-medium border border-purple-500/20">
-                          {getLocationsForOrg(form.organizationId).wardName}
-                        </span>
-                      )}
-                    </div>
-                    {(() => {
-                      const { locations } = getLocationsForOrg(form.organizationId);
-                      return (
-                        <>
-                          <select
-                            value={form.location}
-                            onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
-                            disabled={!form.organizationId}
-                            className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer disabled:opacity-50"
-                          >
-                            <option value="">{form.organizationId ? 'Select location…' : 'Select organization first'}</option>
-                            {locations.map((loc: string) => (
-                              <option key={loc} value={loc}>{loc}</option>
-                            ))}
-                          </select>
-                          {form.organizationId && locations.length === 0 && (
-                            <p className="text-[10px] text-slate-500 mt-1 italic">
-                              No locations configured for this ward yet. Add locations under Organizations → Ward Admin Settings.
-                            </p>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
-                      Address
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Street, area, house (optional)"
-                      value={form.address}
-                      onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-                      className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
 
@@ -1731,6 +1594,242 @@ export default function ContactsPage() {
               <button onClick={handleEditSave} disabled={!isEditValid || editSaving}
                 className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-sm font-semibold bg-amber-500 hover:bg-amber-400 disabled:opacity-30 disabled:cursor-not-allowed text-black transition-colors">
                 {editSaving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add Person Modal ─────────────────────────── */}
+      {formOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setFormOpen(false)}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
+          <div
+            className="relative w-full max-w-lg bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-900/95 backdrop-blur-sm sticky top-0 z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                  <UserPlus className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-base leading-tight">{t('addPerson')}</h3>
+                  <p className="text-[11px] text-slate-400">Enroll a new contact to your organization</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFormOpen(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            {organizations.length === 0 ? (
+              <div className="p-8 text-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+                  <Building2 className="w-6 h-6" />
+                </div>
+                <p className="text-sm text-slate-300 font-medium">
+                  {t('createOrgFirst')}
+                </p>
+                <p className="text-xs text-slate-500">
+                  You need at least one organization to assign this person to.
+                </p>
+              </div>
+            ) : (
+              <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
+                {/* Category Radio Tabs (Shohojogi / Kormi) */}
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
+                    {t('category')} *
+                  </label>
+                  <div className="grid grid-cols-2 p-1 bg-slate-800/80 border border-white/10 rounded-xl gap-1 w-full">
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, category: 'shohojogi' }))}
+                      className={`w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-2 ${
+                        form.category === 'shohojogi'
+                          ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm shadow-blue-500/10'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
+                      }`}
+                    >
+                      <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                        form.category === 'shohojogi' ? 'border-blue-400 bg-blue-500/20' : 'border-slate-600'
+                      }`}>
+                        {form.category === 'shohojogi' && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.8)]" />}
+                      </span>
+                      <span>{t('shohojogi')}</span>
+                      <span className="text-[10px] opacity-75 font-normal">{language === 'bn' ? '(Shohojogi)' : '(সহযোগী)'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, category: 'kormi' }))}
+                      className={`w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-2 ${
+                        form.category === 'kormi'
+                          ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm shadow-blue-500/10'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
+                      }`}
+                    >
+                      <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                        form.category === 'kormi' ? 'border-blue-400 bg-blue-500/20' : 'border-slate-600'
+                      }`}>
+                        {form.category === 'kormi' && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.8)]" />}
+                      </span>
+                      <span>{t('kormi')}</span>
+                      <span className="text-[10px] opacity-75 font-normal">{language === 'bn' ? '(Kormi)' : '(কর্মী)'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Name */}
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
+                    Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={form.name}
+                    placeholder="Full name"
+                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  />
+                </div>
+
+                {/* Mobile */}
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
+                    Mobile *
+                  </label>
+                  <input
+                    type="tel"
+                    value={form.mobile}
+                    maxLength={12}
+                    {...addMobileHandlers}
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  />
+                </div>
+
+                {/* Organization */}
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
+                    Organization *
+                  </label>
+                  <select
+                    value={form.organizationId}
+                    onChange={e => setForm(f => ({ ...f, organizationId: e.target.value, location: '' }))}
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
+                  >
+                    <option value="" disabled>Select organization</option>
+                    {organizations.map(o => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Location dropdown above Address */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-purple-400" />
+                      <span>Location</span>
+                    </label>
+                    {getLocationsForOrg(form.organizationId).wardName && (
+                      <span className="text-[10px] text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded font-medium border border-purple-500/20">
+                        {getLocationsForOrg(form.organizationId).wardName}
+                      </span>
+                    )}
+                  </div>
+                  {(() => {
+                    const { locations } = getLocationsForOrg(form.organizationId);
+                    return (
+                      <>
+                        <select
+                          value={form.location}
+                          onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
+                          disabled={!form.organizationId}
+                          className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          <option value="">{form.organizationId ? 'Select location…' : 'Select organization first'}</option>
+                          {locations.map((loc: string) => (
+                            <option key={loc} value={loc}>{loc}</option>
+                          ))}
+                        </select>
+                        {form.organizationId && locations.length === 0 && (
+                          <p className="text-[10px] text-slate-500 mt-1 italic">
+                            No locations configured for this ward yet. Add locations under Organizations → Ward Admin Settings.
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {/* Address */}
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
+                    Address
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Street, area, house (optional)"
+                    value={form.address}
+                    onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  />
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="email@example.com (optional)"
+                    value={form.email}
+                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  />
+                </div>
+
+                {/* Note */}
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
+                    Note
+                  </label>
+                  <textarea
+                    placeholder="Any notes…"
+                    rows={2}
+                    value={form.note}
+                    onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/10 bg-white/[0.02] sticky bottom-0">
+              <button
+                type="button"
+                onClick={() => setFormOpen(false)}
+                className="px-4 py-2 rounded-xl text-sm text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAddPerson}
+                disabled={!isFormValid || saving}
+                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-all shadow-lg shadow-blue-600/25 active:scale-95 cursor-pointer"
+              >
+                {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : 'Save Person'}
               </button>
             </div>
           </div>
