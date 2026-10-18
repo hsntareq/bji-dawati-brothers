@@ -1299,7 +1299,7 @@ export default function OrganizationsPage() {
                         className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                       >
                         <option value="">Standalone (No Parent Ward)</option>
-                        {allOrgsRaw.filter(o => o.type === 'ward' && o.id !== selectedOrg.id).map(w => (
+                        {wardOrgs.filter(w => w.id !== selectedOrg.id).map(w => (
                           <option key={w.id} value={w.id}>
                             {w.name} {w.wardName ? `(${w.wardName})` : ''}
                           </option>
@@ -1409,7 +1409,7 @@ export default function OrganizationsPage() {
               )}
 
               {/* Parent org selector (for unit type) */}
-              {form.type === 'unit' && allOrgsRaw.filter(o => o.type === 'ward').length > 0 && (
+              {form.type === 'unit' && wardOrgs.length > 0 && (
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
                     Parent Ward <span className="text-slate-600">(optional)</span>
@@ -1420,7 +1420,7 @@ export default function OrganizationsPage() {
                     className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
                   >
                     <option value="">No parent (standalone unit)</option>
-                    {allOrgsRaw.filter(w => w.type === 'ward').map(w => (
+                    {wardOrgs.map(w => (
                       <option key={w.id} value={w.id}>{w.name}{w.wardName ? ` (${w.wardName})` : ''}</option>
                     ))}
                   </select>
