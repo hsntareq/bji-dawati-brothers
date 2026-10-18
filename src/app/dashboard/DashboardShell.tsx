@@ -116,7 +116,7 @@ function BrandLogo({ size = 36, className = "" }: { size?: number; className?: s
 
   return (
     <div
-      className={`rounded-xl overflow-hidden shadow-sm border border-white/10 flex-shrink-0 bg-slate-900 flex items-center justify-center p-0.5 ${className}`}
+      className={`rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-white/10 flex-shrink-0 bg-white dark:bg-slate-900 flex items-center justify-center p-0.5 ${className}`}
       style={{ width: size, height: size }}
     >
       <img
@@ -383,10 +383,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-90 transition-opacity min-w-0">
             <BrandLogo size={36} />
             <div className="min-w-0">
-              <h2 className="text-base font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent leading-tight truncate">
+              <h2 className="text-base font-extrabold bg-gradient-to-r from-blue-700 via-indigo-600 to-purple-700 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent leading-tight truncate">
                 BJI Dawati
               </h2>
-              <p className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">Brothers</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold tracking-wider uppercase">Brothers</p>
             </div>
           </Link>
         </div>
@@ -406,10 +406,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             <Link href="/dashboard" className="md:hidden flex items-center gap-2 hover:opacity-90 transition-opacity flex-shrink-0">
               <BrandLogo size={32} />
               <div className="flex flex-col">
-                <span className="font-bold text-sm bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent leading-none">
+                <span className="font-extrabold text-sm bg-gradient-to-r from-blue-700 via-indigo-600 to-purple-700 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent leading-none">
                   BJI Dawati
                 </span>
-                <span className="text-[9px] font-medium text-slate-400 tracking-wider uppercase leading-none mt-0.5">
+                <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 tracking-wider uppercase leading-none mt-0.5">
                   Brothers
                 </span>
               </div>

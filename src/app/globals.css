@@ -613,6 +613,64 @@ nextjs-portal,
   color: #0f172a !important;
 }
 
+/* ═══════════════════════════════════════════════════════
+   Settings Admin Hero Banner
+   ═══════════════════════════════════════════════════════ */
+.bji-dark .bji-admin-hero {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 27, 75, 0.45) 50%, rgba(15, 23, 42, 0.98) 100%) !important;
+  border-color: rgba(245, 158, 11, 0.25) !important;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5) !important;
+}
+
+.bji-light .bji-admin-hero {
+  background: linear-gradient(135deg, #ffffff 0%, rgba(245, 243, 255, 0.9) 50%, rgba(254, 243, 199, 0.6) 100%) !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
+  box-shadow: 0 10px 30px -5px rgba(245, 158, 11, 0.1), 0 2px 8px -2px rgba(0, 0, 0, 0.04) !important;
+}
+
+.bji-light .bji-admin-hero h1 {
+  color: #0f172a !important;
+}
+
+.bji-light .bji-admin-hero p.bji-admin-subtitle {
+  color: #475569 !important;
+}
+
+.bji-light .bji-admin-hero .bji-admin-badge {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+  color: #b45309 !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+
+.bji-light .bji-admin-hero .bji-admin-login-box {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+.bji-light .bji-admin-hero .bji-admin-login-box p.bji-admin-login-email {
+  color: #b45309 !important;
+}
+
+.bji-light .bji-admin-hero .bji-admin-stat-card {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03) !important;
+}
+
+.bji-light .bji-admin-hero .bji-admin-stat-card .bji-admin-stat-number {
+  color: #0f172a !important;
+}
+
+.bji-light .bji-admin-hero .bji-admin-stat-card span {
+  color: #475569 !important;
+}
+
+.bji-light .bji-admin-hero .bji-admin-divider {
+  border-color: rgba(0, 0, 0, 0.07) !important;
+}
+
+
 
 
 :root {

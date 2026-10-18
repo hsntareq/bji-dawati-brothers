@@ -375,18 +375,18 @@ export default function SuperAdminSettingsPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-12">
       {/* Superadmin Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-amber-500/20 p-6 md:p-8 shadow-2xl">
+      <div className="bji-admin-hero relative overflow-hidden rounded-3xl border p-6 md:p-8">
         <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold tracking-wide uppercase">
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+            <div className="bji-admin-badge inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase border">
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
               <span>Superadmin Control Center</span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
               {language === 'bn' ? 'সিস্টেম সেটিংস ও অ্যাডমিন প্যানেল' : 'System Settings & Controls'}
             </h1>
-            <p className="text-sm text-slate-300 max-w-xl">
+            <p className="bji-admin-subtitle text-sm max-w-xl">
               {language === 'bn'
                 ? 'সুপারএডমিন হিসেবে অ্যাপের গ্লোবাল কনফিগারেশন, ডাটাবেজ ব্যাকআপ ও ব্যবহারকারী তালিকা পরিচালনা করুন।'
                 : 'Manage global app configurations, broadcast announcements, database exports, and user directories.'}
@@ -394,10 +394,10 @@ export default function SuperAdminSettingsPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div className="bg-slate-900/80 backdrop-blur border border-white/10 rounded-2xl px-4 py-2.5">
-              <p className="text-[11px] text-slate-400 font-medium">Logged in as Superadmin</p>
-              <p className="text-xs font-bold text-amber-300 flex items-center gap-1.5 mt-0.5">
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <div className="bji-admin-login-box backdrop-blur border rounded-2xl px-4 py-2.5">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Logged in as Superadmin</p>
+              <p className="bji-admin-login-email text-xs font-bold text-amber-600 dark:text-amber-300 flex items-center gap-1.5 mt-0.5">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                 {user?.email}
               </p>
             </div>
@@ -405,49 +405,49 @@ export default function SuperAdminSettingsPage() {
         </div>
 
         {/* Live System Counter Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-white/10">
-          <div className="bg-white/5 border border-white/5 rounded-2xl p-3.5">
-            <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
-              <Building2 className="w-3.5 h-3.5 text-blue-400" />
+        <div className="bji-admin-divider grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-white/10">
+          <div className="bji-admin-stat-card border rounded-2xl p-3.5">
+            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs mb-1 font-medium">
+              <Building2 className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
               <span>Organizations</span>
             </div>
-            <p className="text-xl font-bold text-white">{stats.organizations}</p>
+            <p className="bji-admin-stat-number text-xl font-bold">{stats.organizations}</p>
           </div>
 
-          <div className="bg-white/5 border border-white/5 rounded-2xl p-3.5">
-            <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
-              <Users className="w-3.5 h-3.5 text-emerald-400" />
+          <div className="bji-admin-stat-card border rounded-2xl p-3.5">
+            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs mb-1 font-medium">
+              <Users className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
               <span>Total Contacts</span>
             </div>
-            <p className="text-xl font-bold text-white">{stats.contacts}</p>
+            <p className="bji-admin-stat-number text-xl font-bold">{stats.contacts}</p>
           </div>
 
-          <div className="bg-white/5 border border-white/5 rounded-2xl p-3.5">
-            <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
-              <UserIcon className="w-3.5 h-3.5 text-purple-400" />
+          <div className="bji-admin-stat-card border rounded-2xl p-3.5">
+            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs mb-1 font-medium">
+              <UserIcon className="w-3.5 h-3.5 text-purple-500 dark:text-purple-400" />
               <span>User Profiles</span>
             </div>
-            <p className="text-xl font-bold text-white">{stats.users}</p>
+            <p className="bji-admin-stat-number text-xl font-bold">{stats.users}</p>
           </div>
 
-          <div className="bg-white/5 border border-white/5 rounded-2xl p-3.5">
-            <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
-              <Radio className="w-3.5 h-3.5 text-amber-400" />
+          <div className="bji-admin-stat-card border rounded-2xl p-3.5">
+            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs mb-1 font-medium">
+              <Radio className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
               <span>Activities Logged</span>
             </div>
-            <p className="text-xl font-bold text-white">{stats.activities}</p>
+            <p className="bji-admin-stat-number text-xl font-bold">{stats.activities}</p>
           </div>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-white/10 pb-3 overflow-x-auto">
+      <div className="flex items-center gap-2 border-b border-black/10 dark:border-white/10 pb-3 overflow-x-auto">
         <button
           onClick={() => setActiveTab('system')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'system'
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
+              ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25 bji-keep-white'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
           }`}
         >
           <Settings className="w-4 h-4" />
@@ -456,10 +456,10 @@ export default function SuperAdminSettingsPage() {
 
         <button
           onClick={() => setActiveTab('backup')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'backup'
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
+              ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25 bji-keep-white'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
           }`}
         >
           <Database className="w-4 h-4" />
@@ -468,10 +468,10 @@ export default function SuperAdminSettingsPage() {
 
         <button
           onClick={() => setActiveTab('users')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'users'
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
+              ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25 bji-keep-white'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
           }`}
         >
           <Users className="w-4 h-4" />
