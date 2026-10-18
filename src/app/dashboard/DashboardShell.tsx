@@ -79,10 +79,10 @@ function ProfileAvatar({ profile, user, size = 'md' }: { profile: any; user: any
   const dim = size === 'sm' ? 'w-8 h-8 text-xs' : 'w-7 h-7 text-xs';
   return (
     <div
-      className={`${dim} rounded-full flex items-center justify-center font-bold text-white flex-shrink-0 select-none`}
+      className={`${dim} rounded-full flex items-center justify-center font-bold text-white flex-shrink-0 select-none bji-keep-white`}
       style={{ background: `linear-gradient(135deg, ${grad.from}, ${grad.to})` }}
     >
-      {initials}
+      <span className="text-white bji-keep-white">{initials}</span>
     </div>
   );
 }

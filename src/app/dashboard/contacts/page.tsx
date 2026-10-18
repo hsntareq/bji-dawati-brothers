@@ -1146,10 +1146,10 @@ export default function ContactsPage() {
               });
               setFormOpen(true);
             }}
-            className="group h-10 px-4 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-md shadow-blue-600/20 hover:shadow-blue-600/35 border border-blue-400/30 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 flex-1 sm:flex-initial"
+            className="group h-10 px-4 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold shadow-md shadow-blue-600/20 hover:shadow-blue-600/35 border border-blue-400/30 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 flex-1 sm:flex-initial bji-btn-primary bji-keep-white"
           >
-            <UserPlus className="w-4 h-4 transition-transform group-hover:scale-110" />
-            <span>{t('addPerson')}</span>
+            <UserPlus className="w-4 h-4 text-white bji-keep-white transition-transform group-hover:scale-110" />
+            <span className="text-white text-sm font-semibold bji-keep-white">{t('addPerson')}</span>
           </button>
         </div>
       </div>
@@ -1157,7 +1157,7 @@ export default function ContactsPage() {
 
       {/* ── People List ──────────────────────────────── */}
       <div className="space-y-4">
-        <div className="sticky top-[var(--header-offset,0px)] z-20 py-3 mb-3 bg-slate-950/90 backdrop-blur-xl border-b border-white/10 shadow-sm shadow-black/20 transition-[top] duration-300">
+        <div className="sticky top-[var(--header-offset,0px)] z-20 py-1.5 transition-[top] duration-300">
           <div className="relative w-full">
             <div className="flex items-center w-full bg-slate-900/90 border border-white/10 rounded-2xl shadow-sm overflow-hidden focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
               {/* Search Input */}

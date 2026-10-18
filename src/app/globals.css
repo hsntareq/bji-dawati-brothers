@@ -243,7 +243,7 @@ nextjs-portal,
 .bji-light .bg-slate-950\/90,
 .bji-light .bg-slate-950\/80,
 .bji-light .bg-slate-950\/70 {
-  background-color: var(--bji-header-bg) !important;
+  background-color: transparent !important;
 }
 
 .bji-light .bg-slate-900\/98,
@@ -287,8 +287,74 @@ nextjs-portal,
 }
 
 /* 4. Text colors in light mode */
-.bji-light .text-white {
+/* Standalone text-white elements turn dark in light mode, EXCEPT when inside colored buttons, badges, pills, or explicit keep-white elements */
+.bji-light .text-white:not(
+  .bji-keep-white,
+  .bji-keep-white *,
+  .bji-btn-primary,
+  .bji-btn-primary *,
+  button[class*="bg-blue"],
+  button[class*="bg-blue"] *,
+  button[class*="from-blue"],
+  button[class*="from-blue"] *,
+  button[class*="bg-gradient"],
+  button[class*="bg-gradient"] *,
+  button[class*="bg-emerald"],
+  button[class*="bg-emerald"] *,
+  button[class*="bg-red"],
+  button[class*="bg-red"] *,
+  [class*="bg-blue-600"],
+  [class*="bg-blue-600"] *,
+  [class*="bg-blue-500"],
+  [class*="bg-blue-500"] *,
+  [class*="bg-indigo-600"],
+  [class*="bg-indigo-600"] *,
+  [class*="from-blue-600"],
+  [class*="from-blue-600"] *,
+  [style*="gradient"],
+  [style*="gradient"] *
+) {
   color: var(--bji-text-1) !important;
+}
+
+/* Buttons and badges with colored/gradient backgrounds MUST keep pure white text & icons */
+.bji-light .bji-keep-white,
+.bji-light .bji-keep-white *,
+.bji-light .bji-btn-primary,
+.bji-light .bji-btn-primary *,
+.bji-light button[class*="bg-blue"],
+.bji-light button[class*="bg-blue"] *,
+.bji-light button[class*="from-blue"],
+.bji-light button[class*="from-blue"] *,
+.bji-light button[class*="bg-gradient"],
+.bji-light button[class*="bg-gradient"] *,
+.bji-light button[class*="bg-red"],
+.bji-light button[class*="bg-red"] *,
+.bji-light button[class*="bg-emerald"],
+.bji-light button[class*="bg-emerald"] *,
+.bji-light [class*="bg-blue-600"],
+.bji-light [class*="bg-blue-600"] *,
+.bji-light [class*="bg-blue-500"],
+.bji-light [class*="bg-blue-500"] *,
+.bji-light [class*="bg-indigo-600"],
+.bji-light [class*="bg-indigo-600"] *,
+.bji-light [class*="from-blue-600"],
+.bji-light [class*="from-blue-600"] *,
+.bji-light [style*="gradient"],
+.bji-light [style*="gradient"] * {
+  color: #ffffff !important;
+}
+
+.bji-light .bji-keep-white svg,
+.bji-light .bji-btn-primary svg,
+.bji-light button[class*="bg-blue"] svg,
+.bji-light button[class*="from-blue"] svg,
+.bji-light button[class*="bg-gradient"] svg,
+.bji-light [class*="bg-blue-600"] svg,
+.bji-light [class*="bg-blue-500"] svg,
+.bji-light [style*="gradient"] svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
 }
 .bji-light .text-slate-100,
 .bji-light .text-slate-200 {
