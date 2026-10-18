@@ -1159,7 +1159,7 @@ export default function ContactsPage() {
       <div className="space-y-4">
         <div className="sticky top-[var(--header-offset,0px)] z-20 py-1.5 transition-[top] duration-300">
           <div className="relative w-full">
-            <div className="flex items-center w-full bg-slate-900/90 border border-white/10 rounded-2xl shadow-sm focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+            <div className="flex items-center w-full bg-slate-900/90 border border-white/10 rounded-2xl focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
               {/* Search Input */}
               <div className="relative flex-1 min-w-0">
                 <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />

@@ -1,5 +1,5 @@
 // BJI Dawati Brothers - Advanced Offline PWA Service Worker
-const CACHE_NAME = 'bji-dawati-v4';
+const CACHE_NAME = 'bji-dawati-v5';
 
 // Core routes and assets to precache on install
 const PRECACHE_ASSETS = [
