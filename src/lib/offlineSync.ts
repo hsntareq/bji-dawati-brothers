@@ -326,3 +326,22 @@ if (typeof window !== 'undefined') {
     syncQueueWithFirebase();
   });
 }
+
+export async function clearAllCachedData(): Promise<void> {
+  const db = await getDB();
+  const stores = ['contacts', 'organizations', 'contact_activities', 'meta'];
+  return new Promise((resolve, reject) => {
+    try {
+      const tx = db.transaction(stores, 'readwrite');
+      stores.forEach(s => {
+        if (db.objectStoreNames.contains(s)) {
+          tx.objectStore(s).clear();
+        }
+      });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    } catch (err) {
+      reject(err);
+    }
+  });
+}

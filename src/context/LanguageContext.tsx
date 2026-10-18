@@ -26,6 +26,8 @@ export const translations = {
     compactView: 'Compact View',
     installApp: 'Install App',
     language: 'Language',
+    settings: 'Settings',
+    superAdmin: 'Super Admin',
     
     // Add Person Form
     addPerson: 'Add Person',
@@ -103,6 +105,8 @@ export const translations = {
     compactView: 'কমপ্যাক্ট ভিউ',
     installApp: 'অ্যাপ ইনস্টল করুন',
     language: 'ভাষা',
+    settings: 'সেটিংস',
+    superAdmin: 'সুপার অ্যাডমিন',
 
     // Add Person Form
     addPerson: 'নতুন ব্যক্তি যুক্ত করুন',

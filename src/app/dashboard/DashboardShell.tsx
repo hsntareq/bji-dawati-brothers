@@ -7,13 +7,14 @@ import { ref, onValue, update, query, orderByChild, limitToLast } from 'firebase
 import {
   LogOut, Bell, LayoutDashboard, Building2, Users,
   Menu, X, Sun, Moon, AlignJustify, LayoutList, CheckCheck, ArrowRight,
-  UserCircle2, Download, WifiOff, RefreshCw, Globe,
+  UserCircle2, Download, WifiOff, RefreshCw, Globe, ShieldCheck,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { usePWA } from '@/components/PWAProvider';
 import { useLanguage } from '@/context/LanguageContext';
 import { addSyncListener, syncQueueWithFirebase } from '@/lib/offlineSync';
+import { isSuperAdmin } from '@/lib/superadmin';
 
 // ── Disposition label helper ──────────────────────────
 const STATUS_LABELS: Record<string, { label: string; dot: string }> = {
@@ -179,6 +180,28 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     if (c) setCompact(c === 'true');
   }, []);
 
+  const [announcement, setAnnouncement] = useState<{ enabled: boolean; text: string; type: 'info' | 'warning' | 'success' } | null>(null);
+
+  useEffect(() => {
+    const unsub = onValue(ref(database, 'system_settings'), snap => {
+      if (snap.exists()) {
+        const data = snap.val();
+        if (data?.bannerEnabled && data?.bannerText) {
+          setAnnouncement({
+            enabled: data.bannerEnabled,
+            text: data.bannerText,
+            type: data.bannerType || 'info',
+          });
+        } else {
+          setAnnouncement(null);
+        }
+      } else {
+        setAnnouncement(null);
+      }
+    });
+    return () => unsub();
+  }, []);
+
   useEffect(() => {
     if (!user?.uid) return;
     const unsub = onValue(ref(database, `users/${user.uid}/profile`), snap => {
@@ -245,11 +268,14 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
   if (!user) return null;
 
+  const superUser = isSuperAdmin(user?.email);
+
   const navItems = [
     { name: t('overview'),      href: '/dashboard',              icon: LayoutDashboard },
     { name: t('organizations'), href: '/dashboard/organizations', icon: Building2 },
     { name: t('contacts'),      href: '/dashboard/contacts',      icon: Users },
     { name: t('profile'),       href: '/dashboard/profile',       icon: UserCircle2 },
+    ...(superUser ? [{ name: t('settings'), href: '/dashboard/settings', icon: ShieldCheck }] : []),
   ];
 
   const NavLinks = ({ onNavigate }: { onNavigate?: () => void }) => (
@@ -346,7 +372,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                 {pathname === '/dashboard' ? t('overview') :
                  pathname === '/dashboard/organizations' ? t('organizations') :
                  pathname === '/dashboard/contacts' ? t('contacts') :
-                 pathname === '/dashboard/profile' ? t('profile') : t('dashboard')}
+                 pathname === '/dashboard/profile' ? t('profile') :
+                 pathname === '/dashboard/settings' ? t('settings') : t('dashboard')}
               </span>
             </div>
           </div>
@@ -512,6 +539,17 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                       {t('viewProfile')}
                     </Link>
 
+                    {superUser && (
+                      <Link
+                        href="/dashboard/settings"
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 border border-amber-500/20 transition-colors w-full"
+                      >
+                        <ShieldCheck className="w-4 h-4 text-amber-400" />
+                        <span>{t('settings')} ({t('superAdmin')})</span>
+                      </Link>
+                    )}
+
                     {/* Language Switcher under user dropdown */}
                     <div className="flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-white/5 transition-colors">
                       <div className="flex items-center gap-2.5">
@@ -590,6 +628,21 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         </header>
 
         <div className="p-4 pt-20 md:p-8 md:pt-24 pb-20 md:pb-8 flex-1">
+          {announcement?.enabled && announcement?.text && (
+            <div
+              className={`mb-6 p-4 rounded-2xl border text-xs sm:text-sm flex items-center gap-3 shadow-lg ${
+                announcement.type === 'info'
+                  ? 'bg-blue-500/10 border-blue-500/30 text-blue-200 shadow-blue-500/5'
+                  : announcement.type === 'warning'
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-200 shadow-amber-500/5'
+                  : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200 shadow-emerald-500/5'
+              }`}
+            >
+              <Bell className="w-4 h-4 flex-shrink-0" />
+              <div className="flex-1 font-medium">{announcement.text}</div>
+            </div>
+          )}
+
           {!isOnline && (
             <div className="mb-6 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-200 text-xs flex items-center gap-3">
               <WifiOff className="w-4 h-4 text-amber-400 flex-shrink-0" />

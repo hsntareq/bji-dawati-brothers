@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { ref, set } from 'firebase/database';
+import { ref, set, get } from 'firebase/database';
 import { auth, database } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -22,6 +22,13 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
+      const regSnap = await get(ref(database, 'system_settings/allowRegistrations'));
+      if (regSnap.exists() && regSnap.val() === false) {
+        setError('New user registrations are currently paused by the system administrator.');
+        setLoading(false);
+        return;
+      }
+
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
