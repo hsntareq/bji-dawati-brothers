@@ -1852,46 +1852,46 @@ export default function ContactsPage() {
               </a>
             </div>
 
-            {/* ── Disposition accordion ──────────────── */}
-            <div className="border-b border-white/10">
-              <button
-                onClick={() => toggleSec('disposition')}
-                className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-white/[0.02] transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Disposition</p>
-                  {selectedContact.status && (
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: statusMeta(selectedContact.status).dot }} />
-                  )}
-                </div>
-                <ChevronDown className={`w-3.5 h-3.5 text-slate-600 transition-transform duration-200 ${secOpen.disposition ? 'rotate-180' : ''}`} />
-              </button>
-              {secOpen.disposition && (
-                <div className="px-6 pb-4">
-                  <div className="grid grid-cols-2 gap-2">
-                    {STATUSES.filter(s => s.value !== '').map(s => {
-                      const isActive = (selectedContact.status ?? 'new') === s.value;
-                      return (
-                        <button
-                          key={s.value}
-                          onClick={() => handleStatusChange(
-                            selectedContact, s.value,
-                            { target: { value: s.value }, stopPropagation: () => {} } as any
-                          )}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all border ${
-                            isActive
-                              ? 'border-white/20 bg-white/10'
-                              : 'border-white/5 bg-slate-800/50 hover:bg-white/5'
-                          }`}
-                        >
-                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.dot }} />
-                          <span style={{ color: isActive ? s.dot : '#94a3b8' }}>{s.label}</span>
-                        </button>
-                      );
-                    })}
+            {/* ── Disposition Row ──────────────── */}
+            <div className="px-6 py-3.5 border-b border-white/10 flex items-center justify-between gap-3">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider shrink-0">
+                Disposition
+              </span>
+
+              {/* Status Dropdown to the right of the label */}
+              {(() => {
+                const curMeta = statusMeta(selectedContact.status ?? 'new');
+                return (
+                  <div
+                    className="relative inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all hover:brightness-110 cursor-pointer shadow-sm"
+                    style={{
+                      backgroundColor: `${curMeta.dot}18`,
+                      borderColor: `${curMeta.dot}45`,
+                      color: curMeta.dot,
+                    }}
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0 shadow-[0_0_8px_currentColor]"
+                      style={{ backgroundColor: curMeta.dot }}
+                    />
+                    <span className="text-xs font-semibold">
+                      {curMeta.label}
+                    </span>
+                    <ChevronDown className="w-3.5 h-3.5 opacity-70 ml-0.5 shrink-0" />
+                    <select
+                      value={selectedContact.status ?? 'new'}
+                      onChange={e => handleStatusChange(selectedContact, e.target.value, e)}
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    >
+                      {STATUSES.filter(s => s.value !== '').map(s => (
+                        <option key={s.value} value={s.value} style={{ background: '#0f172a', color: s.dot }}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             {/* ── Information accordion ───────────────── */}
