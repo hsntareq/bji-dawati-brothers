@@ -108,11 +108,14 @@ const StarBadge = ({ level, compact = false }: { level: ReturnType<typeof getPer
   if (!level) return null;
   return (
     <span
-      className={`inline-flex items-center gap-0.5 rounded-full font-bold flex-shrink-0 ${compact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'}`}
+      className={`inline-flex items-center gap-0.5 rounded-md font-bold flex-shrink-0 shadow-sm ${
+        compact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs'
+      }`}
       style={{ color: level.color, background: level.bg, border: `1px solid ${level.border}` }}
+      title={`${level.label} (${level.stars} star${level.stars > 1 ? 's' : ''})`}
     >
-      {'★'.repeat(level.stars)}
-      {!compact && <span className="ml-0.5">{level.label}</span>}
+      <span className="tracking-widest">{'★'.repeat(level.stars)}</span>
+      {!compact && <span className="ml-1 text-[11px] font-medium">{level.label}</span>}
     </span>
   );
 };
@@ -1203,75 +1206,130 @@ export default function ContactsPage() {
                 <div
                   key={c.id}
                   onClick={() => setSelectedContact(c)}
-                  className="bg-slate-900 border border-white/10 rounded-2xl px-4 py-3.5 flex items-center gap-3 cursor-pointer hover:bg-white/[0.03] transition-colors"
+                  className="group relative bg-slate-900/90 hover:bg-slate-900 border border-white/[0.08] hover:border-blue-500/30 rounded-2xl p-3.5 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-lg hover:shadow-black/30 backdrop-blur-sm active:scale-[0.995]"
                 >
-                  {/* Avatar */}
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/30 to-indigo-600/30 border border-white/10 flex items-center justify-center text-sm font-bold text-white flex-shrink-0 select-none">
-                    {c.name?.[0]?.toUpperCase() ?? '?'}
-                  </div>
-
-                  {/* Name + org + status */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-white truncate">{c.name}</p>
-                      <span
-                        title={c.category === 'kormi' ? 'Kormi' : 'Shohojogi'}
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold font-mono tracking-tight border shrink-0 ${
+                  {/* Top Section: Avatar + Name + Tags + Actions */}
+                  <div className="flex items-start gap-3">
+                    {/* Avatar with initial + status indicator dot */}
+                    <div className="relative shrink-0">
+                      <div
+                        className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm shadow-inner border select-none transition-transform group-hover:scale-105 ${
                           c.category === 'kormi'
-                            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                            : 'bg-blue-500/15 text-blue-300 border-blue-500/30'
+                            ? 'bg-gradient-to-br from-emerald-500/20 via-teal-500/15 to-emerald-600/30 text-emerald-300 border-emerald-500/30'
+                            : 'bg-gradient-to-br from-blue-500/20 via-indigo-500/15 to-blue-600/30 text-blue-300 border-blue-500/30'
                         }`}
                       >
-                        {c.category === 'kormi' ? '[K]' : '[S]'}
-                      </span>
-                      <StarBadge level={getPerfLevel(actSummary[c.id] ?? 0)} compact />
+                        {c.name?.[0]?.toUpperCase() ?? '?'}
+                      </div>
+                      {/* Status indicator dot on avatar corner */}
+                      <span
+                        className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-900 shadow-sm"
+                        style={{ backgroundColor: statusMeta(c.status).dot }}
+                        title={statusMeta(c.status).label}
+                      />
                     </div>
 
-                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                      <span className="px-2 py-0.5 bg-slate-800/80 text-slate-300 border border-white/5 rounded-md text-[10px] font-medium truncate max-w-[150px]">
-                        {orgName(c.organizationId)}
-                      </span>
-                      {c.location && (
-                        <span className="px-2 py-0.5 bg-purple-500/10 text-purple-300 border border-purple-500/20 rounded-md text-[10px] font-medium flex items-center gap-1 truncate max-w-[150px]">
-                          <MapPin className="w-2.5 h-2.5 text-purple-400 shrink-0" />
-                          <span className="truncate">{c.location}</span>
-                        </span>
-                      )}
-                      {/* Inline status select */}
-                      <div
-                        className="flex items-center gap-1.5 bg-slate-800/60 hover:bg-slate-800 border border-white/5 px-2 py-0.5 rounded-md transition-colors"
-                        onClick={e => e.stopPropagation()}
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: statusMeta(c.status).dot }} />
-                        <select
-                          value={c.status ?? ''}
-                          onChange={e => handleStatusChange(c, e.target.value, e)}
-                          onClick={e => e.stopPropagation()}
-                          className="bg-transparent text-[10px] font-medium focus:outline-none cursor-pointer pr-0.5 appearance-none leading-none"
-                          style={{ color: statusMeta(c.status).dot }}
+                    {/* Middle Details: Name, Category, Org, Location */}
+                    <div className="flex-1 min-w-0 pt-0.5">
+                      {/* Name line */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h3 className="text-sm font-semibold text-slate-100 group-hover:text-blue-300 transition-colors truncate max-w-[170px] sm:max-w-xs">
+                          {c.name}
+                        </h3>
+                        <span
+                          title={c.category === 'kormi' ? 'Kormi' : 'Shohojogi'}
+                          className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold font-mono tracking-tight border shrink-0 ${
+                            c.category === 'kormi'
+                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                              : 'bg-blue-500/15 text-blue-300 border-blue-500/30'
+                          }`}
                         >
-                          {STATUSES.map(s => (
-                            <option key={s.value} value={s.value} style={{ background: '#0f172a', color: s.dot }}>
-                              {s.label}
-                            </option>
-                          ))}
-                        </select>
+                          {c.category === 'kormi' ? '[K]' : '[S]'}
+                        </span>
+                        <StarBadge level={getPerfLevel(actSummary[c.id] ?? 0)} compact />
                       </div>
+
+                      {/* Org and Location info - clean single-line metadata */}
+                      <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
+                        <span className="inline-flex items-center gap-1 text-slate-300 truncate max-w-[140px]">
+                          <Building2 className="w-3 h-3 text-slate-500 shrink-0" />
+                          <span className="truncate">{orgName(c.organizationId)}</span>
+                        </span>
+                        {c.location && (
+                          <>
+                            <span className="text-slate-600 shrink-0">•</span>
+                            <span className="inline-flex items-center gap-1 text-purple-300/90 truncate max-w-[130px]">
+                              <MapPin className="w-3 h-3 text-purple-400 shrink-0" />
+                              <span className="truncate">{c.location}</span>
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Quick Action Buttons (Call & WhatsApp) */}
+                    <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+                      <a
+                        href={`tel:${clean(c.mobile)}`}
+                        title="Call"
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-blue-500/10 hover:bg-blue-500/25 text-blue-400 border border-blue-500/20 hover:border-blue-500/40 transition-all active:scale-95 shadow-sm"
+                      >
+                        <Phone className="w-4 h-4" />
+                      </a>
+                      <a
+                        href={`https://wa.me/${clean(c.mobile)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="WhatsApp"
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/40 transition-all active:scale-95 shadow-sm"
+                      >
+                        <FaWhatsapp className="w-4 h-4" />
+                      </a>
                     </div>
                   </div>
 
-                  {/* Action buttons */}
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <a href={`tel:${clean(c.mobile)}`} title="Call"
+                  {/* Bottom Bar: Status Selector & Phone number */}
+                  <div className="mt-2.5 pt-2.5 border-t border-white/[0.06] flex items-center justify-between gap-2">
+                    {/* Status Dropdown Pill */}
+                    <div
+                      className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all hover:brightness-110 cursor-pointer"
+                      style={{
+                        backgroundColor: c.status ? `${statusMeta(c.status).dot}15` : 'rgba(255,255,255,0.03)',
+                        borderColor: c.status ? `${statusMeta(c.status).dot}40` : 'rgba(255,255,255,0.08)',
+                        color: statusMeta(c.status).dot,
+                      }}
                       onClick={e => e.stopPropagation()}
-                      className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-blue-600/20 text-blue-400 transition-colors">
-                      <Phone className="w-4 h-4" />
-                    </a>
-                    <a href={`https://wa.me/${clean(c.mobile)}`} target="_blank" rel="noopener noreferrer" title="WhatsApp"
-                      onClick={e => e.stopPropagation()}
-                      className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-green-600/20 text-green-400 transition-colors">
-                      <FaWhatsapp className="w-4 h-4" />
-                    </a>
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0 shadow-[0_0_6px_currentColor]"
+                        style={{ backgroundColor: statusMeta(c.status).dot }}
+                      />
+                      <span className="text-[11px] font-semibold tracking-wide">
+                        {statusMeta(c.status).label}
+                      </span>
+                      <ChevronDown className="w-3 h-3 opacity-60 ml-0.5 shrink-0" />
+
+                      {/* Hidden native select covering the pill */}
+                      <select
+                        value={c.status ?? ''}
+                        onChange={e => handleStatusChange(c, e.target.value, e)}
+                        onClick={e => e.stopPropagation()}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      >
+                        {STATUSES.map(s => (
+                          <option key={s.value} value={s.value} style={{ background: '#0f172a', color: s.dot }}>
+                            {s.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Phone number */}
+                    {c.mobile && (
+                      <span className="text-[11px] font-mono text-slate-400 tracking-tight shrink-0">
+                        {c.mobile}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1300,7 +1358,7 @@ export default function ContactsPage() {
                           <span className="text-sm font-medium text-white">{c.name}</span>
                           <span
                             title={c.category === 'kormi' ? 'Kormi' : 'Shohojogi'}
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold font-mono tracking-tight border shrink-0 ${
+                            className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold font-mono tracking-tight border shrink-0 ${
                               c.category === 'kormi'
                                 ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
                                 : 'bg-blue-500/15 text-blue-300 border-blue-500/30'
@@ -1313,14 +1371,27 @@ export default function ContactsPage() {
                       </td>
                       {/* Status column */}
                       <td className="px-5 py-3.5" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: statusMeta(c.status).dot }} />
+                        <div
+                          className="relative inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all hover:brightness-110 cursor-pointer"
+                          style={{
+                            backgroundColor: c.status ? `${statusMeta(c.status).dot}15` : 'rgba(255,255,255,0.03)',
+                            borderColor: c.status ? `${statusMeta(c.status).dot}40` : 'rgba(255,255,255,0.08)',
+                            color: statusMeta(c.status).dot,
+                          }}
+                        >
+                          <span
+                            className="w-2 h-2 rounded-full flex-shrink-0 shadow-[0_0_6px_currentColor]"
+                            style={{ backgroundColor: statusMeta(c.status).dot }}
+                          />
+                          <span className="text-xs font-semibold">
+                            {statusMeta(c.status).label}
+                          </span>
+                          <ChevronDown className="w-3 h-3 opacity-60 ml-0.5 shrink-0" />
                           <select
                             value={c.status ?? ''}
                             onChange={e => handleStatusChange(c, e.target.value, e)}
                             onClick={e => e.stopPropagation()}
-                            className="bg-slate-800 border border-white/10 rounded-lg px-2 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-white/20 cursor-pointer appearance-none w-36"
-                            style={{ color: statusMeta(c.status).dot }}
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                           >
                             {STATUSES.map(s => (
                               <option key={s.value} value={s.value} style={{ background: '#1e293b', color: s.dot }}>
@@ -1331,17 +1402,28 @@ export default function ContactsPage() {
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-1.5">
-                          <a href={`tel:${clean(c.mobile)}`} title="Call"
+                        <div className="flex items-center gap-2">
+                          <a
+                            href={`tel:${clean(c.mobile)}`}
+                            title="Call"
                             onClick={e => e.stopPropagation()}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-blue-600/20 text-blue-400 transition-colors">
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 transition-all active:scale-95 shadow-sm"
+                          >
                             <Phone className="w-3.5 h-3.5" />
                           </a>
-                          <a href={`https://wa.me/${clean(c.mobile)}`} target="_blank" rel="noopener noreferrer" title="WhatsApp"
+                          <a
+                            href={`https://wa.me/${clean(c.mobile)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="WhatsApp"
                             onClick={e => e.stopPropagation()}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-green-600/20 text-green-400 transition-colors">
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all active:scale-95 shadow-sm"
+                          >
                             <FaWhatsapp className="w-3.5 h-3.5" />
                           </a>
+                          {c.mobile && (
+                            <span className="text-xs font-mono text-slate-400 ml-1">{c.mobile}</span>
+                          )}
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
