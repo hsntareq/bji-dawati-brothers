@@ -8,6 +8,7 @@ import {
   Users, Loader2, Phone, Search, Building2,
   Pencil, Trash2, X, Mail, MapPin, Calendar, SlidersHorizontal, ChevronDown,
   Plus, BookOpen, BookMarked, Library, Check, Trash2 as Delete, Send, UserPlus,
+  MoreVertical, Download, RefreshCw, RotateCcw,
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useLanguage } from '@/context/LanguageContext';
@@ -169,16 +170,23 @@ export default function ContactsPage() {
   const [filterOpen,     setFilterOpen]     = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
 
-  // Close filter dropdown on outside click
+  // ── Three-dots dropdown state ───────────────────────
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+
+  // Close filter & more dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
         setFilterOpen(false);
       }
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
+      }
     };
-    if (filterOpen) document.addEventListener('mousedown', handler);
+    if (filterOpen || moreOpen) document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [filterOpen]);
+  }, [filterOpen, moreOpen]);
 
   const toggleStatus = (v: string) =>
     setFilterStatuses(prev => { const s = new Set(prev); s.has(v) ? s.delete(v) : s.add(v); return s; });
@@ -772,6 +780,33 @@ export default function ContactsPage() {
     }
   };
 
+  const handleExportCSV = () => {
+    if (filtered.length === 0) {
+      alert('No contacts to export.');
+      return;
+    }
+    const headers = ['Name', 'Mobile', 'Category', 'Status', 'Organization', 'Location', 'Address', 'Email', 'Note'];
+    const rows = filtered.map(c => [
+      `"${(c.name || '').replace(/"/g, '""')}"`,
+      `"${(c.mobile || '').replace(/"/g, '""')}"`,
+      `"${(c.category || 'shohojogi').replace(/"/g, '""')}"`,
+      `"${(statusMeta(c.status).label || '').replace(/"/g, '""')}"`,
+      `"${(orgName(c.organizationId) || '').replace(/"/g, '""')}"`,
+      `"${(c.location || '').replace(/"/g, '""')}"`,
+      `"${(c.address || '').replace(/"/g, '""')}"`,
+      `"${(c.email || '').replace(/"/g, '""')}"`,
+      `"${(c.note || '').replace(/"/g, '""')}"`,
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `bji_contacts_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const filtered = contacts.filter(c => {
     const q = searchQuery.toLowerCase().trim();
     const matchSearch = !q ||
@@ -839,8 +874,8 @@ export default function ContactsPage() {
       {/* ── People List ──────────────────────────────── */}
       <div className="space-y-4">
         <div className="sticky top-[var(--header-offset,0px)] z-20 py-3 mb-3 bg-slate-950/90 backdrop-blur-xl border-b border-white/10 shadow-sm shadow-black/20 transition-[top] duration-300">
-          <div className="flex items-center gap-2 w-full">
-            {/* Search Input – covers all remaining space */}
+          <div className="flex items-center w-full">
+            {/* Search Input – covers remaining space, connected with filter */}
             <div className="relative flex-1 min-w-0">
               <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
@@ -848,7 +883,7 @@ export default function ContactsPage() {
                 placeholder="Search by name, phone, location…"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-900/90 border border-white/10 rounded-xl pl-10 pr-9 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all shadow-inner"
+                className="w-full bg-slate-900/90 border border-white/10 border-r-0 rounded-l-xl rounded-r-none pl-10 pr-9 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all shadow-inner"
               />
               {searchQuery && (
                 <button
@@ -862,37 +897,21 @@ export default function ContactsPage() {
               )}
             </div>
 
-            {/* Quick Category Toggle Pill */}
-            <button
-              type="button"
-              onClick={() => setFilterCategory(c => c === 'shohojogi' ? 'kormi' : c === 'kormi' ? 'all' : 'shohojogi')}
-              title="Click to cycle: Shohojogi → Kormi → All"
-              className={`px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer active:scale-95 ${
-                filterCategory === 'kormi'
-                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25'
-                  : filterCategory === 'all'
-                  ? 'bg-purple-500/15 text-purple-400 border-purple-500/30 hover:bg-purple-500/25'
-                  : 'bg-blue-500/15 text-blue-400 border-blue-500/30 hover:bg-blue-500/25'
-              }`}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-current" />
-              <span>{filterCategory === 'kormi' ? 'Kormi' : filterCategory === 'all' ? 'All' : 'Shohojogi'}</span>
-            </button>
-
-            {/* Filter button + dropdown */}
-            <div className="relative" ref={filterRef}>
+            {/* Filter button + dropdown – connected in middle */}
+            <div className="relative shrink-0" ref={filterRef}>
               <button
+                type="button"
                 onClick={() => setFilterOpen(o => !o)}
-                className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-all ${
+                className={`relative flex items-center gap-1.5 px-3.5 py-2 border border-white/10 border-r-0 rounded-none text-sm font-medium transition-all cursor-pointer ${
                   filterOpen || activeFilterCount > 0
-                    ? 'bg-blue-600/20 border-blue-500/50 text-blue-400'
-                    : 'bg-slate-900 border-white/10 text-slate-400 hover:text-white hover:border-white/20'
+                    ? 'bg-blue-600/20 text-blue-400 border-blue-500/40 z-10'
+                    : 'bg-slate-900/90 text-slate-300 hover:text-white hover:bg-white/5'
                 }`}
               >
                 <SlidersHorizontal className="w-4 h-4" />
-                <span>Filter</span>
+                <span className="hidden sm:inline">Filter</span>
                 {activeFilterCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-blue-500 text-white text-[9px] font-bold flex items-center justify-center">
+                  <span className="w-4 h-4 rounded-full bg-blue-500 text-white text-[9px] font-bold flex items-center justify-center">
                     {activeFilterCount}
                   </span>
                 )}
@@ -1015,6 +1034,136 @@ export default function ContactsPage() {
                       })}
                     </div>
                   </div>
+                </div>
+              )}
+            </div>
+
+            {/* Three dots dropdown at the end – connected on right */}
+            <div className="relative shrink-0" ref={moreRef}>
+              <button
+                type="button"
+                onClick={() => setMoreOpen(o => !o)}
+                className={`flex items-center justify-center px-3 py-2 border border-white/10 rounded-r-xl rounded-l-none text-sm font-medium transition-all cursor-pointer ${
+                  moreOpen
+                    ? 'bg-blue-600/20 text-blue-400 border-blue-500/40 z-10'
+                    : 'bg-slate-900/90 text-slate-300 hover:text-white hover:bg-white/5'
+                }`}
+                title="More options"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
+
+              {/* Three dots dropdown menu */}
+              {moreOpen && (
+                <div className="absolute right-0 top-full mt-2 z-30 w-56 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden py-1.5 backdrop-blur-xl">
+                  {/* Add person quick action */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMoreOpen(false);
+                      setForm({
+                        ...emptyForm,
+                        organizationId: organizations.length === 1 ? organizations[0].id : '',
+                      });
+                      setFormOpen(true);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors text-left cursor-pointer"
+                  >
+                    <UserPlus className="w-4 h-4 text-blue-400" />
+                    <span>{t('addPerson')}</span>
+                  </button>
+
+                  {/* Refresh / sync data */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMoreOpen(false);
+                      fetchData();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors text-left cursor-pointer"
+                  >
+                    <RefreshCw className="w-4 h-4 text-emerald-400" />
+                    <span>Refresh data</span>
+                  </button>
+
+                  {/* Export CSV */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMoreOpen(false);
+                      handleExportCSV();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors text-left cursor-pointer"
+                  >
+                    <Download className="w-4 h-4 text-purple-400" />
+                    <span>Export contacts (CSV)</span>
+                  </button>
+
+                  <div className="my-1 border-t border-white/10" />
+
+                  {/* Quick Rank/Category switch */}
+                  <div className="px-3.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Category Filter
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterCategory('all');
+                      setMoreOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3.5 py-1.5 text-xs font-medium transition-colors text-left cursor-pointer ${
+                      filterCategory === 'all' ? 'text-blue-400 bg-blue-500/10' : 'text-slate-300 hover:bg-white/5'
+                    }`}
+                  >
+                    <span>All categories</span>
+                    {filterCategory === 'all' && <Check className="w-3.5 h-3.5" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterCategory('shohojogi');
+                      setMoreOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3.5 py-1.5 text-xs font-medium transition-colors text-left cursor-pointer ${
+                      filterCategory === 'shohojogi' ? 'text-blue-400 bg-blue-500/10' : 'text-slate-300 hover:bg-white/5'
+                    }`}
+                  >
+                    <span>Shohojogi</span>
+                    {filterCategory === 'shohojogi' && <Check className="w-3.5 h-3.5" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterCategory('kormi');
+                      setMoreOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3.5 py-1.5 text-xs font-medium transition-colors text-left cursor-pointer ${
+                      filterCategory === 'kormi' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-300 hover:bg-white/5'
+                    }`}
+                  >
+                    <span>Kormi</span>
+                    {filterCategory === 'kormi' && <Check className="w-3.5 h-3.5" />}
+                  </button>
+
+                  {(searchQuery || activeFilterCount > 0 || filterCategory !== 'all') && (
+                    <>
+                      <div className="my-1 border-t border-white/10" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearchQuery('');
+                          setFilterStatuses(new Set());
+                          setFilterOrgIds(new Set());
+                          setFilterCategory('all');
+                          setMoreOpen(false);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition-colors text-left cursor-pointer"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                        <span>Reset all filters</span>
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
