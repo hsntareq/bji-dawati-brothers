@@ -1210,7 +1210,7 @@ export default function ContactsPage() {
                 >
                   {/* Top Section: Avatar + Name + Tags + Actions */}
                   <div className="flex items-start gap-3">
-                    {/* Avatar with initial + status indicator dot */}
+                    {/* Avatar with initial + Category badge (S / K) */}
                     <div className="relative shrink-0">
                       <div
                         className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm shadow-inner border select-none transition-transform group-hover:scale-105 ${
@@ -1221,31 +1221,26 @@ export default function ContactsPage() {
                       >
                         {c.name?.[0]?.toUpperCase() ?? '?'}
                       </div>
-                      {/* Status indicator dot on avatar corner */}
+                      {/* Meaningfully positioned Category badge (S / K) - no brackets */}
                       <span
-                        className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-900 shadow-sm"
-                        style={{ backgroundColor: statusMeta(c.status).dot }}
-                        title={statusMeta(c.status).label}
-                      />
+                        title={c.category === 'kormi' ? 'কর্মী (Kormi)' : 'সহযোগী (Shohojogi)'}
+                        className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black border-2 border-slate-900 shadow-md ${
+                          c.category === 'kormi'
+                            ? 'bg-emerald-500 text-slate-950 shadow-emerald-500/30'
+                            : 'bg-blue-500 text-white shadow-blue-500/30'
+                        }`}
+                      >
+                        {c.category === 'kormi' ? 'K' : 'S'}
+                      </span>
                     </div>
 
-                    {/* Middle Details: Name, Category, Org, Location */}
+                    {/* Middle Details: Name, Org, Location */}
                     <div className="flex-1 min-w-0 pt-0.5">
                       {/* Name line */}
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <h3 className="text-sm font-semibold text-slate-100 group-hover:text-blue-300 transition-colors truncate max-w-[170px] sm:max-w-xs">
+                        <h3 className="text-sm font-semibold text-slate-100 group-hover:text-blue-300 transition-colors truncate max-w-[190px] sm:max-w-xs">
                           {c.name}
                         </h3>
-                        <span
-                          title={c.category === 'kormi' ? 'Kormi' : 'Shohojogi'}
-                          className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold font-mono tracking-tight border shrink-0 ${
-                            c.category === 'kormi'
-                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                              : 'bg-blue-500/15 text-blue-300 border-blue-500/30'
-                          }`}
-                        >
-                          {c.category === 'kormi' ? '[K]' : '[S]'}
-                        </span>
                         <StarBadge level={getPerfLevel(actSummary[c.id] ?? 0)} compact />
                       </div>
 
@@ -1354,18 +1349,30 @@ export default function ContactsPage() {
                       className="hover:bg-white/[0.03] transition-colors cursor-pointer"
                     >
                       <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2.5">
+                          {/* Mini avatar with category badge on desktop */}
+                          <div className="relative shrink-0">
+                            <div
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs border select-none ${
+                                c.category === 'kormi'
+                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                  : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                              }`}
+                            >
+                              {c.name?.[0]?.toUpperCase() ?? '?'}
+                            </div>
+                            <span
+                              title={c.category === 'kormi' ? 'কর্মী (Kormi)' : 'সহযোগী (Shohojogi)'}
+                              className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black border border-slate-900 shadow-sm ${
+                                c.category === 'kormi'
+                                  ? 'bg-emerald-500 text-slate-950'
+                                  : 'bg-blue-500 text-white'
+                              }`}
+                            >
+                              {c.category === 'kormi' ? 'K' : 'S'}
+                            </span>
+                          </div>
                           <span className="text-sm font-medium text-white">{c.name}</span>
-                          <span
-                            title={c.category === 'kormi' ? 'Kormi' : 'Shohojogi'}
-                            className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold font-mono tracking-tight border shrink-0 ${
-                              c.category === 'kormi'
-                                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                                : 'bg-blue-500/15 text-blue-300 border-blue-500/30'
-                            }`}
-                          >
-                            {c.category === 'kormi' ? '[K]' : '[S]'}
-                          </span>
                           <StarBadge level={getPerfLevel(actSummary[c.id] ?? 0)} compact />
                         </div>
                       </td>
