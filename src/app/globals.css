@@ -334,8 +334,6 @@ nextjs-portal,
 .bji-light button[class*="bg-emerald"] *,
 .bji-light [class*="bg-blue-600"],
 .bji-light [class*="bg-blue-600"] *,
-.bji-light [class*="bg-blue-500"],
-.bji-light [class*="bg-blue-500"] *,
 .bji-light [class*="bg-indigo-600"],
 .bji-light [class*="bg-indigo-600"] *,
 .bji-light [class*="from-blue-600"],
@@ -351,10 +349,25 @@ nextjs-portal,
 .bji-light button[class*="from-blue"] svg,
 .bji-light button[class*="bg-gradient"] svg,
 .bji-light [class*="bg-blue-600"] svg,
-.bji-light [class*="bg-blue-500"] svg,
 .bji-light [style*="gradient"] svg {
   color: #ffffff !important;
   stroke: #ffffff !important;
+}
+
+/* Bottom & Sidebar Navigation active states */
+.bji-light .bji-nav-active {
+  color: #1d4ed8 !important;
+}
+.bji-light .bji-nav-active svg {
+  color: #1d4ed8 !important;
+  stroke: #1d4ed8 !important;
+}
+.bji-dark .bji-nav-active {
+  color: #60a5fa !important;
+}
+.bji-dark .bji-nav-active svg {
+  color: #60a5fa !important;
+  stroke: #60a5fa !important;
 }
 .bji-light .text-slate-100,
 .bji-light .text-slate-200 {

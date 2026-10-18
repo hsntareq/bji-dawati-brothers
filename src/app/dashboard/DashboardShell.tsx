@@ -325,7 +325,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
   const NavLinks = ({ onNavigate }: { onNavigate?: () => void }) => (
     <>
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-4 space-y-1.5">
         {navItems.map(({ name, href, icon: Icon }) => {
           const isActive = pathname === href;
           return (
@@ -333,14 +333,17 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               key={href}
               href={href}
               onClick={onNavigate}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all ${
                 isActive
-                  ? 'bg-blue-500/10 text-blue-400'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  ? 'bji-nav-active bg-blue-500/15 font-semibold shadow-sm shadow-blue-500/10 border border-blue-500/30'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/5 font-medium'
               }`}
             >
-              <Icon className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium">{name}</span>
+              <Icon className={`w-5 h-5 flex-shrink-0 transition-transform ${isActive ? 'stroke-[2.25] scale-105' : 'stroke-[1.75]'}`} />
+              <span className="text-sm">{name}</span>
+              {isActive && (
+                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400" />
+              )}
             </Link>
           );
         })}
@@ -769,21 +772,36 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
       {/* Mobile Bottom Nav */}
       <nav className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bji-header border-t border-white/10 backdrop-blur-xl transition-transform duration-300 ${showNav ? 'translate-y-0' : 'translate-y-full'}`}>
-        <div className="flex items-center justify-around h-16 px-2">
+        <div className="flex items-center justify-around h-16 px-1.5">
           {navItems.map(({ name, href, icon: Icon }) => {
             const isActive = pathname === href;
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${
-                  isActive ? 'text-blue-400' : 'text-slate-400 hover:text-slate-300'
+                className={`group relative flex flex-col items-center justify-center w-full h-full py-1 transition-all select-none ${
+                  isActive
+                    ? 'bji-nav-active font-semibold'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
               >
-                <div className={`p-1 rounded-xl transition-colors ${isActive ? 'bg-blue-500/10' : ''}`}>
-                  <Icon className="w-5 h-5" />
+                <div
+                  className={`flex items-center justify-center px-3.5 py-1 rounded-full transition-all duration-200 ${
+                    isActive
+                      ? 'bg-blue-500/15 shadow-sm shadow-blue-500/10'
+                      : 'group-hover:bg-black/5 dark:group-hover:bg-white/5'
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 transition-transform duration-200 ${isActive ? 'stroke-[2.5] scale-110' : 'stroke-[1.75]'}`} />
                 </div>
-                <span className="text-[10px] font-medium">{name}</span>
+                <span className={`text-[10px] tracking-tight transition-all duration-200 mt-0.5 ${
+                  isActive ? 'font-bold' : 'font-medium'
+                }`}>
+                  {name}
+                </span>
+                {isActive && (
+                  <span className="w-3.5 h-0.5 rounded-full bg-blue-600 dark:bg-blue-400 mt-0.5" />
+                )}
               </Link>
             );
           })}
