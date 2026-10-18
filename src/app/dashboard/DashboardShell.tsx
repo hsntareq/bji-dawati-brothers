@@ -7,7 +7,7 @@ import { ref, onValue, update, query, orderByChild, limitToLast } from 'firebase
 import {
   LogOut, Bell, LayoutDashboard, Building2, Users,
   Menu, X, Sun, Moon, AlignJustify, LayoutList, CheckCheck, ArrowRight,
-  UserCircle2, Download, WifiOff, RefreshCw, Globe, ShieldCheck,
+  UserCircle2, Download, WifiOff, RefreshCw, Globe, ShieldCheck, Palette,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -51,6 +51,26 @@ const AVATAR_GRADIENTS: Record<string, { from: string; to: string }> = {
   slate:  { from: '#475569', to: '#334155' },
   teal:   { from: '#14b8a6', to: '#0d9488' },
 };
+
+export interface ThemeOption {
+  id: number;
+  mode: 'dark' | 'light';
+  nameEn: string;
+  nameBn: string;
+  accentColor: string;
+  bgHex: string;
+}
+
+export const THEMES: ThemeOption[] = [
+  { id: 1, mode: 'dark',  nameEn: 'Midnight Navy',   nameBn: 'মিডনাইট নেভি',    accentColor: '#3b82f6', bgHex: '#020817' },
+  { id: 2, mode: 'dark',  nameEn: 'Emerald Dawah',   nameBn: 'এমারেল্ড দাওয়াত',  accentColor: '#10b981', bgHex: '#021811' },
+  { id: 3, mode: 'dark',  nameEn: 'Royal Amethyst',  nameBn: 'রয়্যাল অ্যামেথিস্ট', accentColor: '#a855f7', bgHex: '#0d071e' },
+  { id: 4, mode: 'dark',  nameEn: 'Obsidian Onyx',   nameBn: 'অবসিডিয়ান অনিক্স', accentColor: '#f59e0b', bgHex: '#000000' },
+  { id: 5, mode: 'light', nameEn: 'Pure Snow',       nameBn: 'পিওর স্নো',       accentColor: '#2563eb', bgHex: '#f1f5f9' },
+  { id: 6, mode: 'light', nameEn: 'Warm Amber',      nameBn: 'ওয়ার্ম অ্যাম্বার',   accentColor: '#d97706', bgHex: '#faf5ee' },
+  { id: 7, mode: 'light', nameEn: 'Mint Sage',       nameBn: 'মিন্ট সেইজ',      accentColor: '#059669', bgHex: '#eef8f3' },
+  { id: 8, mode: 'light', nameEn: 'Rose Blossom',    nameBn: 'রোজ ব্লসম',      accentColor: '#e11d48', bgHex: '#fff1f3' },
+];
 
 function ProfileAvatar({ profile, user, size = 'md' }: { profile: any; user: any; size?: 'sm' | 'md' }) {
   const grad = AVATAR_GRADIENTS[profile?.gradientId ?? 'blue'] ?? AVATAR_GRADIENTS.blue;
@@ -143,6 +163,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   };
 
   const [profile, setProfile] = useState<{ displayName?: string; gradientId?: string } | null>(null);
+  const [themeId, setThemeId] = useState<number>(1);
   const [theme,   setTheme]   = useState<'dark' | 'light'>('dark');
   const [compact, setCompact] = useState(false);
 
@@ -174,9 +195,21 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   }, []);
 
   useEffect(() => {
-    const t = localStorage.getItem('bji-theme') as 'dark' | 'light' | null;
+    const savedId = localStorage.getItem('bji-theme-id');
+    const savedTheme = localStorage.getItem('bji-theme') as 'dark' | 'light' | null;
     const c = localStorage.getItem('bji-compact');
-    if (t) setTheme(t);
+
+    if (savedId) {
+      const parsed = parseInt(savedId, 10);
+      if (!isNaN(parsed) && parsed >= 1 && parsed <= THEMES.length) {
+        setThemeId(parsed);
+        const match = THEMES.find((t) => t.id === parsed);
+        if (match) setTheme(match.mode);
+      }
+    } else if (savedTheme) {
+      setTheme(savedTheme);
+      setThemeId(savedTheme === 'light' ? 5 : 1);
+    }
     if (c) setCompact(c === 'true');
   }, []);
 
@@ -210,10 +243,22 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     return () => unsub();
   }, [user?.uid]);
 
+  const selectTheme = (id: number) => {
+    const target = THEMES.find((t) => t.id === id) || THEMES[0];
+    setThemeId(target.id);
+    setTheme(target.mode);
+    localStorage.setItem('bji-theme-id', String(target.id));
+    localStorage.setItem('bji-theme', target.mode);
+  };
+
+  const cycleTheme = () => {
+    const currentIndex = THEMES.findIndex((t) => t.id === themeId);
+    const nextIndex = (currentIndex + 1) % THEMES.length;
+    selectTheme(THEMES[nextIndex].id);
+  };
+
   const toggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    localStorage.setItem('bji-theme', next);
+    cycleTheme();
   };
 
   const toggleCompact = () => {
@@ -322,8 +367,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     </>
   );
 
-  const isLight   = theme === 'light';
-  const rootClass = `min-h-screen flex ${isLight ? 'bji-light' : 'bji-dark'} ${compact ? 'bji-compact' : ''}`;
+  const activeTheme = THEMES.find((t) => t.id === themeId) || THEMES[0];
+  const isLight   = activeTheme.mode === 'light';
+  const rootClass = `min-h-screen flex ${isLight ? 'bji-light' : 'bji-dark'} bji-theme-${activeTheme.id} ${compact ? 'bji-compact' : ''}`;
 
   return (
     <div className={rootClass}>
@@ -521,7 +567,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               </button>
 
               {profileOpen && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
+                <div className="absolute right-0 top-full mt-2 w-64 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
                   <div className="p-3 border-b border-white/10">
                     <p className="text-sm text-white font-semibold truncate">
                       {profile?.displayName || 'My Profile'}
@@ -582,13 +628,79 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => { toggleTheme(); setProfileOpen(false); }}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-colors w-full"
-                    >
-                      {isLight ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-                      {isLight ? 'Dark Mode' : 'Light Mode'}
-                    </button>
+                    {/* Multi-Theme Switcher: Clicking cycles theme number and color */}
+                    <div className="rounded-xl overflow-hidden border border-white/10 bg-slate-800/40 my-1">
+                      <button
+                        type="button"
+                        onClick={cycleTheme}
+                        title={language === 'bn' ? 'ক্লিক করে পরবর্তী রঙ ও থিমে যান' : 'Click to cycle next theme & color'}
+                        className="flex items-center justify-between px-3 py-2 text-sm font-medium text-slate-200 hover:text-white hover:bg-white/10 transition-all w-full group"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div
+                            className="w-5 h-5 rounded-md flex items-center justify-center transition-all duration-300 shadow-sm flex-shrink-0"
+                            style={{ backgroundColor: activeTheme.accentColor }}
+                          >
+                            <Palette className="w-3.5 h-3.5 text-white" />
+                          </div>
+                          <div className="flex flex-col items-start leading-tight min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-xs tracking-wide">
+                                {language === 'bn' ? `থিম ${activeTheme.id}` : `Theme ${activeTheme.id}`}
+                              </span>
+                              <span
+                                className="text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider"
+                                style={{
+                                  backgroundColor: `${activeTheme.accentColor}25`,
+                                  color: activeTheme.accentColor,
+                                }}
+                              >
+                                {activeTheme.mode}
+                              </span>
+                            </div>
+                            <span className="text-[11px] text-slate-400 truncate max-w-[125px]">
+                              {language === 'bn' ? activeTheme.nameBn : activeTheme.nameEn}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Current theme color dot with animated glow */}
+                        <div className="flex items-center gap-1.5 pl-2 flex-shrink-0">
+                          <div
+                            className="w-4 h-4 rounded-full border-2 border-white/60 shadow-sm transition-transform duration-300 group-hover:scale-125"
+                            style={{
+                              backgroundColor: activeTheme.accentColor,
+                              boxShadow: `0 0 10px ${activeTheme.accentColor}90`,
+                            }}
+                          />
+                        </div>
+                      </button>
+
+                      {/* Quick Theme Swatch Number Row (1-4 Dark, 5-8 Light) */}
+                      <div className="grid grid-cols-8 gap-1 p-1.5 bg-slate-900/90 border-t border-white/5">
+                        {THEMES.map((item) => {
+                          const isSelected = item.id === activeTheme.id;
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => selectTheme(item.id)}
+                              title={`${item.id}: ${item.nameEn} (${item.mode.toUpperCase()})`}
+                              className={`h-6 rounded-md flex items-center justify-center text-[10px] font-bold transition-all relative ${
+                                isSelected
+                                  ? 'ring-2 ring-white scale-110 z-10 text-white shadow-md'
+                                  : 'opacity-70 hover:opacity-100 hover:scale-105 text-white/90'
+                              }`}
+                              style={{
+                                backgroundColor: item.accentColor,
+                              }}
+                            >
+                              {item.id}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
 
                     <button
                       onClick={() => { toggleCompact(); setProfileOpen(false); }}

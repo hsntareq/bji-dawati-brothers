@@ -86,6 +86,127 @@ nextjs-portal,
   --bji-thead-bg:    rgba(0,0,0,0.02);
 }
 
+/* ── 8 Multi-Themes (4 Dark + 4 Light) ────────────── */
+/* Theme 1: Midnight Navy (Dark) */
+.bji-theme-1.bji-dark {
+  --bji-bg:          #020817;
+  --bji-sidebar-bg:  #0f172a;
+  --bji-card-bg:     #0f172a;
+  --bji-card-hover:  rgba(59, 130, 246, 0.05);
+  --bji-input-bg:    #1e293b;
+  --bji-border:      rgba(59, 130, 246, 0.16);
+  --bji-divider:     rgba(255, 255, 255, 0.06);
+  --bji-header-bg:   rgba(15, 23, 42, 0.85);
+  --bji-text-1:      #f8fafc;
+  --bji-text-2:      #94a3b8;
+  --bji-text-3:      #475569;
+}
+
+/* Theme 2: Emerald Dawah (Dark) */
+.bji-theme-2.bji-dark {
+  --bji-bg:          #021811;
+  --bji-sidebar-bg:  #062c20;
+  --bji-card-bg:     #083325;
+  --bji-card-hover:  rgba(16, 185, 129, 0.06);
+  --bji-input-bg:    #0f4332;
+  --bji-border:      rgba(16, 185, 129, 0.2);
+  --bji-divider:     rgba(16, 185, 129, 0.1);
+  --bji-header-bg:   rgba(6, 44, 32, 0.85);
+  --bji-text-1:      #f0fdf4;
+  --bji-text-2:      #a7f3d0;
+  --bji-text-3:      #34d399;
+}
+
+/* Theme 3: Royal Amethyst (Dark) */
+.bji-theme-3.bji-dark {
+  --bji-bg:          #0d071e;
+  --bji-sidebar-bg:  #190e38;
+  --bji-card-bg:     #1d1242;
+  --bji-card-hover:  rgba(168, 85, 247, 0.06);
+  --bji-input-bg:    #2a1b5c;
+  --bji-border:      rgba(168, 85, 247, 0.22);
+  --bji-divider:     rgba(168, 85, 247, 0.12);
+  --bji-header-bg:   rgba(25, 14, 56, 0.85);
+  --bji-text-1:      #faf5ff;
+  --bji-text-2:      #c084fc;
+  --bji-text-3:      #a855f7;
+}
+
+/* Theme 4: Obsidian Onyx (Dark) */
+.bji-theme-4.bji-dark {
+  --bji-bg:          #000000;
+  --bji-sidebar-bg:  #0e0f12;
+  --bji-card-bg:     #131418;
+  --bji-card-hover:  rgba(255, 255, 255, 0.04);
+  --bji-input-bg:    #1d1f25;
+  --bji-border:      rgba(255, 255, 255, 0.12);
+  --bji-divider:     rgba(255, 255, 255, 0.07);
+  --bji-header-bg:   rgba(14, 15, 18, 0.88);
+  --bji-text-1:      #ffffff;
+  --bji-text-2:      #cbd5e1;
+  --bji-text-3:      #64748b;
+}
+
+/* Theme 5: Pure Slate (Light) */
+.bji-theme-5.bji-light {
+  --bji-bg:          #f1f5f9;
+  --bji-sidebar-bg:  #ffffff;
+  --bji-card-bg:     #ffffff;
+  --bji-card-hover:  rgba(59, 130, 246, 0.03);
+  --bji-input-bg:    #f8fafc;
+  --bji-border:      rgba(0, 0, 0, 0.09);
+  --bji-divider:     rgba(0, 0, 0, 0.06);
+  --bji-header-bg:   rgba(255, 255, 255, 0.88);
+  --bji-text-1:      #0f172a;
+  --bji-text-2:      #475569;
+  --bji-text-3:      #94a3b8;
+}
+
+/* Theme 6: Warm Amber Sand (Light) */
+.bji-theme-6.bji-light {
+  --bji-bg:          #faf5ee;
+  --bji-sidebar-bg:  #ffffff;
+  --bji-card-bg:     #ffffff;
+  --bji-card-hover:  rgba(217, 119, 6, 0.04);
+  --bji-input-bg:    #f5eee2;
+  --bji-border:      rgba(180, 83, 9, 0.15);
+  --bji-divider:     rgba(180, 83, 9, 0.08);
+  --bji-header-bg:   rgba(255, 255, 255, 0.9);
+  --bji-text-1:      #291e10;
+  --bji-text-2:      #614d35;
+  --bji-text-3:      #9c7f5f;
+}
+
+/* Theme 7: Mint Sage Breeze (Light) */
+.bji-theme-7.bji-light {
+  --bji-bg:          #eef8f3;
+  --bji-sidebar-bg:  #ffffff;
+  --bji-card-bg:     #ffffff;
+  --bji-card-hover:  rgba(16, 185, 129, 0.04);
+  --bji-input-bg:    #e0f2e7;
+  --bji-border:      rgba(5, 150, 105, 0.16);
+  --bji-divider:     rgba(5, 150, 105, 0.08);
+  --bji-header-bg:   rgba(255, 255, 255, 0.9);
+  --bji-text-1:      #062e20;
+  --bji-text-2:      #1f664e;
+  --bji-text-3:      #4f997f;
+}
+
+/* Theme 8: Rose Coral Blossom (Light) */
+.bji-theme-8.bji-light {
+  --bji-bg:          #fff1f3;
+  --bji-sidebar-bg:  #ffffff;
+  --bji-card-bg:     #ffffff;
+  --bji-card-hover:  rgba(244, 63, 94, 0.04);
+  --bji-input-bg:    #fee2e7;
+  --bji-border:      rgba(225, 29, 72, 0.16);
+  --bji-divider:     rgba(225, 29, 72, 0.08);
+  --bji-header-bg:   rgba(255, 255, 255, 0.9);
+  --bji-text-1:      #3d0c18;
+  --bji-text-2:      #7c233c;
+  --bji-text-3:      #be4b6c;
+}
+
 /* ── Semantic utility classes ─────────────────────── */
 .bji-bg            { background-color: var(--bji-bg); }
 .bji-sidebar       { background-color: var(--bji-sidebar-bg); border-right: 1px solid var(--bji-border); }
