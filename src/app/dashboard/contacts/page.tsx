@@ -6,7 +6,7 @@ import { database } from '@/lib/firebase';
 import { ref, get, push, set, remove, update, onValue } from 'firebase/database';
 import {
   Users, Loader2, Phone, Search, Building2,
-  Pencil, Trash2, X, Mail, MapPin, Calendar, SlidersHorizontal, ChevronDown,
+  Pencil, Trash2, X, Mail, MapPin, Calendar, SlidersHorizontal, ChevronDown, ChevronLeft,
   Plus, BookOpen, BookMarked, Library, Check, Trash2 as Delete, Send, UserPlus,
   MoreVertical, Download, RefreshCw, RotateCcw,
 } from 'lucide-react';
@@ -221,6 +221,7 @@ export default function ContactsPage() {
   const [actForm,          setActForm]          = useState(emptyActForm);
   const [actSaving,        setActSaving]        = useState(false);
   const actPanelRef = useRef<HTMLDivElement>(null);
+  const actButtonRef = useRef<HTMLButtonElement>(null);
 
   // ── Performance summary: contactId → unique type count ──
   const [actSummary, setActSummary] = useState<Record<string, number>>({});
@@ -273,8 +274,13 @@ export default function ContactsPage() {
   // Close activity panel on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (actPanelRef.current && !actPanelRef.current.contains(e.target as Node))
+      const target = e.target as Node;
+      if (
+        actPanelRef.current && !actPanelRef.current.contains(target) &&
+        actButtonRef.current && !actButtonRef.current.contains(target)
+      ) {
         setActPanelOpen(false);
+      }
     };
     if (actPanelOpen) document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -1473,143 +1479,173 @@ export default function ContactsPage() {
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 sticky top-0 bg-slate-900 z-10">
-              <h3 className="font-semibold text-white">Contact Detail</h3>
-              <div className="flex items-center gap-2">
-                {/* Add Activity button */}
-                <div className="relative" ref={actPanelRef}>
+            <div className="sticky top-0 bg-slate-900 border-b border-white/10 z-20 shadow-md">
+              <div className="flex items-center justify-between px-5 sm:px-6 py-3.5">
+                <h3 className="font-semibold text-white text-base">Contact Detail</h3>
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  {/* Add Activity button */}
                   <button
+                    ref={actButtonRef}
                     onClick={() => { setActPanelOpen(o => !o); setActType(null); setActForm(emptyActForm); }}
-                    title="Add activity"
-                    className={`w-7 h-7 flex items-center justify-center rounded-lg transition-all ${
-                      actPanelOpen ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10'
+                    title={actPanelOpen ? 'Close activity menu' : 'Add activity'}
+                    className={`h-8 px-2.5 sm:px-3 flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      actPanelOpen
+                        ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25 ring-1 ring-emerald-400'
+                        : 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/20'
                     }`}
                   >
-                    <Plus className="w-3.5 h-3.5" />
+                    <Plus className={`w-3.5 h-3.5 transition-transform duration-200 ${actPanelOpen ? 'rotate-45' : ''}`} />
+                    <span className="hidden sm:inline">Activity</span>
                   </button>
 
-                  {/* Activity type picker dropdown */}
-                  {actPanelOpen && (
-                    <div className="absolute right-0 top-full mt-2 z-30 w-72 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
-                      {!actType ? (
-                        <>
-                          <div className="px-4 py-2.5 border-b border-white/10">
-                            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Add Activity</p>
-                          </div>
-                          <div className="p-3 grid grid-cols-3 gap-1.5">
-                            {ACTIVITY_TYPES.map(t => (
-                              <button
-                                key={t.value}
-                                onClick={() => {
-                                  if (!t.hasForm) handleQuickActivity(t.value);
-                                  else setActType(t.value);
-                                }}
-                                className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-xl bg-slate-800/50 hover:bg-slate-700/60 border border-white/5 hover:border-white/10 transition-all"
-                              >
-                                <span className="text-lg">{t.emoji}</span>
-                                <span className="text-[9px] text-slate-400 text-center leading-tight">{t.label}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/10">
-                            <button onClick={() => setActType(null)} className="text-slate-500 hover:text-slate-300 transition-colors">
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                            <p className="text-xs font-semibold text-white">
-                              {ACTIVITY_TYPES.find(t => t.value === actType)?.emoji}{' '}
-                              {ACTIVITY_TYPES.find(t => t.value === actType)?.label}
-                            </p>
-                          </div>
-                          <div className="p-4 space-y-3">
-                            {actType === 'quran' && (
-                              <>
-                                <input
-                                  placeholder="Sura name (e.g. Al-Baqarah)"
-                                  value={actForm.suraName}
-                                  onChange={e => setActForm(f => ({ ...f, suraName: e.target.value }))}
-                                  className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                />
-                                <input
-                                  placeholder="Ayat number"
-                                  type="number"
-                                  value={actForm.ayatNumber}
-                                  onChange={e => setActForm(f => ({ ...f, ayatNumber: e.target.value }))}
-                                  className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                />
-                              </>
-                            )}
-                            {actType === 'hadis' && (
-                              <>
-                                <select
-                                  value={actForm.hadisBook}
-                                  onChange={e => setActForm(f => ({ ...f, hadisBook: e.target.value }))}
-                                  className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-xs text-white appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
-                                >
-                                  {SIA_SITTA.map(b => <option key={b} value={b}>{b}</option>)}
-                                </select>
-                                <input
-                                  placeholder="Hadis number"
-                                  type="number"
-                                  value={actForm.hadisNumber}
-                                  onChange={e => setActForm(f => ({ ...f, hadisNumber: e.target.value }))}
-                                  className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                />
-                              </>
-                            )}
-                            {actType === 'book' && (
-                              <select
-                                value={actForm.bookName}
-                                onChange={e => setActForm(f => ({ ...f, bookName: e.target.value }))}
-                                className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-xs text-white appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
-                              >
-                                {ISLAMIC_BOOKS.map(b => <option key={b} value={b}>{b}</option>)}
-                              </select>
-                            )}
+                  <button onClick={e => openEdit(selectedContact, e)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-xs font-medium transition-colors cursor-pointer">
+                    <Pencil className="w-3 h-3" /> Edit
+                  </button>
+                  <button
+                    onClick={e => {
+                      handleDelete(selectedContact, e);
+                      setSelectedContact(null);
+                    }}
+                    disabled={deletingId === selectedContact.id}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs font-medium transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    {deletingId === selectedContact.id
+                      ? <Loader2 className="w-3 h-3 animate-spin" />
+                      : <Trash2 className="w-3 h-3" />} Delete
+                  </button>
+                  <button onClick={() => setSelectedContact(null)}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Activity Drawer Panel */}
+              {actPanelOpen && (
+                <div ref={actPanelRef} className="border-t border-white/10 bg-slate-950/95 backdrop-blur-xl px-5 sm:px-6 py-4 shadow-2xl transition-all">
+                  {!actType ? (
+                    <>
+                      <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-white/5">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                          <p className="text-xs font-semibold text-slate-200 uppercase tracking-wider">Log Activity</p>
+                        </div>
+                        <button
+                          onClick={() => setActPanelOpen(false)}
+                          className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                          title="Close"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {ACTIVITY_TYPES.map(t => (
+                          <button
+                            key={t.value}
+                            onClick={() => {
+                              if (!t.hasForm) handleQuickActivity(t.value);
+                              else setActType(t.value);
+                            }}
+                            className="group flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/5 hover:border-emerald-500/40 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:shadow-emerald-500/10 cursor-pointer"
+                          >
+                            <span className="text-2xl transition-transform group-hover:scale-110">{t.emoji}</span>
+                            <span className="text-[11px] font-medium text-slate-300 text-center leading-tight group-hover:text-emerald-300">
+                              {t.label}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-white/5">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setActType(null)}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/10 text-xs text-slate-300 hover:text-white transition-colors cursor-pointer"
+                          >
+                            <ChevronLeft className="w-3.5 h-3.5" />
+                            <span>Back</span>
+                          </button>
+                          <span className="text-slate-600">/</span>
+                          <p className="text-xs font-semibold text-white flex items-center gap-1.5">
+                            <span>{ACTIVITY_TYPES.find(t => t.value === actType)?.emoji}</span>
+                            <span>{ACTIVITY_TYPES.find(t => t.value === actType)?.label}</span>
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => { setActPanelOpen(false); setActType(null); }}
+                          className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                          title="Close"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        {actType === 'quran' && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <input
-                              placeholder="Note (optional)"
-                              value={actForm.note}
-                              onChange={e => setActForm(f => ({ ...f, note: e.target.value }))}
-                              className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              placeholder="Sura name (e.g. Al-Baqarah)"
+                              value={actForm.suraName}
+                              onChange={e => setActForm(f => ({ ...f, suraName: e.target.value }))}
+                              className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                             />
-                            <button
-                              onClick={handleAddActivity}
-                              disabled={!actFormValid || actSaving}
-                              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white text-xs font-semibold transition-colors"
-                            >
-                              {actSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                              Save Activity
-                            </button>
+                            <input
+                              placeholder="Ayat number"
+                              type="number"
+                              value={actForm.ayatNumber}
+                              onChange={e => setActForm(f => ({ ...f, ayatNumber: e.target.value }))}
+                              className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            />
                           </div>
-                        </>
-                      )}
-                    </div>
+                        )}
+                        {actType === 'hadis' && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <select
+                              value={actForm.hadisBook}
+                              onChange={e => setActForm(f => ({ ...f, hadisBook: e.target.value }))}
+                              className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white appearance-none focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                            >
+                              {SIA_SITTA.map(b => <option key={b} value={b}>{b}</option>)}
+                            </select>
+                            <input
+                              placeholder="Hadis number"
+                              type="number"
+                              value={actForm.hadisNumber}
+                              onChange={e => setActForm(f => ({ ...f, hadisNumber: e.target.value }))}
+                              className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            />
+                          </div>
+                        )}
+                        {actType === 'book' && (
+                          <select
+                            value={actForm.bookName}
+                            onChange={e => setActForm(f => ({ ...f, bookName: e.target.value }))}
+                            className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white appearance-none focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                          >
+                            {ISLAMIC_BOOKS.map(b => <option key={b} value={b}>{b}</option>)}
+                          </select>
+                        )}
+                        <input
+                          placeholder="Note (optional)"
+                          value={actForm.note}
+                          onChange={e => setActForm(f => ({ ...f, note: e.target.value }))}
+                          className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        />
+                        <button
+                          onClick={handleAddActivity}
+                          disabled={!actFormValid || actSaving}
+                          className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-semibold shadow-lg shadow-emerald-600/20 transition-all cursor-pointer"
+                        >
+                          {actSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                          Save Activity
+                        </button>
+                      </div>
+                    </>
                   )}
                 </div>
-
-                <button onClick={e => openEdit(selectedContact, e)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-xs font-medium transition-colors">
-                  <Pencil className="w-3 h-3" /> Edit
-                </button>
-                <button
-                  onClick={e => {
-                    handleDelete(selectedContact, e);
-                    setSelectedContact(null);
-                  }}
-                  disabled={deletingId === selectedContact.id}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs font-medium transition-colors disabled:opacity-50"
-                >
-                  {deletingId === selectedContact.id
-                    ? <Loader2 className="w-3 h-3 animate-spin" />
-                    : <Trash2 className="w-3 h-3" />} Delete
-                </button>
-                <button onClick={() => setSelectedContact(null)}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 transition-colors">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+              )}
             </div>
 
             {/* Avatar + Name */}
