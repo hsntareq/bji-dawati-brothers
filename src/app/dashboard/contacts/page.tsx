@@ -524,35 +524,17 @@ export default function ContactsPage() {
   }, []);
 
   // Language-sensitive contact name:
-  // When language is 'en': show English name as primary, and include (Bangla name) if added.
-  // When language is 'bn': show Bangla name as primary, and include (English name) if added.
-  const contactDisplayName = (c: any): { primary: string; secondary?: string } => {
-    if (!c) return { primary: '—' };
-    const en = c.name?.trim();
-    const bn = c.nameBn?.trim();
-
-    if (language === 'bn') {
-      if (bn) {
-        return { primary: bn, secondary: en && en !== bn ? en : undefined };
-      }
-      return { primary: en || '—' };
-    }
-
-    // language === 'en'
-    if (en) {
-      return { primary: en, secondary: bn && bn !== en ? bn : undefined };
-    }
-    return { primary: bn || '—' };
-  };
-
+  // When language is 'en': show English name (c.name), fallback to Bangla name (c.nameBn)
+  // When language is 'bn': show Bangla name (c.nameBn), fallback to English name (c.name)
   const contactName = (c: any): string => {
-    const { primary, secondary } = contactDisplayName(c);
-    return secondary ? `${primary} (${secondary})` : primary;
+    if (!c) return '—';
+    if (language === 'bn') {
+      return c.nameBn?.trim() || c.name?.trim() || '—';
+    }
+    return c.name?.trim() || c.nameBn?.trim() || '—';
   };
 
-  const contactPrimaryName = (c: any): string => {
-    return contactDisplayName(c).primary;
-  };
+  const contactPrimaryName = contactName;
 
   // Helper to resolve locations for a given organization (either from the ward directly or from parent ward)
   const getLocationsForOrg = (orgId: string): { locations: string[]; wardName?: string } => {
@@ -3290,7 +3272,21 @@ export default function ContactsPage() {
       {editContact && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setEditContact(null)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (isEditValid && !editSaving) {
+                handleEditSave();
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                if (isEditValid && !editSaving) {
+                  handleEditSave();
+                }
+              }
+            }}
             className="relative w-full max-w-lg bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
@@ -3376,12 +3372,22 @@ export default function ContactsPage() {
                 </label>
 
                 <div className="flex items-stretch bg-slate-800 border border-white/10 rounded-xl focus-within:ring-2 focus-within:ring-amber-500 focus-within:border-transparent transition-all">
+                  {/* Input field */}
+                  <input
+                    type="tel"
+                    value={editForm.mobile}
+                    maxLength={12}
+                    {...editMobileHandlers}
+                    placeholder="01XXXXXXXXX"
+                    className="flex-1 min-w-0 bg-transparent px-3 py-2.5 text-sm text-white font-mono placeholder-slate-500 focus:outline-none"
+                  />
+
                   {/* Inline Dropdown */}
                   <div className="relative shrink-0" ref={editNumberDropdownRef}>
                     <button
                       type="button"
                       onClick={() => setEditNumberDropdownOpen(o => !o)}
-                      className="h-full px-3 py-2.5 rounded-l-xl text-xs font-semibold text-slate-200 hover:text-white hover:bg-white/5 border-r border-white/10 flex items-center gap-1.5 transition-colors cursor-pointer select-none"
+                      className="h-full px-3 py-2.5 rounded-r-xl text-xs font-semibold text-slate-200 hover:text-white hover:bg-white/5 border-l border-white/10 flex items-center gap-1.5 transition-colors cursor-pointer select-none"
                     >
                       {editForm.numberType === 'phone' ? (
                         <>
@@ -3407,7 +3413,7 @@ export default function ContactsPage() {
                     </button>
 
                     {editNumberDropdownOpen && (
-                      <div className="absolute left-0 top-full mt-1.5 z-30 w-52 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden py-1 backdrop-blur-xl">
+                      <div className="absolute right-0 top-full mt-1.5 z-30 w-52 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden py-1 backdrop-blur-xl">
                         <div className="px-3 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
                           Number Type
                         </div>
@@ -3500,16 +3506,6 @@ export default function ContactsPage() {
                       </div>
                     )}
                   </div>
-
-                  {/* Input field */}
-                  <input
-                    type="tel"
-                    value={editForm.mobile}
-                    maxLength={12}
-                    {...editMobileHandlers}
-                    placeholder="01XXXXXXXXX"
-                    className="flex-1 min-w-0 bg-transparent px-3 py-2.5 text-sm text-white font-mono placeholder-slate-500 focus:outline-none"
-                  />
                 </div>
 
                 {/* Additional Phone Number (if added) */}
@@ -3643,12 +3639,15 @@ export default function ContactsPage() {
                 className="px-4 py-2 rounded-xl text-sm text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
                 Cancel
               </button>
-              <button onClick={handleEditSave} disabled={!isEditValid || editSaving}
-                className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-sm font-semibold bg-amber-500 hover:bg-amber-400 disabled:opacity-30 disabled:cursor-not-allowed text-black transition-colors">
+              <button
+                type="submit"
+                disabled={!isEditValid || editSaving}
+                className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-sm font-semibold bg-amber-500 hover:bg-amber-400 disabled:opacity-30 disabled:cursor-not-allowed text-black transition-colors cursor-pointer"
+              >
                 {editSaving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : 'Save Changes'}
               </button>
             </div>
-          </div>
+          </form>
         </div>
       )}
 
@@ -3656,7 +3655,21 @@ export default function ContactsPage() {
       {formOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setFormOpen(false)}>
           <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
-          <div
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (isFormValid && !saving) {
+                handleAddPerson();
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                if (isFormValid && !saving) {
+                  handleAddPerson();
+                }
+              }
+            }}
             className="relative w-full max-w-lg bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
             onClick={e => e.stopPropagation()}
           >
@@ -3777,12 +3790,22 @@ export default function ContactsPage() {
                   </label>
 
                   <div className="flex items-stretch bg-slate-800 border border-white/10 rounded-xl focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-all">
+                    {/* Input field */}
+                    <input
+                      type="tel"
+                      value={form.mobile}
+                      maxLength={12}
+                      {...addMobileHandlers}
+                      placeholder="01XXXXXXXXX"
+                      className="flex-1 min-w-0 bg-transparent px-3 py-2.5 text-sm text-white font-mono placeholder-slate-500 focus:outline-none"
+                    />
+
                     {/* Inline Dropdown */}
                     <div className="relative shrink-0" ref={addNumberDropdownRef}>
                       <button
                         type="button"
                         onClick={() => setAddNumberDropdownOpen(o => !o)}
-                        className="h-full px-3 py-2.5 rounded-l-xl text-xs font-semibold text-slate-200 hover:text-white hover:bg-white/5 border-r border-white/10 flex items-center gap-1.5 transition-colors cursor-pointer select-none"
+                        className="h-full px-3 py-2.5 rounded-r-xl text-xs font-semibold text-slate-200 hover:text-white hover:bg-white/5 border-l border-white/10 flex items-center gap-1.5 transition-colors cursor-pointer select-none"
                       >
                         {form.numberType === 'phone' ? (
                           <>
@@ -3808,7 +3831,7 @@ export default function ContactsPage() {
                       </button>
 
                       {addNumberDropdownOpen && (
-                        <div className="absolute left-0 top-full mt-1.5 z-30 w-52 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden py-1 backdrop-blur-xl">
+                        <div className="absolute right-0 top-full mt-1.5 z-30 w-52 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden py-1 backdrop-blur-xl">
                           <div className="px-3 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
                             Number Type
                           </div>
@@ -3901,16 +3924,6 @@ export default function ContactsPage() {
                         </div>
                       )}
                     </div>
-
-                    {/* Input field */}
-                    <input
-                      type="tel"
-                      value={form.mobile}
-                      maxLength={12}
-                      {...addMobileHandlers}
-                      placeholder="01XXXXXXXXX"
-                      className="flex-1 min-w-0 bg-transparent px-3 py-2.5 text-sm text-white font-mono placeholder-slate-500 focus:outline-none"
-                    />
                   </div>
 
                   {/* Additional Phone Number (if added) */}
@@ -4075,15 +4088,14 @@ export default function ContactsPage() {
                 Cancel
               </button>
               <button
-                type="button"
-                onClick={handleAddPerson}
+                type="submit"
                 disabled={!isFormValid || saving}
                 className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-all shadow-lg shadow-blue-600/25 active:scale-95 cursor-pointer"
               >
                 {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : 'Save Person'}
               </button>
             </div>
-          </div>
+          </form>
         </div>
       )}
 
