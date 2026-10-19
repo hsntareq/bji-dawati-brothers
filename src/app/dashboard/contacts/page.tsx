@@ -523,13 +523,35 @@ export default function ContactsPage() {
     return () => unsub();
   }, []);
 
-  // Language-sensitive contact name: when lang is bn show bn name, when en show en name
-  const contactName = (c: any): string => {
-    if (!c) return '—';
+  // Language-sensitive contact name:
+  // When language is 'en': show English name as primary, and include (Bangla name) if added.
+  // When language is 'bn': show Bangla name as primary, and include (English name) if added.
+  const contactDisplayName = (c: any): { primary: string; secondary?: string } => {
+    if (!c) return { primary: '—' };
+    const en = c.name?.trim();
+    const bn = c.nameBn?.trim();
+
     if (language === 'bn') {
-      return c.nameBn?.trim() || c.name?.trim() || '—';
+      if (bn) {
+        return { primary: bn, secondary: en && en !== bn ? en : undefined };
+      }
+      return { primary: en || '—' };
     }
-    return c.name?.trim() || c.nameBn?.trim() || '—';
+
+    // language === 'en'
+    if (en) {
+      return { primary: en, secondary: bn && bn !== en ? bn : undefined };
+    }
+    return { primary: bn || '—' };
+  };
+
+  const contactName = (c: any): string => {
+    const { primary, secondary } = contactDisplayName(c);
+    return secondary ? `${primary} (${secondary})` : primary;
+  };
+
+  const contactPrimaryName = (c: any): string => {
+    return contactDisplayName(c).primary;
   };
 
   // Helper to resolve locations for a given organization (either from the ward directly or from parent ward)
@@ -708,6 +730,35 @@ export default function ContactsPage() {
 
   useEffect(() => {
     fetchData();
+  }, [user]);
+
+  // Keep selectedContact in sync with latest contacts state in real time
+  useEffect(() => {
+    if (selectedContact?.id) {
+      const latest = contacts.find(c => c.id === selectedContact.id);
+      if (latest && JSON.stringify(latest) !== JSON.stringify(selectedContact)) {
+        setSelectedContact(latest);
+      }
+    }
+  }, [contacts, selectedContact?.id]);
+
+  // Realtime listener for contacts from Firebase so updates show without refreshing the page
+  useEffect(() => {
+    if (!user) return;
+    const unsub = onValue(ref(database, 'contacts'), snap => {
+      if (snap.exists()) {
+        const allContacts = Object.entries(snap.val()).map(([id, v]: any) => ({ id, ...v }));
+        putAllInStore('contacts', allContacts).catch(() => {});
+        setContacts(prev => {
+          const cloudMap = new Map(allContacts.map(c => [c.id, c]));
+          const updated = prev.map(c => cloudMap.get(c.id) ? { ...c, ...cloudMap.get(c.id) } : c);
+          const localIds = new Set(prev.map(c => c.id));
+          const newFromCloud = allContacts.filter(c => !localIds.has(c.id));
+          return [...updated, ...newFromCloud];
+        });
+      }
+    });
+    return () => unsub();
   }, [user]);
 
   // Listen to system settings for deletion permissions
@@ -1238,7 +1289,7 @@ export default function ContactsPage() {
       // Optimistic update
       setContacts(prev => prev.map(x => x.id === editContact.id ? merged : x));
       if (selectedContact?.id === editContact.id) {
-        setSelectedContact((prev: any) => ({ ...prev, ...updated }));
+        setSelectedContact(merged);
       }
       await putInStore('contacts', merged);
       setEditContact(null);
@@ -1480,13 +1531,35 @@ export default function ContactsPage() {
   const orgName = (id: string) => organizations.find(o => o.id === id)?.name ?? '—';
   const clean   = (m?: string | null) => m ? toE164(m) : '';
   const getCallNumber = (c: any): string | null => {
-    if (c?.numberType === 'whatsapp') return null;
-    return c?.mobile || c?.secondaryMobile || null;
+    if (!c) return null;
+    // 1. If primary mobile is callable (phone or both), return it
+    if (c.numberType !== 'whatsapp' && c.mobile && c.mobile.replace(/\D/g, '').length >= 10) {
+      return c.mobile;
+    }
+    // 2. If primary is whatsapp-only or missing, check secondary mobile for phone call!
+    if (c.secondaryMobile && c.secondaryMobile.replace(/\D/g, '').length >= 10) {
+      return c.secondaryMobile;
+    }
+    // 3. Fallback to primary mobile if not whatsapp
+    if (c.numberType !== 'whatsapp' && c.mobile) {
+      return c.mobile;
+    }
+    return null;
   };
+
   const getWhatsAppNumber = (c: any): string | null => {
-    if (c?.whatsappNumber) return c.whatsappNumber;
-    if (c?.numberType === 'phone') return null;
-    return c?.mobile || null;
+    if (!c) return null;
+    // 1. Dedicated explicit whatsappNumber
+    if (c.whatsappNumber && c.whatsappNumber.replace(/\D/g, '').length >= 10) {
+      return c.whatsappNumber;
+    }
+    // 2. Primary mobile if WhatsApp is supported ('whatsapp' or 'both' or default)
+    if (c.numberType !== 'phone' && c.mobile && c.mobile.replace(/\D/g, '').length >= 10) {
+      return c.mobile;
+    }
+    // 3. Fallback to whatsappNumber if present
+    if (c.whatsappNumber) return c.whatsappNumber;
+    return null;
   };
   const fmtDate = (iso: string) =>
     iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -2302,7 +2375,7 @@ export default function ContactsPage() {
                               : 'bg-gradient-to-br from-blue-500/20 via-indigo-500/15 to-blue-600/30 text-blue-300 border-blue-500/30'
                           }`}
                         >
-                          {contactName(c)?.[0]?.toUpperCase() ?? '?'}
+                          {contactPrimaryName(c)?.[0]?.toUpperCase() ?? '?'}
                         </div>
                         <span
                           title={c.category === 'kormi' ? 'কর্মী (Kormi)' : 'সহযোগী (Shohojogi)'}
@@ -2445,7 +2518,7 @@ export default function ContactsPage() {
                             : 'bg-gradient-to-br from-blue-500/20 via-indigo-500/15 to-blue-600/30 text-blue-300 border-blue-500/30'
                         }`}
                       >
-                        {contactName(c)?.[0]?.toUpperCase() ?? '?'}
+                        {contactPrimaryName(c)?.[0]?.toUpperCase() ?? '?'}
                       </div>
                       {/* Meaningfully positioned Category badge (S / K) - no brackets */}
                       <span
@@ -2653,7 +2726,7 @@ export default function ContactsPage() {
                                     : 'bg-gradient-to-br from-blue-500/25 to-indigo-600/30 text-blue-300 border-blue-500/30'
                                 }`}
                               >
-                                {contactName(c)?.[0]?.toUpperCase() ?? '?'}
+                                {contactPrimaryName(c)?.[0]?.toUpperCase() ?? '?'}
                               </div>
 
                               <span
@@ -3057,7 +3130,7 @@ export default function ContactsPage() {
                       boxShadow: perf ? `0 0 16px ${perf.color}40` : 'none',
                     }}
                   >
-                    {contactName(selectedContact)?.[0]?.toUpperCase() ?? '?'}
+                    {contactPrimaryName(selectedContact)?.[0]?.toUpperCase() ?? '?'}
                   </div>
                 );
               })()}
