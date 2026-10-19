@@ -186,6 +186,15 @@ export default function ContactsPage() {
   const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Language-sensitive contact name: when lang is bn show bn name, when en show en name
+  const contactName = (c: any): string => {
+    if (!c) return '—';
+    if (language === 'bn') {
+      return c.nameBn?.trim() || c.name?.trim() || '—';
+    }
+    return c.name?.trim() || c.nameBn?.trim() || '—';
+  };
+
   // Helper to resolve locations for a given organization (either from the ward directly or from parent ward)
   const getLocationsForOrg = (orgId: string): { locations: string[]; wardName?: string } => {
     if (!orgId) return { locations: [] };
@@ -941,7 +950,7 @@ export default function ContactsPage() {
     const canDirect = canUserDeleteDirectly(c);
 
     if (!canDirect) {
-      if (!confirm(`You do not have direct deletion permission. Send a delete request for "${c.name}" to the Ward Admin?`)) return;
+      if (!confirm(`You do not have direct deletion permission. Send a delete request for "${contactName(c)}" to the Ward Admin?`)) return;
       setDeletingId(c.id);
       try {
         const org = organizations.find((o: any) => o.id === c.organizationId);
@@ -952,7 +961,7 @@ export default function ContactsPage() {
           const notifData = {
             type: 'delete_request',
             contactId: c.id,
-            contactName: c.name,
+            contactName: contactName(c),
             organizationId: c.organizationId,
             organizationName: org?.name || '—',
             requestedBy: user?.uid,
@@ -963,7 +972,7 @@ export default function ContactsPage() {
           const notifRef = push(ref(database, `notifications/${targetAdminUid}`));
           await set(notifRef, notifData);
         }
-        alert(`Delete request for "${c.name}" has been sent to the Ward Admin.`);
+        alert(`Delete request for "${contactName(c)}" has been sent to the Ward Admin.`);
       } catch (err) {
         console.error(err);
         alert('Failed to send delete request.');
@@ -973,7 +982,7 @@ export default function ContactsPage() {
       return;
     }
 
-    if (!confirm(`Delete "${c.name}"? This cannot be undone.`)) return;
+    if (!confirm(`Delete "${contactName(c)}"? This cannot be undone.`)) return;
     setDeletingId(c.id);
     try {
       setContacts(prev => prev.filter(x => x.id !== c.id));
@@ -1046,7 +1055,7 @@ export default function ContactsPage() {
     const org = organizations.find((o: any) => o.id === c.organizationId);
     const notifData = org?.createdBy ? {
       contactId:        c.id,
-      contactName:      c.name,
+      contactName:      contactName(c),
       oldStatus:        prevStatus,
       newStatus:        status,
       organizationId:   c.organizationId,
@@ -1819,7 +1828,7 @@ export default function ContactsPage() {
                               : 'bg-gradient-to-br from-blue-500/20 via-indigo-500/15 to-blue-600/30 text-blue-300 border-blue-500/30'
                           }`}
                         >
-                          {c.name?.[0]?.toUpperCase() ?? '?'}
+                          {contactName(c)?.[0]?.toUpperCase() ?? '?'}
                         </div>
                         <span
                           title={c.category === 'kormi' ? 'কর্মী (Kormi)' : 'সহযোগী (Shohojogi)'}
@@ -1839,12 +1848,9 @@ export default function ContactsPage() {
                           type="button"
                           onClick={() => setSelectedContact(c)}
                           className="text-xs font-semibold text-slate-100 hover:text-blue-400 transition-colors truncate max-w-full text-left focus:outline-none block leading-tight"
-                          title={c.nameBn ? `${c.name} (${c.nameBn})` : c.name}
+                          title={contactName(c)}
                         >
-                          <span>{c.name}</span>
-                          {c.nameBn && (
-                            <span className="ml-1 text-[11px] font-normal text-slate-400">({c.nameBn})</span>
-                          )}
+                          {contactName(c)}
                         </button>
                         <p className="text-[10px] text-slate-400 truncate leading-tight mt-0.5">
                           {orgName(c.organizationId)}
@@ -1986,7 +1992,7 @@ export default function ContactsPage() {
                             : 'bg-gradient-to-br from-blue-500/20 via-indigo-500/15 to-blue-600/30 text-blue-300 border-blue-500/30'
                         }`}
                       >
-                        {c.name?.[0]?.toUpperCase() ?? '?'}
+                        {contactName(c)?.[0]?.toUpperCase() ?? '?'}
                       </div>
                       {/* Meaningfully positioned Category badge (S / K) - no brackets */}
                       <span
@@ -2009,12 +2015,9 @@ export default function ContactsPage() {
                           type="button"
                           onClick={() => setSelectedContact(c)}
                           className="text-sm font-semibold text-slate-100 hover:text-blue-400 transition-colors truncate max-w-[190px] sm:max-w-xs cursor-pointer text-left focus:outline-none"
-                          title={c.nameBn ? `${c.name} (${c.nameBn})` : c.name}
+                          title={contactName(c)}
                         >
-                          <span>{c.name}</span>
-                          {c.nameBn && (
-                            <span className="ml-1.5 text-xs font-normal text-slate-400">({c.nameBn})</span>
-                          )}
+                          {contactName(c)}
                         </button>
                       </div>
 
@@ -2220,7 +2223,7 @@ export default function ContactsPage() {
                                     : 'bg-gradient-to-br from-blue-500/25 to-indigo-600/30 text-blue-300 border-blue-500/30'
                                 }`}
                               >
-                                {c.name?.[0]?.toUpperCase() ?? '?'}
+                                {contactName(c)?.[0]?.toUpperCase() ?? '?'}
                               </div>
 
                               <span
@@ -2241,12 +2244,9 @@ export default function ContactsPage() {
                                 type="button"
                                 onClick={() => setSelectedContact(c)}
                                 className="text-sm font-semibold text-white hover:text-blue-400 transition-colors cursor-pointer text-left block truncate max-w-full focus:outline-none"
-                                title={c.nameBn ? `${c.name} (${c.nameBn})` : c.name}
+                                title={contactName(c)}
                               >
-                                <span>{c.name}</span>
-                                {c.nameBn && (
-                                  <span className="ml-1.5 text-xs font-normal text-slate-400">({c.nameBn})</span>
-                                )}
+                                {contactName(c)}
                               </button>
                               <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
                                 <span className={c.category === 'kormi' ? 'text-emerald-400/90 font-medium' : 'text-blue-400/90 font-medium'}>
@@ -2651,17 +2651,14 @@ export default function ContactsPage() {
                       boxShadow: perf ? `0 0 16px ${perf.color}40` : 'none',
                     }}
                   >
-                    {selectedContact.name?.[0]?.toUpperCase() ?? '?'}
+                    {contactName(selectedContact)?.[0]?.toUpperCase() ?? '?'}
                   </div>
                 );
               })()}
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-lg font-semibold text-white leading-tight">
-                    <span>{selectedContact.name}</span>
-                    {selectedContact.nameBn && (
-                      <span className="ml-2 text-sm font-normal text-slate-400">({selectedContact.nameBn})</span>
-                    )}
+                    {contactName(selectedContact)}
                   </p>
                   <StarBadge level={getPerfLevel(actSummary[selectedContact.id] ?? 0)} />
                 </div>
