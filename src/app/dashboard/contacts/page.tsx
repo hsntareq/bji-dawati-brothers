@@ -2883,9 +2883,16 @@ export default function ContactsPage() {
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="sticky top-0 bg-slate-900 border-b border-white/10 z-20 shadow-md">
+            <div className="sticky top-0 bg-slate-900/95 backdrop-blur-md border-b border-white/10 z-20 shadow-md">
               <div className="flex items-center justify-between px-5 sm:px-6 py-3.5">
-                <h3 className="font-semibold text-white text-base">Contact Detail</h3>
+                <div>
+                  <h3 className="font-semibold text-white text-base leading-tight">
+                    {language === 'bn' ? 'ব্যক্তির বিবরণ' : 'Contact Detail'}
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    {language === 'bn' ? 'সদস্যের তথ্য ও কার্যকলাপ' : 'Member profile & activities'}
+                  </p>
+                </div>
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   {/* Add Activity button */}
                   <button
@@ -2898,20 +2905,24 @@ export default function ContactsPage() {
                       }
                     }}
                     title={actPanelOpen ? 'Close activity dropdown' : 'Add activity'}
-                    className={`h-8 px-2.5 sm:px-3 flex items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    className={`h-8 px-2.5 sm:px-3 flex items-center justify-center gap-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                       actPanelOpen
                         ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25 ring-1 ring-emerald-400'
-                        : 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/20'
+                        : 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/25 shadow-sm'
                     }`}
                   >
                     <Plus className={`w-3.5 h-3.5 transition-transform duration-200 ${actPanelOpen ? 'rotate-45' : ''}`} />
-                    <span className="hidden sm:inline">Activity</span>
+                    <span>Activity</span>
                   </button>
 
-                  <button onClick={e => openEdit(selectedContact, e)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-xs font-medium transition-colors cursor-pointer">
-                    <Pencil className="w-3 h-3" /> Edit
+                  <button
+                    onClick={e => openEdit(selectedContact, e)}
+                    className="h-8 flex items-center gap-1.5 px-2.5 sm:px-3 rounded-xl bg-slate-800 hover:bg-slate-700/80 text-slate-200 hover:text-white border border-white/10 text-xs font-medium transition-colors cursor-pointer"
+                  >
+                    <Pencil className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Edit</span>
                   </button>
+
                   {(allowDeleteIndividual || isSuperAdmin(user?.email) || isHasanTareq) && (
                     <button
                       onClick={e => {
@@ -2919,15 +2930,23 @@ export default function ContactsPage() {
                         setSelectedContact(null);
                       }}
                       disabled={deletingId === selectedContact.id}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs font-medium transition-colors disabled:opacity-50 cursor-pointer"
+                      className="h-8 flex items-center gap-1.5 px-2 sm:px-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-medium transition-colors disabled:opacity-50 cursor-pointer"
+                      title="Delete contact"
                     >
                       {deletingId === selectedContact.id
-                        ? <Loader2 className="w-3 h-3 animate-spin" />
-                        : <Trash2 className="w-3 h-3" />} Delete
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : <Trash2 className="w-3.5 h-3.5" />}
+                      <span className="hidden sm:inline">Delete</span>
                     </button>
                   )}
-                  <button onClick={() => setSelectedContact(null)}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer">
+
+                  <div className="w-px h-5 bg-white/10 mx-0.5" />
+
+                  <button
+                    onClick={() => setSelectedContact(null)}
+                    className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/[0.04] hover:bg-white/10 text-slate-400 hover:text-white border border-white/5 transition-colors cursor-pointer"
+                    title="Close"
+                  >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
@@ -3098,79 +3117,116 @@ export default function ContactsPage() {
               )}
             </div>
 
-            {/* Avatar + Name */}
-            <div className="px-6 py-6 flex items-center gap-4 border-b border-white/10">
-              {/* Avatar with optional glow for star performers */}
-              {(() => {
-                const perf = getPerfLevel(actSummary[selectedContact.id] ?? 0);
-                return (
-                  <div
-                    className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold text-white select-none flex-shrink-0"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(59,130,246,0.3), rgba(99,102,241,0.3))',
-                      border: perf ? `2px solid ${perf.color}` : '1px solid rgba(255,255,255,0.1)',
-                      boxShadow: perf ? `0 0 16px ${perf.color}40` : 'none',
-                    }}
-                  >
-                    {contactPrimaryName(selectedContact)?.[0]?.toUpperCase() ?? '?'}
+            {/* Avatar + Name Profile Card */}
+            <div className="px-5 sm:px-6 py-5 bg-gradient-to-b from-white/[0.04] via-transparent to-transparent border-b border-white/10">
+              <div className="flex items-start gap-4">
+                {/* Avatar with optional glow for star performers */}
+                {(() => {
+                  const perf = getPerfLevel(actSummary[selectedContact.id] ?? 0);
+                  return (
+                    <div
+                      className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-xl sm:text-2xl font-bold text-white select-none flex-shrink-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 shadow-xl shadow-blue-500/20 ring-1 ring-white/20 transition-transform"
+                      style={
+                        perf
+                          ? {
+                              border: `2px solid ${perf.color}`,
+                              boxShadow: `0 0 18px ${perf.color}60`,
+                            }
+                          : undefined
+                      }
+                    >
+                      {contactPrimaryName(selectedContact)?.[0]?.toUpperCase() ?? '?'}
+                    </div>
+                  );
+                })()}
+
+                <div className="min-w-0 flex-1">
+                  {/* Name + Star badge */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-snug">
+                      {contactName(selectedContact)}
+                    </h4>
+                    <StarBadge level={getPerfLevel(actSummary[selectedContact.id] ?? 0)} />
                   </div>
-                );
-              })()}
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-lg font-semibold text-white leading-tight">
-                    {contactName(selectedContact)}
-                  </p>
-                  <StarBadge level={getPerfLevel(actSummary[selectedContact.id] ?? 0)} />
-                </div>
-                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                  <p className="text-sm text-slate-300 font-mono flex items-center gap-1.5">
-                    {selectedContact.numberType === 'whatsapp' ? (
-                      <FaWhatsapp className="w-3.5 h-3.5 text-emerald-400" />
-                    ) : selectedContact.numberType === 'phone' ? (
-                      <Phone className="w-3.5 h-3.5 text-blue-400" />
-                    ) : (
-                      <span className="flex items-center gap-1">
-                        <Phone className="w-3 h-3 text-blue-400" />
-                        <FaWhatsapp className="w-3 h-3 text-emerald-400" />
+
+                  {/* Primary Mobile with channel icons */}
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/90 border border-white/10 text-slate-200 text-xs font-mono shadow-sm">
+                      {selectedContact.numberType === 'whatsapp' ? (
+                        <FaWhatsapp className="w-3.5 h-3.5 text-emerald-400" />
+                      ) : selectedContact.numberType === 'phone' ? (
+                        <Phone className="w-3.5 h-3.5 text-blue-400" />
+                      ) : (
+                        <span className="flex items-center gap-1">
+                          <Phone className="w-3 h-3 text-blue-400" />
+                          <span className="text-slate-500 text-[9px]">+</span>
+                          <FaWhatsapp className="w-3 h-3 text-emerald-400" />
+                        </span>
+                      )}
+                      <span>{selectedContact.mobile}</span>
+                    </div>
+
+                    {selectedContact.numberType === 'phone' && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-md font-semibold bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                        Phone only
                       </span>
                     )}
-                    <span>{selectedContact.mobile}</span>
-                  </p>
-                  {selectedContact.numberType === 'phone' && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-blue-500/15 text-blue-300 border border-blue-500/30">
-                      Phone only
-                    </span>
+                    {selectedContact.numberType === 'whatsapp' && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-md font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                        WhatsApp only
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Secondary Phone if available */}
+                  {selectedContact.secondaryMobile && (
+                    <div className="inline-flex items-center gap-1.5 text-xs text-blue-400 font-mono mt-1">
+                      <Phone className="w-3 h-3" />
+                      <span>Phone 2: {selectedContact.secondaryMobile}</span>
+                    </div>
                   )}
-                  {selectedContact.numberType === 'whatsapp' && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                      WhatsApp only
-                    </span>
+
+                  {/* Secondary WhatsApp if available */}
+                  {selectedContact.whatsappNumber && (
+                    <div className="inline-flex items-center gap-1.5 text-xs text-emerald-400 font-mono mt-1">
+                      <FaWhatsapp className="w-3 h-3" />
+                      <span>WhatsApp: {selectedContact.whatsappNumber}</span>
+                    </div>
                   )}
-                </div>
-                {selectedContact.secondaryMobile && (
-                  <p className="text-xs text-blue-400 font-mono mt-1 flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5" />
-                    <span>Phone: {selectedContact.secondaryMobile}</span>
-                  </p>
-                )}
-                {selectedContact.whatsappNumber && (
-                  <p className="text-xs text-emerald-400 font-mono mt-1 flex items-center gap-1.5">
-                    <FaWhatsapp className="w-3.5 h-3.5" />
-                    <span>WhatsApp: {selectedContact.whatsappNumber}</span>
-                  </p>
-                )}
-                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                  <span className={`px-2 py-0.5 rounded-md text-xs font-medium border ${
-                    selectedContact.category === 'kormi'
-                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                      : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                  }`}>
-                    {selectedContact.category === 'kormi' ? 'Kormi (কর্মী)' : 'Shohojogi (সহযোগী)'}
-                  </span>
-                  <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-md text-xs">
-                    {orgName(selectedContact.organizationId)}
-                  </span>
+
+                  {/* Badges: Category & Organization */}
+                  <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border shadow-sm ${
+                        selectedContact.category === 'kormi'
+                          ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                          : 'bg-blue-500/15 text-blue-300 border-blue-500/30'
+                      }`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          selectedContact.category === 'kormi' ? 'bg-emerald-400' : 'bg-blue-400'
+                        }`}
+                      />
+                      <span>
+                        {language === 'bn'
+                          ? selectedContact.category === 'kormi'
+                            ? 'কর্মী'
+                            : 'সহযোগী'
+                          : selectedContact.category === 'kormi'
+                          ? 'Kormi'
+                          : 'Shohojogi'}
+                      </span>
+                    </span>
+
+                    <span
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800/80 text-slate-300 border border-white/10 shadow-sm max-w-[220px]"
+                      title={orgName(selectedContact.organizationId)}
+                    >
+                      <Building2 className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                      <span className="truncate">{orgName(selectedContact.organizationId)}</span>
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -3180,29 +3236,35 @@ export default function ContactsPage() {
               const callNum = getCallNumber(selectedContact);
               const waNum = getWhatsAppNumber(selectedContact);
               return (
-                <div className="px-6 py-4 flex gap-3 border-b border-white/10">
+                <div className="px-5 sm:px-6 py-3.5 flex gap-3 border-b border-white/10 bg-slate-900/50">
                   {callNum ? (
-                    <a href={`tel:${clean(callNum)}`}
-                      className="flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl bg-slate-800 hover:bg-blue-600/20 text-blue-400 transition-colors">
-                      <Phone className="w-5 h-5" />
-                      <span className="text-[10px] font-semibold uppercase tracking-wide">Call</span>
+                    <a
+                      href={`tel:${clean(callNum)}`}
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 font-medium text-xs transition-all shadow-sm active:scale-[0.98]"
+                    >
+                      <Phone className="w-4 h-4" />
+                      <span className="font-semibold tracking-wide uppercase text-[11px]">Call</span>
                     </a>
                   ) : (
-                    <div className="flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl bg-slate-800/40 text-slate-600 cursor-not-allowed opacity-50">
-                      <Phone className="w-5 h-5" />
-                      <span className="text-[10px] font-semibold uppercase tracking-wide">No Phone</span>
+                    <div className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-800/40 text-slate-600 border border-white/5 font-medium text-xs cursor-not-allowed opacity-50">
+                      <Phone className="w-4 h-4" />
+                      <span className="font-semibold tracking-wide uppercase text-[11px]">No Phone</span>
                     </div>
                   )}
                   {waNum ? (
-                    <a href={`https://wa.me/${clean(waNum)}`} target="_blank" rel="noopener noreferrer"
-                      className="flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl bg-slate-800 hover:bg-green-600/20 text-green-400 transition-colors">
-                      <FaWhatsapp className="w-5 h-5" />
-                      <span className="text-[10px] font-semibold uppercase tracking-wide">WhatsApp</span>
+                    <a
+                      href={`https://wa.me/${clean(waNum)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 font-medium text-xs transition-all shadow-sm active:scale-[0.98]"
+                    >
+                      <FaWhatsapp className="w-4 h-4" />
+                      <span className="font-semibold tracking-wide uppercase text-[11px]">WhatsApp</span>
                     </a>
                   ) : (
-                    <div className="flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl bg-slate-800/40 text-slate-600 cursor-not-allowed opacity-50">
-                      <FaWhatsapp className="w-5 h-5" />
-                      <span className="text-[10px] font-semibold uppercase tracking-wide">No WhatsApp</span>
+                    <div className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-800/40 text-slate-600 border border-white/5 font-medium text-xs cursor-not-allowed opacity-50">
+                      <FaWhatsapp className="w-4 h-4" />
+                      <span className="font-semibold tracking-wide uppercase text-[11px]">No WhatsApp</span>
                     </div>
                   )}
                 </div>
