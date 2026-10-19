@@ -3573,10 +3573,6 @@ export default function ContactsPage() {
                 {/* Additional Phone Number (if added) */}
                 {Boolean(editForm.secondaryMobile) && (
                   <div className="mt-2 flex items-stretch bg-slate-800 border border-blue-500/30 rounded-xl focus-within:ring-2 focus-within:ring-blue-500 transition-all">
-                    <div className="px-3 py-2 rounded-l-xl text-xs font-semibold text-blue-400 border-r border-white/10 flex items-center gap-1.5 shrink-0 bg-blue-500/10">
-                      <Phone className="w-3.5 h-3.5 text-blue-400" />
-                      <span>Phone 2</span>
-                    </div>
                     <input
                       type="tel"
                       value={editForm.secondaryMobile}
@@ -3585,10 +3581,14 @@ export default function ContactsPage() {
                       placeholder="01XXXXXXXXX"
                       className="flex-1 min-w-0 bg-transparent px-3 py-2 text-sm text-white font-mono placeholder-slate-500 focus:outline-none"
                     />
+                    <div className="px-3 py-2 text-xs font-semibold text-blue-400 border-l border-white/10 flex items-center gap-1.5 shrink-0 bg-blue-500/10">
+                      <Phone className="w-3.5 h-3.5 text-blue-400" />
+                      <span>Phone 2</span>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setEditForm(f => ({ ...f, secondaryMobile: '' }))}
-                      className="px-3 flex items-center justify-center text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
+                      className="px-2.5 rounded-r-xl flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border-l border-white/10 transition-colors cursor-pointer"
                       title="Remove second phone"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -3599,10 +3599,6 @@ export default function ContactsPage() {
                 {/* WhatsApp Number (if added) */}
                 {Boolean(editForm.whatsappNumber) && (
                   <div className="mt-2 flex items-stretch bg-slate-800 border border-emerald-500/30 rounded-xl focus-within:ring-2 focus-within:ring-emerald-500 transition-all">
-                    <div className="px-3 py-2 rounded-l-xl text-xs font-semibold text-emerald-400 border-r border-white/10 flex items-center gap-1.5 shrink-0 bg-emerald-500/10">
-                      <FaWhatsapp className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>WhatsApp</span>
-                    </div>
                     <input
                       type="tel"
                       value={editForm.whatsappNumber}
@@ -3611,10 +3607,14 @@ export default function ContactsPage() {
                       placeholder="01XXXXXXXXX"
                       className="flex-1 min-w-0 bg-transparent px-3 py-2 text-sm text-white font-mono placeholder-slate-500 focus:outline-none"
                     />
+                    <div className="px-3 py-2 text-xs font-semibold text-emerald-400 border-l border-white/10 flex items-center gap-1.5 shrink-0 bg-emerald-500/10">
+                      <FaWhatsapp className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>WhatsApp</span>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setEditForm(f => ({ ...f, whatsappNumber: '' }))}
-                      className="px-3 flex items-center justify-center text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
+                      className="px-2.5 rounded-r-xl flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border-l border-white/10 transition-colors cursor-pointer"
                       title="Remove WhatsApp number"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -3991,10 +3991,6 @@ export default function ContactsPage() {
                   {/* Additional Phone Number (if added) */}
                   {Boolean(form.secondaryMobile) && (
                     <div className="mt-2 flex items-stretch bg-slate-800 border border-blue-500/30 rounded-xl focus-within:ring-2 focus-within:ring-blue-500 transition-all">
-                      <div className="px-3 py-2 rounded-l-xl text-xs font-semibold text-blue-400 border-r border-white/10 flex items-center gap-1.5 shrink-0 bg-blue-500/10">
-                        <Phone className="w-3.5 h-3.5 text-blue-400" />
-                        <span>Phone 2</span>
-                      </div>
                       <input
                         type="tel"
                         value={form.secondaryMobile}
@@ -4003,10 +3999,14 @@ export default function ContactsPage() {
                         placeholder="01XXXXXXXXX"
                         className="flex-1 min-w-0 bg-transparent px-3 py-2 text-sm text-white font-mono placeholder-slate-500 focus:outline-none"
                       />
+                      <div className="px-3 py-2 text-xs font-semibold text-blue-400 border-l border-white/10 flex items-center gap-1.5 shrink-0 bg-blue-500/10">
+                        <Phone className="w-3.5 h-3.5 text-blue-400" />
+                        <span>Phone 2</span>
+                      </div>
                       <button
                         type="button"
                         onClick={() => setForm(f => ({ ...f, secondaryMobile: '' }))}
-                        className="px-3 flex items-center justify-center text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
+                        className="px-2.5 rounded-r-xl flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border-l border-white/10 transition-colors cursor-pointer"
                         title="Remove second phone"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -4017,10 +4017,6 @@ export default function ContactsPage() {
                   {/* WhatsApp Number (if added) */}
                   {Boolean(form.whatsappNumber) && (
                     <div className="mt-2 flex items-stretch bg-slate-800 border border-emerald-500/30 rounded-xl focus-within:ring-2 focus-within:ring-emerald-500 transition-all">
-                      <div className="px-3 py-2 rounded-l-xl text-xs font-semibold text-emerald-400 border-r border-white/10 flex items-center gap-1.5 shrink-0 bg-emerald-500/10">
-                        <FaWhatsapp className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>WhatsApp</span>
-                      </div>
                       <input
                         type="tel"
                         value={form.whatsappNumber}
@@ -4029,10 +4025,14 @@ export default function ContactsPage() {
                         placeholder="01XXXXXXXXX"
                         className="flex-1 min-w-0 bg-transparent px-3 py-2 text-sm text-white font-mono placeholder-slate-500 focus:outline-none"
                       />
+                      <div className="px-3 py-2 text-xs font-semibold text-emerald-400 border-l border-white/10 flex items-center gap-1.5 shrink-0 bg-emerald-500/10">
+                        <FaWhatsapp className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>WhatsApp</span>
+                      </div>
                       <button
                         type="button"
                         onClick={() => setForm(f => ({ ...f, whatsappNumber: '' }))}
-                        className="px-3 flex items-center justify-center text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
+                        className="px-2.5 rounded-r-xl flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border-l border-white/10 transition-colors cursor-pointer"
                         title="Remove WhatsApp number"
                       >
                         <X className="w-3.5 h-3.5" />
