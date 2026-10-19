@@ -136,6 +136,34 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const { isInstallable, isInstalled, installApp } = usePWA();
   const { language, setLanguage, t } = useLanguage();
   const pathname = usePathname();
+  const [clientPath, setClientPath] = useState(pathname || '');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setClientPath(window.location.pathname);
+    }
+  }, [pathname]);
+
+  const isPathActive = (href: string) => {
+    const raw = clientPath || pathname || (typeof window !== 'undefined' ? window.location.pathname : '');
+    if (!raw) return false;
+
+    const normalize = (p: string) =>
+      p
+        .replace(/^\/bji-dawati-brothers/, '')
+        .split('?')[0]
+        .split('#')[0]
+        .replace(/\/+$/, '') || '/';
+
+    const normPath = normalize(raw);
+    const normHref = normalize(href);
+
+    if (normHref === '/dashboard') {
+      return normPath === '/dashboard';
+    }
+    return normPath === normHref || normPath.startsWith(normHref + '/');
+  };
+
   const [bellOpen,      setBellOpen]      = useState(false);
   const [profileOpen,   setProfileOpen]   = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -327,22 +355,25 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     <>
       <nav className="flex-1 p-4 space-y-1.5">
         {navItems.map(({ name, href, icon: Icon }) => {
-          const isActive = pathname === href;
+          const isActive = isPathActive(href);
           return (
             <Link
               key={href}
               href={href}
-              onClick={onNavigate}
+              onClick={() => {
+                setClientPath(href);
+                onNavigate?.();
+              }}
               className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all ${
                 isActive
-                  ? 'bji-nav-active bg-blue-500/15 font-semibold shadow-sm shadow-blue-500/10 border border-blue-500/30'
+                  ? 'bji-nav-active bg-blue-500/15 font-semibold shadow-sm shadow-blue-500/10 border border-blue-500/30 text-blue-600 dark:text-blue-400'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/5 font-medium'
               }`}
             >
-              <Icon className={`w-5 h-5 flex-shrink-0 transition-transform ${isActive ? 'stroke-[2.25] scale-105' : 'stroke-[1.75]'}`} />
+              <Icon className={`w-5 h-5 flex-shrink-0 transition-transform ${isActive ? 'stroke-[2.25] scale-105 text-blue-600 dark:text-blue-400' : 'stroke-[1.75]'}`} />
               <span className="text-sm">{name}</span>
               {isActive && (
-                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400" />
+                <span className="bji-nav-dot ml-auto w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400" />
               )}
             </Link>
           );
@@ -418,11 +449,11 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             {/* Desktop Section indicator */}
             <div className="hidden md:flex items-center gap-2.5">
               <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400">
-                {pathname === '/dashboard' ? t('overview') :
-                 pathname === '/dashboard/organizations' ? t('organizations') :
-                 pathname === '/dashboard/contacts' ? t('contacts') :
-                 pathname === '/dashboard/profile' ? t('profile') :
-                 pathname === '/dashboard/settings' ? t('settings') : t('dashboard')}
+                {isPathActive('/dashboard') ? t('overview') :
+                 isPathActive('/dashboard/organizations') ? t('organizations') :
+                 isPathActive('/dashboard/contacts') ? t('contacts') :
+                 isPathActive('/dashboard/profile') ? t('profile') :
+                 isPathActive('/dashboard/settings') ? t('settings') : t('dashboard')}
               </span>
             </div>
           </div>
@@ -774,33 +805,34 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       <nav className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bji-header border-t border-white/10 backdrop-blur-xl transition-transform duration-300 ${showNav ? 'translate-y-0' : 'translate-y-full'}`}>
         <div className="flex items-center justify-around h-16 px-1.5">
           {navItems.map(({ name, href, icon: Icon }) => {
-            const isActive = pathname === href;
+            const isActive = isPathActive(href);
             return (
               <Link
                 key={href}
                 href={href}
+                onClick={() => setClientPath(href)}
                 className={`group relative flex flex-col items-center justify-center w-full h-full py-1 transition-all select-none ${
                   isActive
-                    ? 'bji-nav-active font-semibold'
+                    ? 'bji-nav-active font-semibold text-blue-600 dark:text-blue-400'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
               >
                 <div
-                  className={`flex items-center justify-center px-3.5 py-1 rounded-full transition-all duration-200 ${
+                  className={`bji-nav-pill flex items-center justify-center px-3.5 py-1 rounded-full transition-all duration-200 ${
                     isActive
-                      ? 'bg-blue-500/15 shadow-sm shadow-blue-500/10'
+                      ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/10'
                       : 'group-hover:bg-black/5 dark:group-hover:bg-white/5'
                   }`}
                 >
-                  <Icon className={`w-5 h-5 transition-transform duration-200 ${isActive ? 'stroke-[2.5] scale-110' : 'stroke-[1.75]'}`} />
+                  <Icon className={`w-5 h-5 transition-transform duration-200 ${isActive ? 'stroke-[2.5] scale-110 text-blue-600 dark:text-blue-400' : 'stroke-[1.75]'}`} />
                 </div>
                 <span className={`text-[10px] tracking-tight transition-all duration-200 mt-0.5 ${
-                  isActive ? 'font-bold' : 'font-medium'
+                  isActive ? 'font-bold text-blue-600 dark:text-blue-400' : 'font-medium'
                 }`}>
                   {name}
                 </span>
                 {isActive && (
-                  <span className="w-3.5 h-0.5 rounded-full bg-blue-600 dark:bg-blue-400 mt-0.5" />
+                  <span className="bji-nav-dot w-3.5 h-0.5 rounded-full bg-blue-600 dark:bg-blue-400 mt-0.5" />
                 )}
               </Link>
             );

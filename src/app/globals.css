@@ -376,16 +376,37 @@ nextjs-portal,
 .bji-light .bji-nav-active {
   color: #1d4ed8 !important;
 }
+.bji-light .bji-nav-active span {
+  color: #1d4ed8 !important;
+}
 .bji-light .bji-nav-active svg {
   color: #1d4ed8 !important;
   stroke: #1d4ed8 !important;
 }
+.bji-light .bji-nav-active .bji-nav-pill {
+  background-color: rgba(29, 78, 216, 0.12) !important;
+  color: #1d4ed8 !important;
+}
+.bji-light .bji-nav-active .bji-nav-dot {
+  background-color: #1d4ed8 !important;
+}
+
 .bji-dark .bji-nav-active {
+  color: #60a5fa !important;
+}
+.bji-dark .bji-nav-active span {
   color: #60a5fa !important;
 }
 .bji-dark .bji-nav-active svg {
   color: #60a5fa !important;
   stroke: #60a5fa !important;
+}
+.bji-dark .bji-nav-active .bji-nav-pill {
+  background-color: rgba(96, 165, 250, 0.18) !important;
+  color: #60a5fa !important;
+}
+.bji-dark .bji-nav-active .bji-nav-dot {
+  background-color: #60a5fa !important;
 }
 .bji-light .text-slate-100,
 .bji-light .text-slate-200 {
