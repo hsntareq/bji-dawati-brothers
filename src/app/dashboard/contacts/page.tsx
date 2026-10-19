@@ -26,7 +26,18 @@ import {
 import { isSuperAdmin } from '@/lib/superadmin';
 
 const PREFIX = '01';
-const emptyForm = { name: '', mobile: PREFIX, note: '', organizationId: '', email: '', location: '', address: '', category: 'shohojogi' as 'shohojogi' | 'kormi' };
+const emptyForm = {
+  name: '',
+  mobile: PREFIX,
+  numberType: 'both' as 'both' | 'phone' | 'whatsapp',
+  whatsappNumber: '',
+  note: '',
+  organizationId: '',
+  email: '',
+  location: '',
+  address: '',
+  category: 'shohojogi' as 'shohojogi' | 'kormi',
+};
 
 // Format digits into 01XXX-XXXXXX (local BD format)
 const formatBDPhone = (raw: string): string => {
@@ -197,6 +208,7 @@ export default function ContactsPage() {
   const [form,     setForm]     = useState(emptyForm);
   const [saving,   setSaving]   = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+  const [addShowWhatsApp, setAddShowWhatsApp] = useState(false);
   const [userPrimaryOrgId, setUserPrimaryOrgId] = useState<string>('');
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -243,6 +255,7 @@ export default function ContactsPage() {
       ...emptyForm,
       organizationId: defaultOrg,
     });
+    setAddShowWhatsApp(false);
     setFormOpen(true);
   };
 
@@ -291,6 +304,7 @@ export default function ContactsPage() {
   const [editContact, setEditContact] = useState<any | null>(null);
   const [editForm, setEditForm] = useState(emptyForm);
   const [editSaving, setEditSaving] = useState(false);
+  const [editShowWhatsApp, setEditShowWhatsApp] = useState(false);
 
   // ── Delete ─────────────────────────────────────────
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -702,14 +716,21 @@ export default function ContactsPage() {
   };
 
   // ── Shared mobile input handlers ───────────────────
-  const makeMobileHandlers = (setter: (v: string) => void) => ({
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
-      setter(formatBDPhone(e.target.value)),
+  const makeMobileHandlers = (setter: (v: string) => void, allowEmpty = false) => ({
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      const val = e.target.value;
+      if (allowEmpty && (val === '' || val === '0')) {
+        setter('');
+        return;
+      }
+      setter(formatBDPhone(val));
+    },
     onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
       const len = e.target.value.length;
       e.target.setSelectionRange(len, len);
     },
     onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (allowEmpty) return;
       const selStart = e.currentTarget.selectionStart ?? 0;
       if ((e.key === 'Backspace' && selStart <= PREFIX.length) ||
           (e.key === 'Delete'    && selStart <  PREFIX.length)) {
@@ -718,12 +739,17 @@ export default function ContactsPage() {
     },
   });
 
-  const addMobileHandlers  = makeMobileHandlers(v => setForm(f => ({ ...f, mobile: v })));
-  const editMobileHandlers = makeMobileHandlers(v => setEditForm(f => ({ ...f, mobile: v })));
+  const addMobileHandlers      = makeMobileHandlers(v => setForm(f => ({ ...f, mobile: v })));
+  const addWhatsAppHandlers    = makeMobileHandlers(v => setForm(f => ({ ...f, whatsappNumber: v })), true);
+  const editMobileHandlers     = makeMobileHandlers(v => setEditForm(f => ({ ...f, mobile: v })));
+  const editWhatsAppHandlers   = makeMobileHandlers(v => setEditForm(f => ({ ...f, whatsappNumber: v })), true);
 
   // ── Add person ─────────────────────────────────────
-  const mobileComplete = form.mobile.slice(PREFIX.length).replace(/\D/g, '').length === 9;
-  const isFormValid = form.name.trim() && mobileComplete && form.organizationId;
+  const mobileDigits = form.mobile.slice(PREFIX.length).replace(/\D/g, '');
+  const mobileComplete = mobileDigits.length === 9;
+  const waDigits = (form.whatsappNumber || '').replace(/\D/g, '');
+  const isWhatsAppValid = !form.whatsappNumber || waDigits.length === 11;
+  const isFormValid = form.name.trim() && mobileComplete && isWhatsAppValid && form.organizationId;
 
   const handleAddPerson = async () => {
     if (!user || !isFormValid || saving) return;
@@ -733,6 +759,8 @@ export default function ContactsPage() {
       const contactData = {
         name: form.name.trim(),
         mobile: form.mobile.trim(),
+        numberType: form.numberType || 'both',
+        whatsappNumber: form.whatsappNumber?.trim() && form.whatsappNumber.replace(/\D/g, '').length === 11 ? form.whatsappNumber.trim() : null,
         category: form.category || 'shohojogi',
         note: form.note.trim() || null,
         email: form.email.trim() || null,
@@ -762,6 +790,7 @@ export default function ContactsPage() {
       });
 
       setForm(emptyForm);
+      setAddShowWhatsApp(false);
       setFormOpen(false);
 
       const path = `contacts/${newId}`;
@@ -788,6 +817,8 @@ export default function ContactsPage() {
     setEditForm({
       name: c.name ?? '',
       mobile: c.mobile ?? PREFIX,
+      numberType: c.numberType || 'both',
+      whatsappNumber: c.whatsappNumber ?? '',
       category: c.category || 'shohojogi',
       note: c.note ?? '',
       organizationId: c.organizationId ?? '',
@@ -795,10 +826,14 @@ export default function ContactsPage() {
       location: c.location ?? '',
       address: c.address ?? '',
     });
+    setEditShowWhatsApp(Boolean(c.whatsappNumber));
   };
 
-  const editMobileComplete = editForm.mobile.slice(PREFIX.length).replace(/\D/g, '').length === 9;
-  const isEditValid = editForm.name.trim() && editMobileComplete && editForm.organizationId;
+  const editMobileDigits = editForm.mobile.slice(PREFIX.length).replace(/\D/g, '');
+  const editMobileComplete = editMobileDigits.length === 9;
+  const editWaDigits = (editForm.whatsappNumber || '').replace(/\D/g, '');
+  const isEditWhatsAppValid = !editForm.whatsappNumber || editWaDigits.length === 11;
+  const isEditValid = editForm.name.trim() && editMobileComplete && isEditWhatsAppValid && editForm.organizationId;
 
   const handleEditSave = async () => {
     if (!editContact || !isEditValid || editSaving) return;
@@ -807,6 +842,8 @@ export default function ContactsPage() {
       const updated = {
         name: editForm.name.trim(),
         mobile: editForm.mobile.trim(),
+        numberType: editForm.numberType || 'both',
+        whatsappNumber: editForm.whatsappNumber?.trim() && editForm.whatsappNumber.replace(/\D/g, '').length === 11 ? editForm.whatsappNumber.trim() : null,
         category: editForm.category || 'shohojogi',
         note: editForm.note.trim() || null,
         email: editForm.email.trim() || null,
@@ -1014,10 +1051,12 @@ export default function ContactsPage() {
       alert('No contacts to export.');
       return;
     }
-    const headers = ['Name', 'Mobile', 'Category', 'Status', 'Organization', 'Location', 'Address', 'Email', 'Note'];
+    const headers = ['Name', 'Mobile', 'Number Type', 'WhatsApp Number', 'Category', 'Status', 'Organization', 'Location', 'Address', 'Email', 'Note'];
     const rows = filtered.map(c => [
       `"${(c.name || '').replace(/"/g, '""')}"`,
       `"${(c.mobile || '').replace(/"/g, '""')}"`,
+      `"${(c.numberType || 'both').replace(/"/g, '""')}"`,
+      `"${(c.whatsappNumber || '').replace(/"/g, '""')}"`,
       `"${(c.category || 'shohojogi').replace(/"/g, '""')}"`,
       `"${(statusMeta(c.status).label || '').replace(/"/g, '""')}"`,
       `"${(orgName(c.organizationId) || '').replace(/"/g, '""')}"`,
@@ -1041,6 +1080,7 @@ export default function ContactsPage() {
     const matchSearch = !q ||
       c.name?.toLowerCase().includes(q) ||
       c.mobile?.includes(q) ||
+      c.whatsappNumber?.includes(q) ||
       c.location?.toLowerCase().includes(q) ||
       c.address?.toLowerCase().includes(q) ||
       c.email?.toLowerCase().includes(q) ||
@@ -1053,7 +1093,16 @@ export default function ContactsPage() {
   });
 
   const orgName = (id: string) => organizations.find(o => o.id === id)?.name ?? '—';
-  const clean   = (m: string) => toE164(m);
+  const clean   = (m?: string | null) => m ? toE164(m) : '';
+  const getCallNumber = (c: any): string | null => {
+    if (c?.numberType === 'whatsapp') return null;
+    return c?.mobile || null;
+  };
+  const getWhatsAppNumber = (c: any): string | null => {
+    if (c?.whatsappNumber) return c.whatsappNumber;
+    if (c?.numberType === 'phone') return null;
+    return c?.mobile || null;
+  };
   const fmtDate = (iso: string) =>
     iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
@@ -1775,24 +1824,48 @@ export default function ContactsPage() {
                     </div>
 
                     {/* Quick Action Buttons (Call & WhatsApp) */}
-                    <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-                      <a
-                        href={`tel:${clean(c.mobile)}`}
-                        title="Call"
-                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-blue-500/10 hover:bg-blue-500/25 text-blue-400 border border-blue-500/20 hover:border-blue-500/40 transition-all active:scale-95 shadow-sm"
-                      >
-                        <Phone className="w-4 h-4" />
-                      </a>
-                      <a
-                        href={`https://wa.me/${clean(c.mobile)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="WhatsApp"
-                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/40 transition-all active:scale-95 shadow-sm"
-                      >
-                        <FaWhatsapp className="w-4 h-4" />
-                      </a>
-                    </div>
+                    {(() => {
+                      const callNum = getCallNumber(c);
+                      const waNum = getWhatsAppNumber(c);
+                      return (
+                        <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+                          {callNum ? (
+                            <a
+                              href={`tel:${clean(callNum)}`}
+                              title={`Call ${callNum}`}
+                              className="w-9 h-9 flex items-center justify-center rounded-xl bg-blue-500/10 hover:bg-blue-500/25 text-blue-400 border border-blue-500/20 hover:border-blue-500/40 transition-all active:scale-95 shadow-sm"
+                            >
+                              <Phone className="w-4 h-4" />
+                            </a>
+                          ) : (
+                            <span
+                              title="WhatsApp only (No voice calls)"
+                              className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/[0.02] text-slate-600 border border-white/5 cursor-not-allowed opacity-40"
+                            >
+                              <Phone className="w-4 h-4" />
+                            </span>
+                          )}
+                          {waNum ? (
+                            <a
+                              href={`https://wa.me/${clean(waNum)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={`WhatsApp ${waNum}`}
+                              className="w-9 h-9 flex items-center justify-center rounded-xl bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/40 transition-all active:scale-95 shadow-sm"
+                            >
+                              <FaWhatsapp className="w-4 h-4" />
+                            </a>
+                          ) : (
+                            <span
+                              title="Phone only (No WhatsApp)"
+                              className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/[0.02] text-slate-600 border border-white/5 cursor-not-allowed opacity-40"
+                            >
+                              <FaWhatsapp className="w-4 h-4" />
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Bottom Bar: Status Selector & Location */}
@@ -1840,15 +1913,19 @@ export default function ContactsPage() {
                         <span className="truncate">{c.location}</span>
                       </span>
                     ) : c.mobile ? (
-                      <a
-                        href={`tel:${clean(c.mobile)}`}
-                        onClick={e => e.stopPropagation()}
-                        className="inline-flex items-center gap-1 text-[11px] font-mono text-slate-400 hover:text-blue-400 transition-colors truncate max-w-[180px]"
-                        title="Call"
+                      <span
+                        className="inline-flex items-center gap-1 text-[11px] font-mono text-slate-400 truncate max-w-[180px]"
+                        title={c.numberType === 'phone' ? 'Phone only' : c.numberType === 'whatsapp' ? 'WhatsApp only' : 'Phone & WhatsApp'}
                       >
-                        <Phone className="w-3 h-3 text-slate-500 shrink-0" />
+                        {c.numberType === 'whatsapp' ? (
+                          <FaWhatsapp className="w-3 h-3 text-emerald-400 shrink-0" />
+                        ) : c.numberType === 'phone' ? (
+                          <Phone className="w-3 h-3 text-blue-400 shrink-0" />
+                        ) : (
+                          <Phone className="w-3 h-3 text-slate-500 shrink-0" />
+                        )}
                         <span className="truncate">{c.mobile}</span>
-                      </a>
+                      </span>
                     ) : null}
                   </div>
                 </div>
@@ -2025,33 +2102,77 @@ export default function ContactsPage() {
 
                         {/* Contact Column */}
                         <td className="px-4 py-3.5 align-middle">
-                          <div className="flex items-center gap-2.5">
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <a
-                                href={`tel:${clean(c.mobile)}`}
-                                title="Call"
-                                onClick={e => e.stopPropagation()}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-500/10 hover:bg-blue-500/25 text-blue-400 border border-blue-500/25 transition-all hover:scale-105 active:scale-95 shadow-sm"
-                              >
-                                <Phone className="w-3.5 h-3.5" />
-                              </a>
-                              <a
-                                href={`https://wa.me/${clean(c.mobile)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title="WhatsApp"
-                                onClick={e => e.stopPropagation()}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/25 transition-all hover:scale-105 active:scale-95 shadow-sm"
-                              >
-                                <FaWhatsapp className="w-3.5 h-3.5" />
-                              </a>
-                            </div>
-                            {c.mobile && (
-                              <span className="text-xs font-mono font-semibold text-slate-300 select-all truncate">
-                                {c.mobile}
-                              </span>
-                            )}
-                          </div>
+                          {(() => {
+                            const callNum = getCallNumber(c);
+                            const waNum = getWhatsAppNumber(c);
+                            return (
+                              <div className="flex items-center gap-2.5">
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  {callNum ? (
+                                    <a
+                                      href={`tel:${clean(callNum)}`}
+                                      title={`Call ${callNum}`}
+                                      onClick={e => e.stopPropagation()}
+                                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-500/10 hover:bg-blue-500/25 text-blue-400 border border-blue-500/25 transition-all hover:scale-105 active:scale-95 shadow-sm"
+                                    >
+                                      <Phone className="w-3.5 h-3.5" />
+                                    </a>
+                                  ) : (
+                                    <span
+                                      title="WhatsApp only (No voice calls)"
+                                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.02] text-slate-600 border border-white/5 cursor-not-allowed opacity-40"
+                                    >
+                                      <Phone className="w-3.5 h-3.5" />
+                                    </span>
+                                  )}
+                                  {waNum ? (
+                                    <a
+                                      href={`https://wa.me/${clean(waNum)}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      title={`WhatsApp ${waNum}`}
+                                      onClick={e => e.stopPropagation()}
+                                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/25 transition-all hover:scale-105 active:scale-95 shadow-sm"
+                                    >
+                                      <FaWhatsapp className="w-3.5 h-3.5" />
+                                    </a>
+                                  ) : (
+                                    <span
+                                      title="Phone only (No WhatsApp)"
+                                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.02] text-slate-600 border border-white/5 cursor-not-allowed opacity-40"
+                                    >
+                                      <FaWhatsapp className="w-3.5 h-3.5" />
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                  {c.mobile && (
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-xs font-mono font-semibold text-slate-300 select-all truncate">
+                                        {c.mobile}
+                                      </span>
+                                      {c.numberType === 'phone' && (
+                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                                          Phone
+                                        </span>
+                                      )}
+                                      {c.numberType === 'whatsapp' && (
+                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                          WhatsApp
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                  {c.whatsappNumber && (
+                                    <span className="text-[10px] font-mono text-emerald-400/90 truncate flex items-center gap-1 mt-0.5">
+                                      <FaWhatsapp className="w-2.5 h-2.5 shrink-0" />
+                                      <span>{c.whatsappNumber}</span>
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </td>
 
                         {/* Org & Location Column */}
@@ -2333,7 +2454,37 @@ export default function ContactsPage() {
                   <p className="text-lg font-semibold text-white leading-tight">{selectedContact.name}</p>
                   <StarBadge level={getPerfLevel(actSummary[selectedContact.id] ?? 0)} />
                 </div>
-                <p className="text-sm text-slate-400 font-mono mt-0.5">{selectedContact.mobile}</p>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <p className="text-sm text-slate-300 font-mono flex items-center gap-1.5">
+                    {selectedContact.numberType === 'whatsapp' ? (
+                      <FaWhatsapp className="w-3.5 h-3.5 text-emerald-400" />
+                    ) : selectedContact.numberType === 'phone' ? (
+                      <Phone className="w-3.5 h-3.5 text-blue-400" />
+                    ) : (
+                      <span className="flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-blue-400" />
+                        <FaWhatsapp className="w-3 h-3 text-emerald-400" />
+                      </span>
+                    )}
+                    <span>{selectedContact.mobile}</span>
+                  </p>
+                  {selectedContact.numberType === 'phone' && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                      Phone only
+                    </span>
+                  )}
+                  {selectedContact.numberType === 'whatsapp' && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                      WhatsApp only
+                    </span>
+                  )}
+                </div>
+                {selectedContact.whatsappNumber && (
+                  <p className="text-xs text-emerald-400 font-mono mt-1 flex items-center gap-1.5">
+                    <FaWhatsapp className="w-3.5 h-3.5" />
+                    <span>WhatsApp: {selectedContact.whatsappNumber}</span>
+                  </p>
+                )}
                 <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                   <span className={`px-2 py-0.5 rounded-md text-xs font-medium border ${
                     selectedContact.category === 'kormi'
@@ -2350,18 +2501,38 @@ export default function ContactsPage() {
             </div>
 
             {/* Quick actions */}
-            <div className="px-6 py-4 flex gap-3 border-b border-white/10">
-              <a href={`tel:${clean(selectedContact.mobile)}`}
-                className="flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl bg-slate-800 hover:bg-blue-600/20 text-blue-400 transition-colors">
-                <Phone className="w-5 h-5" />
-                <span className="text-[10px] font-semibold uppercase tracking-wide">Call</span>
-              </a>
-              <a href={`https://wa.me/${clean(selectedContact.mobile)}`} target="_blank" rel="noopener noreferrer"
-                className="flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl bg-slate-800 hover:bg-green-600/20 text-green-400 transition-colors">
-                <FaWhatsapp className="w-5 h-5" />
-                <span className="text-[10px] font-semibold uppercase tracking-wide">Message</span>
-              </a>
-            </div>
+            {(() => {
+              const callNum = getCallNumber(selectedContact);
+              const waNum = getWhatsAppNumber(selectedContact);
+              return (
+                <div className="px-6 py-4 flex gap-3 border-b border-white/10">
+                  {callNum ? (
+                    <a href={`tel:${clean(callNum)}`}
+                      className="flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl bg-slate-800 hover:bg-blue-600/20 text-blue-400 transition-colors">
+                      <Phone className="w-5 h-5" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wide">Call</span>
+                    </a>
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl bg-slate-800/40 text-slate-600 cursor-not-allowed opacity-50">
+                      <Phone className="w-5 h-5" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wide">No Phone</span>
+                    </div>
+                  )}
+                  {waNum ? (
+                    <a href={`https://wa.me/${clean(waNum)}`} target="_blank" rel="noopener noreferrer"
+                      className="flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl bg-slate-800 hover:bg-green-600/20 text-green-400 transition-colors">
+                      <FaWhatsapp className="w-5 h-5" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wide">WhatsApp</span>
+                    </a>
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl bg-slate-800/40 text-slate-600 cursor-not-allowed opacity-50">
+                      <FaWhatsapp className="w-5 h-5" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wide">No WhatsApp</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* ── Disposition Row ──────────────── */}
             <div className="px-6 py-3.5 border-b border-white/10 flex items-center justify-between gap-3">
@@ -2417,7 +2588,8 @@ export default function ContactsPage() {
               {secOpen.info && (
                 <div className="px-6 pb-5 space-y-4">
                   {([
-                    { icon: Phone,     label: 'Mobile',       value: selectedContact.mobile },
+                    { icon: Phone,     label: `Mobile (${selectedContact.numberType === 'phone' ? 'Phone only' : selectedContact.numberType === 'whatsapp' ? 'WhatsApp only' : 'Phone & WhatsApp'})`, value: selectedContact.mobile },
+                    ...(selectedContact.whatsappNumber ? [{ icon: FaWhatsapp, label: 'WhatsApp Number', value: selectedContact.whatsappNumber }] : []),
                     { icon: Mail,      label: 'Email',        value: selectedContact.email },
                     { icon: MapPin,    label: 'Location',     value: selectedContact.location },
                     { icon: MapPin,    label: 'Address',      value: selectedContact.address },
@@ -2513,12 +2685,103 @@ export default function ContactsPage() {
                   className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
                 />
               </div>
+              {/* Mobile & Number Type */}
               <div>
                 <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Mobile *</label>
                 <input type="tel" value={editForm.mobile} maxLength={12}
                   {...editMobileHandlers}
                   className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
                 />
+
+                {/* Number Type Selector */}
+                <div className="mt-2 grid grid-cols-3 gap-1.5 p-1 bg-slate-950/60 rounded-xl border border-white/5">
+                  <button
+                    type="button"
+                    onClick={() => setEditForm(f => ({ ...f, numberType: 'both' }))}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                      (editForm.numberType || 'both') === 'both'
+                        ? 'bg-gradient-to-r from-blue-500/20 to-emerald-500/20 text-white border border-emerald-500/30 shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
+                    }`}
+                  >
+                    <span className="flex items-center gap-1">
+                      <Phone className="w-3 h-3 text-blue-400" />
+                      <span className="text-slate-500 text-[10px]">+</span>
+                      <FaWhatsapp className="w-3 h-3 text-emerald-400" />
+                    </span>
+                    <span>Both</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditForm(f => ({ ...f, numberType: 'phone' }))}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                      editForm.numberType === 'phone'
+                        ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
+                    }`}
+                  >
+                    <Phone className="w-3 h-3 text-blue-400" />
+                    <span>Phone</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditForm(f => ({ ...f, numberType: 'whatsapp' }))}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                      editForm.numberType === 'whatsapp'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
+                    }`}
+                  >
+                    <FaWhatsapp className="w-3 h-3 text-emerald-400" />
+                    <span>WhatsApp</span>
+                  </button>
+                </div>
+
+                {/* Optional Separate WhatsApp Number */}
+                {(editShowWhatsApp || editForm.whatsappNumber || editForm.numberType === 'phone') && (
+                  <div className="mt-2.5 p-2.5 bg-slate-900/60 rounded-xl border border-emerald-500/20">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <FaWhatsapp className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Different WhatsApp Number</span>
+                      </label>
+                      {editForm.numberType !== 'phone' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditShowWhatsApp(false);
+                            setEditForm(f => ({ ...f, whatsappNumber: '' }));
+                          }}
+                          className="text-[10px] text-slate-400 hover:text-rose-400 transition-colors"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="tel"
+                      value={editForm.whatsappNumber}
+                      maxLength={12}
+                      {...editWhatsAppHandlers}
+                      placeholder="01XXXXXXXXX"
+                      className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                    />
+                  </div>
+                )}
+
+                {editForm.numberType !== 'phone' && !editShowWhatsApp && !editForm.whatsappNumber && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditShowWhatsApp(true);
+                      setEditForm(f => ({ ...f, whatsappNumber: PREFIX }));
+                    }}
+                    className="mt-1.5 text-[11px] text-slate-400 hover:text-emerald-400 transition-colors flex items-center gap-1 font-medium"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Different number for WhatsApp?</span>
+                  </button>
+                )}
               </div>
               <div>
                 <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Organization *</label>
@@ -2711,7 +2974,7 @@ export default function ContactsPage() {
                   />
                 </div>
 
-                {/* Mobile */}
+                {/* Mobile & Number Type */}
                 <div>
                   <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
                     Mobile *
@@ -2723,6 +2986,96 @@ export default function ContactsPage() {
                     {...addMobileHandlers}
                     className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                   />
+
+                  {/* Number Type Selector */}
+                  <div className="mt-2 grid grid-cols-3 gap-1.5 p-1 bg-slate-950/60 rounded-xl border border-white/5">
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, numberType: 'both' }))}
+                      className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                        (form.numberType || 'both') === 'both'
+                          ? 'bg-gradient-to-r from-blue-500/20 to-emerald-500/20 text-white border border-emerald-500/30 shadow-sm'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-blue-400" />
+                        <span className="text-slate-500 text-[10px]">+</span>
+                        <FaWhatsapp className="w-3 h-3 text-emerald-400" />
+                      </span>
+                      <span>Both</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, numberType: 'phone' }))}
+                      className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                        form.numberType === 'phone'
+                          ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
+                      }`}
+                    >
+                      <Phone className="w-3 h-3 text-blue-400" />
+                      <span>Phone</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, numberType: 'whatsapp' }))}
+                      className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                        form.numberType === 'whatsapp'
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
+                      }`}
+                    >
+                      <FaWhatsapp className="w-3 h-3 text-emerald-400" />
+                      <span>WhatsApp</span>
+                    </button>
+                  </div>
+
+                  {/* Optional Separate WhatsApp Number */}
+                  {(addShowWhatsApp || form.whatsappNumber || form.numberType === 'phone') && (
+                    <div className="mt-2.5 p-2.5 bg-slate-900/60 rounded-xl border border-emerald-500/20">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <FaWhatsapp className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Different WhatsApp Number</span>
+                        </label>
+                        {form.numberType !== 'phone' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAddShowWhatsApp(false);
+                              setForm(f => ({ ...f, whatsappNumber: '' }));
+                            }}
+                            className="text-[10px] text-slate-400 hover:text-rose-400 transition-colors"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        type="tel"
+                        value={form.whatsappNumber}
+                        maxLength={12}
+                        {...addWhatsAppHandlers}
+                        placeholder="01XXXXXXXXX"
+                        className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                      />
+                    </div>
+                  )}
+
+                  {form.numberType !== 'phone' && !addShowWhatsApp && !form.whatsappNumber && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddShowWhatsApp(true);
+                        setForm(f => ({ ...f, whatsappNumber: PREFIX }));
+                      }}
+                      className="mt-1.5 text-[11px] text-slate-400 hover:text-emerald-400 transition-colors flex items-center gap-1 font-medium"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Different number for WhatsApp?</span>
+                    </button>
+                  )}
                 </div>
 
                 {/* Organization */}
