@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { database } from '@/lib/firebase';
 import { ref, get, push, set, remove, update, onValue } from 'firebase/database';
@@ -56,7 +56,20 @@ const formatBDPhone = (raw: string): string => {
 const toE164 = (m: string) => '880' + m.replace(/\D/g, '').slice(1);
 
 // ── Call-centre disposition codes ─────────────────────
-const STATUSES = [
+export interface StatusOption {
+  value: string;
+  label: string;
+  dot: string;
+  ring: string;
+  isCustom?: boolean;
+}
+
+const CUSTOM_COLORS = [
+  '#38bdf8', '#a855f7', '#ec4899', '#f97316', '#10b981',
+  '#06b6d4', '#eab308', '#8b5cf6', '#f43f5e', '#14b8a6',
+];
+
+const STATUSES: StatusOption[] = [
   { value: '',             label: 'Set status…',       dot: '#475569', ring: 'ring-slate-600'   },
   { value: 'new',          label: 'New',               dot: '#64748b', ring: 'ring-slate-500'   },
   { value: 'no_answer',    label: 'No Answer',         dot: '#94a3b8', ring: 'ring-slate-400'   },
@@ -68,10 +81,223 @@ const STATUSES = [
   { value: 'donor',        label: 'Donor',             dot: '#fbbf24', ring: 'ring-yellow-400'  },
   { value: 'call_next',    label: 'Call Next Program', dot: '#22d3ee', ring: 'ring-cyan-400'    },
   { value: 'dnc',          label: 'DNC / Irritated',   dot: '#fb7185', ring: 'ring-rose-400'    },
-] as const;
-type StatusValue = typeof STATUSES[number]['value'];
-const statusMeta = (v?: string) =>
+];
+
+type StatusValue = string;
+const defaultStatusMeta = (v?: string): StatusOption =>
   STATUSES.find(s => s.value === v) ?? STATUSES[0];
+
+// ── Select or Create Status Dropdown Component ──────────
+function StatusSelectOrCreate({
+  value,
+  onChange,
+  statuses,
+  onCreateStatus,
+  pillClassName = '',
+  pillStyle,
+  dotClassName = 'w-2 h-2',
+  labelClassName = 'text-xs font-semibold',
+  align = 'left',
+  title = 'Change status',
+}: {
+  value: string;
+  onChange: (newStatus: string) => void;
+  statuses: StatusOption[];
+  onCreateStatus: (label: string) => string | Promise<string>;
+  pillClassName?: string;
+  pillStyle?: React.CSSProperties;
+  dotClassName?: string;
+  labelClassName?: string;
+  align?: 'left' | 'right';
+  title?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [openUpwards, setOpenUpwards] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const curMeta = statuses.find(s => s.value === value) || {
+    value,
+    label: value ? value.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Set status…',
+    dot: value ? '#38bdf8' : '#475569',
+    ring: 'ring-slate-600',
+  };
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isOpen) {
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        setOpenUpwards(spaceBelow < 280);
+      }
+      setSearch('');
+      setIsOpen(true);
+    } else {
+      setIsOpen(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => inputRef.current?.focus(), 50);
+      const handleClick = (e: MouseEvent) => {
+        if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+          setIsOpen(false);
+        }
+      };
+      document.addEventListener('mousedown', handleClick);
+      return () => document.removeEventListener('mousedown', handleClick);
+    }
+  }, [isOpen]);
+
+  const cleanQuery = search.trim();
+  const filtered = useMemo(() => {
+    if (!cleanQuery) return statuses;
+    const q = cleanQuery.toLowerCase();
+    return statuses.filter(s => s.label.toLowerCase().includes(q) || s.value.toLowerCase().includes(q));
+  }, [statuses, cleanQuery]);
+
+  const exactMatch = useMemo(() => {
+    if (!cleanQuery) return true;
+    const q = cleanQuery.toLowerCase();
+    return statuses.some(s => s.label.toLowerCase() === q || s.value.toLowerCase() === q);
+  }, [statuses, cleanQuery]);
+
+  const canCreate = cleanQuery.length > 0 && !exactMatch;
+
+  const handleCreate = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!canCreate) return;
+    const newVal = await onCreateStatus(cleanQuery);
+    onChange(newVal);
+    setIsOpen(false);
+    setSearch('');
+  };
+
+  return (
+    <div ref={containerRef} className="relative inline-block" onClick={e => e.stopPropagation()}>
+      <div
+        ref={buttonRef}
+        onClick={handleToggle}
+        title={title}
+        className={`inline-flex items-center gap-1.5 cursor-pointer select-none transition-all hover:brightness-110 active:scale-95 ${pillClassName}`}
+        style={pillStyle || (value ? {
+          backgroundColor: `${curMeta.dot}18`,
+          borderColor: `${curMeta.dot}45`,
+          color: curMeta.dot,
+        } : {})}
+      >
+        <span
+          className={`${dotClassName} rounded-full shrink-0 shadow-[0_0_6px_currentColor]`}
+          style={{ backgroundColor: curMeta.dot }}
+        />
+        <span className={`truncate ${labelClassName}`}>
+          {curMeta.label}
+        </span>
+        <ChevronDown className={`w-3 h-3 opacity-60 ml-0.5 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </div>
+
+      {isOpen && (
+        <div
+          className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} ${
+            openUpwards ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+          } z-50 w-60 sm:w-64 max-w-[calc(100vw-2rem)] bg-slate-900 border border-white/10 rounded-2xl shadow-2xl backdrop-blur-xl p-1.5 flex flex-col space-y-1 animate-in fade-in zoom-in-95 duration-100`}
+        >
+          {/* Search or Create input */}
+          <div className="relative flex items-center">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 text-slate-400 pointer-events-none" />
+            <input
+              ref={inputRef}
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (canCreate) {
+                    handleCreate();
+                  } else if (filtered.length > 0) {
+                    onChange(filtered[0].value);
+                    setIsOpen(false);
+                  }
+                } else if (e.key === 'Escape') {
+                  setIsOpen(false);
+                }
+              }}
+              placeholder="Search or create status..."
+              className="w-full bg-slate-800/90 border border-white/10 rounded-xl pl-8 pr-7 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2 text-slate-400 hover:text-white p-0.5 cursor-pointer"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Quick Create option if no exact match */}
+          {canCreate && (
+            <button
+              type="button"
+              onClick={handleCreate}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 text-xs font-semibold transition-all text-left cursor-pointer group"
+            >
+              <Plus className="w-3.5 h-3.5 text-blue-400 shrink-0 group-hover:scale-125 transition-transform" />
+              <span className="truncate">
+                Create &quot;<span className="text-white font-bold">{cleanQuery}</span>&quot;
+              </span>
+            </button>
+          )}
+
+          {/* Status list */}
+          <div className="max-h-52 overflow-y-auto space-y-0.5 custom-scrollbar pt-0.5">
+            {filtered.map(s => {
+              const isSelected = s.value === value;
+              return (
+                <button
+                  key={s.value || '__empty'}
+                  type="button"
+                  onClick={() => {
+                    onChange(s.value);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors text-left cursor-pointer ${
+                    isSelected
+                      ? 'bg-blue-500/20 text-white font-semibold'
+                      : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  <span className="flex items-center gap-2 truncate">
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{
+                        backgroundColor: s.dot,
+                        boxShadow: isSelected ? `0 0 6px ${s.dot}` : 'none',
+                      }}
+                    />
+                    <span className="truncate">{s.label}</span>
+                  </span>
+                  {isSelected && <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
+                </button>
+              );
+            })}
+            {filtered.length === 0 && !canCreate && (
+              <div className="px-3 py-2 text-center text-xs text-slate-500">
+                No matching status
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Activity types ──────────────────────────────────
 const ACTIVITY_TYPES = [
@@ -185,6 +411,117 @@ export default function ContactsPage() {
   const [allOrgs, setAllOrgs] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // ── Custom Statuses (Creatable Dispositions) ────────
+  const [customStatuses, setCustomStatuses] = useState<StatusOption[]>([]);
+
+  // Compute all available statuses: default + custom + any legacy/contact status
+  const allStatuses: StatusOption[] = useMemo(() => {
+    const list: StatusOption[] = [...STATUSES];
+    const existingValues = new Set(list.map(s => s.value));
+
+    customStatuses.forEach(cs => {
+      if (!existingValues.has(cs.value)) {
+        list.push(cs);
+        existingValues.add(cs.value);
+      }
+    });
+
+    contacts.forEach(c => {
+      if (c.status && !existingValues.has(c.status)) {
+        const dot = CUSTOM_COLORS[list.length % CUSTOM_COLORS.length];
+        list.push({
+          value: c.status,
+          label: c.status.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+          dot,
+          ring: 'ring-sky-400',
+          isCustom: true,
+        });
+        existingValues.add(c.status);
+      }
+    });
+
+    return list;
+  }, [customStatuses, contacts]);
+
+  const statusMeta = (v?: string): StatusOption => {
+    if (!v) return STATUSES[0];
+    const found = allStatuses.find(s => s.value === v);
+    if (found) return found;
+    return {
+      value: v,
+      label: v.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      dot: '#38bdf8',
+      ring: 'ring-sky-400',
+      isCustom: true,
+    };
+  };
+
+  const handleCreateStatus = async (label: string): Promise<string> => {
+    const trimmed = label.trim();
+    if (!trimmed) return '';
+    const slug = trimmed.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    const val = slug || `custom_${Date.now()}`;
+
+    const existing = allStatuses.find(s => s.value === val || s.label.toLowerCase() === trimmed.toLowerCase());
+    if (existing) return existing.value;
+
+    const dot = CUSTOM_COLORS[allStatuses.length % CUSTOM_COLORS.length];
+    const newStatus: StatusOption = {
+      value: val,
+      label: trimmed,
+      dot,
+      ring: 'ring-sky-400',
+      isCustom: true,
+    };
+
+    setCustomStatuses(prev => {
+      const next = [...prev, newStatus];
+      try {
+        localStorage.setItem('bji_custom_statuses', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        await set(ref(database, `custom_statuses/${val}`), newStatus);
+      }
+    } catch (err) {
+      console.error('Failed to sync custom status to firebase:', err);
+    }
+
+    return val;
+  };
+
+  // Sync custom statuses from Firebase & localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const local = localStorage.getItem('bji_custom_statuses');
+        if (local) {
+          const parsed = JSON.parse(local);
+          if (Array.isArray(parsed)) setCustomStatuses(parsed);
+        }
+      } catch {}
+    }
+
+    const unsub = onValue(ref(database, 'custom_statuses'), snap => {
+      if (snap.exists()) {
+        const val = snap.val();
+        if (val && typeof val === 'object') {
+          const list = Object.values(val) as StatusOption[];
+          setCustomStatuses(list);
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem('bji_custom_statuses', JSON.stringify(list));
+            } catch {}
+          }
+        }
+      }
+    });
+    return () => unsub();
+  }, []);
 
   // Language-sensitive contact name: when lang is bn show bn name, when en show en name
   const contactName = (c: any): string => {
@@ -1648,7 +1985,7 @@ export default function ContactsPage() {
                         ) : filterStatuses.size === 1 ? (
                           (() => {
                             const val = Array.from(filterStatuses)[0];
-                            const s = STATUSES.find(st => st.value === val);
+                            const s = allStatuses.find(st => st.value === val);
                             return (
                               <span className="flex items-center gap-1.5 truncate">
                                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s?.dot ?? '#3b82f6' }} />
@@ -1681,7 +2018,7 @@ export default function ContactsPage() {
                           {filterStatuses.size === 0 && <Check className="w-3.5 h-3.5 text-blue-400" />}
                         </button>
                         <div className="my-1 border-t border-white/5" />
-                        {STATUSES.filter(s => s.value !== '').map(s => {
+                        {allStatuses.filter(s => s.value !== '').map(s => {
                           const active = filterStatuses.has(s.value);
                           return (
                             <button
@@ -1995,39 +2332,18 @@ export default function ContactsPage() {
                         </p>
                       </div>
 
-                      {/* Status Dropdown Pill */}
-                      <div
-                        className={`relative inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all hover:brightness-110 cursor-pointer shrink-0 ${
+                      {/* Status Dropdown Pill with Select or Create */}
+                      <StatusSelectOrCreate
+                        value={c.status ?? ''}
+                        onChange={val => handleStatusChange(c, val, { stopPropagation: () => {} })}
+                        statuses={allStatuses}
+                        onCreateStatus={handleCreateStatus}
+                        pillClassName={`px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
                           c.status ? '' : 'bji-status-unset border-dashed'
                         }`}
-                        style={c.status ? {
-                          backgroundColor: `${statusMeta(c.status).dot}15`,
-                          borderColor: `${statusMeta(c.status).dot}40`,
-                          color: statusMeta(c.status).dot,
-                        } : {}}
-                        onClick={e => e.stopPropagation()}
-                      >
-                        <span
-                          className="w-1.5 h-1.5 rounded-full shrink-0"
-                          style={{ backgroundColor: statusMeta(c.status).dot }}
-                        />
-                        <span className="truncate max-w-[62px]">
-                          {statusMeta(c.status).label}
-                        </span>
-                        <ChevronDown className="w-2.5 h-2.5 opacity-60 shrink-0" />
-                        <select
-                          value={c.status ?? ''}
-                          onChange={e => handleStatusChange(c, e.target.value, e)}
-                          onClick={e => e.stopPropagation()}
-                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                        >
-                          {STATUSES.map(s => (
-                            <option key={s.value} value={s.value} style={{ background: '#0f172a', color: s.dot }}>
-                              {s.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                        dotClassName="w-1.5 h-1.5"
+                        labelClassName="max-w-[62px] truncate"
+                      />
 
                       {/* Quick Action Buttons */}
                       {(() => {
@@ -2212,41 +2528,18 @@ export default function ContactsPage() {
 
                   {/* Bottom Bar: Status Selector & Location */}
                   <div className="mt-2.5 pt-2.5 border-t border-white/[0.06] flex items-center justify-between gap-2">
-                    {/* Status Dropdown Pill */}
-                    <div
-                      className={`relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all hover:brightness-110 cursor-pointer shrink-0 ${
+                    {/* Status Dropdown Pill with Select or Create */}
+                    <StatusSelectOrCreate
+                      value={c.status ?? ''}
+                      onChange={val => handleStatusChange(c, val, { stopPropagation: () => {} })}
+                      statuses={allStatuses}
+                      onCreateStatus={handleCreateStatus}
+                      pillClassName={`px-2.5 py-1 rounded-lg text-xs font-medium border ${
                         c.status ? '' : 'bji-status-unset border-dashed'
                       }`}
-                      style={c.status ? {
-                        backgroundColor: `${statusMeta(c.status).dot}15`,
-                        borderColor: `${statusMeta(c.status).dot}40`,
-                        color: statusMeta(c.status).dot,
-                      } : {}}
-                      onClick={e => e.stopPropagation()}
-                    >
-                      <span
-                        className="w-2 h-2 rounded-full shrink-0 shadow-[0_0_6px_currentColor]"
-                        style={{ backgroundColor: statusMeta(c.status).dot }}
-                      />
-                      <span className="text-[11px] font-semibold tracking-wide">
-                        {statusMeta(c.status).label}
-                      </span>
-                      <ChevronDown className="w-3 h-3 opacity-60 ml-0.5 shrink-0" />
-
-                      {/* Hidden native select covering the pill */}
-                      <select
-                        value={c.status ?? ''}
-                        onChange={e => handleStatusChange(c, e.target.value, e)}
-                        onClick={e => e.stopPropagation()}
-                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                      >
-                        {STATUSES.map(s => (
-                          <option key={s.value} value={s.value} style={{ background: '#0f172a', color: s.dot }}>
-                            {s.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                      dotClassName="w-2 h-2"
+                      labelClassName="text-[11px] font-semibold tracking-wide"
+                    />
 
                     {/* Location, or fallback to phone number if location is not set */}
                     {c.location ? (
@@ -2404,43 +2697,19 @@ export default function ContactsPage() {
 
                         {/* Status Column */}
                         <td className="px-4 py-3.5 align-middle" onClick={e => e.stopPropagation()}>
-                          <div
-                            className={`relative inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold backdrop-blur-sm transition-all hover:brightness-110 active:scale-95 cursor-pointer max-w-full ${
+                          <StatusSelectOrCreate
+                            value={c.status ?? ''}
+                            onChange={val => handleStatusChange(c, val, { stopPropagation: () => {} })}
+                            statuses={allStatuses}
+                            onCreateStatus={handleCreateStatus}
+                            pillClassName={`px-3 py-1.5 rounded-xl border text-xs font-semibold backdrop-blur-sm max-w-full ${
                               hasStatus
                                 ? ''
                                 : 'bji-status-unset border-dashed border-white/20 bg-white/[0.02] text-slate-400 hover:text-slate-200 hover:border-white/30'
                             }`}
-                            style={hasStatus ? {
-                              backgroundColor: `${st.dot}18`,
-                              borderColor: `${st.dot}45`,
-                              color: st.dot,
-                              boxShadow: `0 0 12px ${st.dot}15`,
-                            } : {}}
-                          >
-                            <span
-                              className="w-2 h-2 rounded-full flex-shrink-0 transition-transform"
-                              style={{
-                                backgroundColor: st.dot,
-                                boxShadow: hasStatus ? `0 0 8px ${st.dot}` : 'none',
-                              }}
-                            />
-                            <span className="truncate max-w-[105px]">
-                              {st.label}
-                            </span>
-                            <ChevronDown className="w-3 h-3 opacity-60 ml-0.5 shrink-0" />
-                            <select
-                              value={c.status ?? ''}
-                              onChange={e => handleStatusChange(c, e.target.value, e)}
-                              onClick={e => e.stopPropagation()}
-                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                            >
-                              {STATUSES.map(s => (
-                                <option key={s.value} value={s.value} style={{ background: '#1e293b', color: s.dot }}>
-                                  {s.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                            dotClassName="w-2 h-2"
+                            labelClassName="max-w-[105px] truncate"
+                          />
                         </td>
 
                         {/* Contact Column */}
@@ -2891,40 +3160,16 @@ export default function ContactsPage() {
                 Disposition
               </span>
 
-              {/* Status Dropdown to the right of the label */}
-              {(() => {
-                const curMeta = statusMeta(selectedContact.status ?? 'new');
-                return (
-                  <div
-                    className="relative inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all hover:brightness-110 cursor-pointer shadow-sm"
-                    style={{
-                      backgroundColor: `${curMeta.dot}18`,
-                      borderColor: `${curMeta.dot}45`,
-                      color: curMeta.dot,
-                    }}
-                  >
-                    <span
-                      className="w-2 h-2 rounded-full flex-shrink-0 shadow-[0_0_8px_currentColor]"
-                      style={{ backgroundColor: curMeta.dot }}
-                    />
-                    <span className="text-xs font-semibold">
-                      {curMeta.label}
-                    </span>
-                    <ChevronDown className="w-3.5 h-3.5 opacity-70 ml-0.5 shrink-0" />
-                    <select
-                      value={selectedContact.status ?? 'new'}
-                      onChange={e => handleStatusChange(selectedContact, e.target.value, e)}
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    >
-                      {STATUSES.filter(s => s.value !== '').map(s => (
-                        <option key={s.value} value={s.value} style={{ background: '#0f172a', color: s.dot }}>
-                          {s.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                );
-              })()}
+              {/* Status Dropdown to the right of the label with Select or Create */}
+              <StatusSelectOrCreate
+                value={selectedContact.status ?? 'new'}
+                onChange={val => handleStatusChange(selectedContact, val, { stopPropagation: () => {} })}
+                statuses={allStatuses.filter(s => s.value !== '')}
+                onCreateStatus={handleCreateStatus}
+                pillClassName="px-3 py-1.5 rounded-xl border text-xs font-semibold shadow-sm"
+                dotClassName="w-2 h-2"
+                labelClassName="text-xs font-semibold"
+              />
             </div>
 
             {/* ── Information accordion ───────────────── */}
