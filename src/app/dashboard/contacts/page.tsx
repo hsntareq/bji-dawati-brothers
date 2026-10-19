@@ -1860,21 +1860,21 @@ export default function ContactsPage() {
                         const callNum = getCallNumber(c);
                         const waNum = getWhatsAppNumber(c);
                         return (
-                          <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
                             {callNum ? (
                               <a
                                 href={`tel:${clean(callNum)}`}
                                 title={`Call ${callNum}`}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-500/10 hover:bg-blue-500/25 text-blue-400 border border-blue-500/20 active:scale-95 transition-all shadow-sm"
+                                className="w-10 sm:w-11 h-8 sm:h-8.5 flex items-center justify-center rounded-xl bg-blue-500/10 hover:bg-blue-500/25 text-blue-400 border border-blue-500/20 active:scale-95 transition-all shadow-sm"
                               >
-                                <Phone className="w-3.5 h-3.5" />
+                                <Phone className="w-4 h-4" />
                               </a>
                             ) : (
                               <span
                                 title="WhatsApp only"
-                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.02] text-slate-600 border border-white/5 opacity-40 cursor-not-allowed"
+                                className="w-10 sm:w-11 h-8 sm:h-8.5 flex items-center justify-center rounded-xl bg-white/[0.02] text-slate-600 border border-white/5 opacity-40 cursor-not-allowed"
                               >
-                                <Phone className="w-3.5 h-3.5" />
+                                <Phone className="w-4 h-4" />
                               </span>
                             )}
                             {waNum ? (
@@ -1883,16 +1883,16 @@ export default function ContactsPage() {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 title={`WhatsApp ${waNum}`}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/20 active:scale-95 transition-all shadow-sm"
+                                className="w-10 sm:w-11 h-8 sm:h-8.5 flex items-center justify-center rounded-xl bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/20 active:scale-95 transition-all shadow-sm"
                               >
-                                <FaWhatsapp className="w-3.5 h-3.5" />
+                                <FaWhatsapp className="w-4 h-4" />
                               </a>
                             ) : (
                               <span
                                 title="Phone only"
-                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.02] text-slate-600 border border-white/5 opacity-40 cursor-not-allowed"
+                                className="w-10 sm:w-11 h-8 sm:h-8.5 flex items-center justify-center rounded-xl bg-white/[0.02] text-slate-600 border border-white/5 opacity-40 cursor-not-allowed"
                               >
-                                <FaWhatsapp className="w-3.5 h-3.5" />
+                                <FaWhatsapp className="w-4 h-4" />
                               </span>
                             )}
                           </div>
