@@ -279,6 +279,7 @@ export default function ContactsPage() {
   const [filterOrgIds,   setFilterOrgIds]   = useState<Set<string>>(new Set());
   const [filterCategory, setFilterCategory] = useState<'shohojogi' | 'kormi' | 'all'>('shohojogi');
   const [filterOpen,     setFilterOpen]     = useState(false);
+  const [expandedFilter, setExpandedFilter] = useState<'category' | 'disposition' | 'organization' | null>(null);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -1545,128 +1546,264 @@ export default function ContactsPage() {
               </div>
             </div>
 
-            {/* Filter Dropdown – Equal width as the bar, opens in the middle / full-width */}
+            {/* Filter Dropdown – Clean floating popover matching the three-dots menu style */}
             {filterOpen && (
               <div
                 ref={filterDropdownRef}
-                className="absolute left-0 right-0 top-full mt-2 z-30 w-full bg-slate-900/95 border border-white/10 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl max-h-[75vh] flex flex-col"
+                className="absolute right-0 top-full mt-2 z-50 w-[340px] sm:w-[380px] max-w-[calc(100vw-24px)] bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden py-1.5 backdrop-blur-xl flex flex-col"
               >
-                <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
-                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Filters</span>
+                {/* Header */}
+                <div className="flex items-center justify-between px-3.5 py-2 border-b border-white/10 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Filters</span>
+                    {activeFilterCount > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-[10px] font-bold border border-blue-500/30">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </div>
                   {(activeFilterCount > 0 || filterCategory !== 'shohojogi') && (
                     <button
-                      onClick={() => { setFilterStatuses(new Set()); setFilterOrgIds(new Set()); setFilterCategory('shohojogi'); }}
-                      className="text-xs text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
-                    >Clear all</button>
+                      type="button"
+                      onClick={() => {
+                        setFilterStatuses(new Set());
+                        setFilterOrgIds(new Set());
+                        setFilterCategory('shohojogi');
+                        setExpandedFilter(null);
+                      }}
+                      className="text-xs text-blue-400 hover:text-blue-300 transition-colors font-medium cursor-pointer"
+                    >
+                      Clear all
+                    </button>
                   )}
                 </div>
 
-                <div className="overflow-y-auto flex-1 divide-y divide-white/10">
-                  {/* ── Category radio at top ── */}
-                  <div className="px-4 py-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Category</p>
-                      {filterCategory !== 'all' ? (
+                {/* Inline filter rows */}
+                <div className="p-2 space-y-1.5 overflow-y-auto max-h-[70vh]">
+                  {/* Category row */}
+                  <div className="p-2 rounded-xl bg-white/[0.02] border border-white/5 transition-colors">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-slate-300 flex items-center gap-2">
+                        <Users className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Category</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedFilter(prev => prev === 'category' ? null : 'category')}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-800 border border-white/10 text-xs font-medium text-slate-200 transition-all cursor-pointer"
+                      >
+                        <span className="text-blue-400 font-semibold">
+                          {filterCategory === 'all'
+                            ? 'All categories'
+                            : filterCategory === 'kormi'
+                            ? (language === 'bn' ? 'কর্মী (Kormi)' : 'Kormi')
+                            : (language === 'bn' ? 'সহযোগী (Shohojogi)' : 'Shohojogi')}
+                        </span>
+                        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${expandedFilter === 'category' ? 'rotate-180' : ''}`} />
+                      </button>
+                    </div>
+
+                    {expandedFilter === 'category' && (
+                      <div className="mt-2 pt-2 border-t border-white/5 space-y-0.5">
+                        {[
+                          { value: 'all', label: 'All categories' },
+                          { value: 'shohojogi', label: language === 'bn' ? 'সহযোগী (Shohojogi)' : 'Shohojogi (সহযোগী)' },
+                          { value: 'kormi', label: language === 'bn' ? 'কর্মী (Kormi)' : 'Kormi (কর্মী)' },
+                        ].map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setFilterCategory(opt.value as any);
+                              setExpandedFilter(null);
+                            }}
+                            className={`w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors text-left cursor-pointer ${
+                              filterCategory === opt.value
+                                ? 'text-blue-400 bg-blue-500/10 font-semibold'
+                                : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                            }`}
+                          >
+                            <span>{opt.label}</span>
+                            {filterCategory === opt.value && <Check className="w-3.5 h-3.5 text-blue-400" />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Disposition row */}
+                  <div className="p-2 rounded-xl bg-white/[0.02] border border-white/5 transition-colors">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-slate-300 flex items-center gap-2">
+                        <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Disposition</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedFilter(prev => prev === 'disposition' ? null : 'disposition')}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-800 border border-white/10 text-xs font-medium text-slate-200 transition-all cursor-pointer max-w-[190px]"
+                      >
+                        {filterStatuses.size === 0 ? (
+                          <span className="text-slate-400">All Dispositions</span>
+                        ) : filterStatuses.size === 1 ? (
+                          (() => {
+                            const val = Array.from(filterStatuses)[0];
+                            const s = STATUSES.find(st => st.value === val);
+                            return (
+                              <span className="flex items-center gap-1.5 truncate">
+                                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s?.dot ?? '#3b82f6' }} />
+                                <span className="truncate text-blue-300 font-semibold">{s?.label ?? val}</span>
+                              </span>
+                            );
+                          })()
+                        ) : (
+                          <span className="flex items-center gap-1.5 text-blue-400 font-semibold">
+                            <span className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
+                            <span>{filterStatuses.size} selected</span>
+                          </span>
+                        )}
+                        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform shrink-0 ${expandedFilter === 'disposition' ? 'rotate-180' : ''}`} />
+                      </button>
+                    </div>
+
+                    {expandedFilter === 'disposition' && (
+                      <div className="mt-2 pt-2 border-t border-white/5 space-y-0.5 max-h-48 overflow-y-auto">
                         <button
                           type="button"
-                          onClick={() => setFilterCategory('all')}
-                          className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+                          onClick={() => setFilterStatuses(new Set())}
+                          className={`w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors text-left cursor-pointer ${
+                            filterStatuses.size === 0
+                              ? 'text-blue-400 bg-blue-500/10 font-semibold'
+                              : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                          }`}
                         >
-                          Show all
+                          <span>All Dispositions</span>
+                          {filterStatuses.size === 0 && <Check className="w-3.5 h-3.5 text-blue-400" />}
                         </button>
-                      ) : (
-                        <span className="text-[10px] text-slate-500">All shown</span>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 p-1 bg-slate-800/80 border border-white/10 rounded-xl gap-1 w-full">
-                      <button
-                        type="button"
-                        onClick={() => setFilterCategory('shohojogi')}
-                        className={`w-full py-2 px-2.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                          filterCategory === 'shohojogi'
-                            ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm shadow-blue-500/10'
-                            : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
-                        }`}
-                      >
-                        <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 transition-all ${
-                          filterCategory === 'shohojogi' ? 'border-blue-400 bg-blue-500/20' : 'border-slate-600'
-                        }`}>
-                          {filterCategory === 'shohojogi' && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.8)]" />}
-                        </span>
-                        <span>{t('shohojogi')}</span>
-                        <span className="text-[10px] opacity-70 font-normal">{language === 'bn' ? '(Shohojogi)' : '(সহযোগী)'}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setFilterCategory('kormi')}
-                        className={`w-full py-2 px-2.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                          filterCategory === 'kormi'
-                            ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm shadow-blue-500/10'
-                            : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
-                        }`}
-                      >
-                        <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 transition-all ${
-                          filterCategory === 'kormi' ? 'border-blue-400 bg-blue-500/20' : 'border-slate-600'
-                        }`}>
-                          {filterCategory === 'kormi' && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.8)]" />}
-                        </span>
-                        <span>{t('kormi')}</span>
-                        <span className="text-[10px] opacity-70 font-normal">{language === 'bn' ? '(Kormi)' : '(কর্মী)'}</span>
-                      </button>
-                    </div>
+                        <div className="my-1 border-t border-white/5" />
+                        {STATUSES.filter(s => s.value !== '').map(s => {
+                          const active = filterStatuses.has(s.value);
+                          return (
+                            <button
+                              key={s.value}
+                              type="button"
+                              onClick={() => toggleStatus(s.value)}
+                              className={`w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors text-left cursor-pointer ${
+                                active
+                                  ? 'text-white bg-blue-500/15 font-semibold'
+                                  : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                              }`}
+                            >
+                              <span className="flex items-center gap-2 truncate">
+                                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.dot }} />
+                                <span className="truncate">{s.label}</span>
+                              </span>
+                              {active && <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
-                  {/* ── Disposition codes ── */}
-                  <div className="px-4 py-3">
-                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Disposition</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5">
-                      {STATUSES.filter(s => s.value !== '').map(s => {
-                        const active = filterStatuses.has(s.value);
-                        return (
-                          <button
-                            key={s.value}
-                            onClick={() => toggleStatus(s.value)}
-                            className={`flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium transition-all border text-left cursor-pointer ${
-                              active
-                                ? 'border-white/20 bg-white/10'
-                                : 'border-white/5 bg-slate-800/50 hover:bg-white/5'
-                            }`}
-                          >
-                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.dot }} />
-                            <span style={{ color: active ? s.dot : '#94a3b8' }} className="truncate">{s.label}</span>
-                            {active && <span className="ml-auto w-3 h-3 rounded-sm bg-blue-500 flex items-center justify-center flex-shrink-0"><span className="text-white text-[8px] leading-none">✓</span></span>}
-                          </button>
-                        );
-                      })}
+                  {/* Organization row */}
+                  <div className="p-2 rounded-xl bg-white/[0.02] border border-white/5 transition-colors">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-slate-300 flex items-center gap-2">
+                        <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Organization</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedFilter(prev => prev === 'organization' ? null : 'organization')}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-800 border border-white/10 text-xs font-medium text-slate-200 transition-all cursor-pointer max-w-[190px]"
+                      >
+                        {filterOrgIds.size === 0 ? (
+                          <span className="text-slate-400">All Organizations</span>
+                        ) : filterOrgIds.size === 1 ? (
+                          (() => {
+                            const orgId = Array.from(filterOrgIds)[0];
+                            const org = organizations.find(o => o.id === orgId);
+                            return (
+                              <span className="truncate text-blue-300 font-semibold">
+                                {org?.name ?? '1 selected'}
+                              </span>
+                            );
+                          })()
+                        ) : (
+                          <span className="text-blue-400 font-semibold truncate">
+                            {filterOrgIds.size} Organizations
+                          </span>
+                        )}
+                        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform shrink-0 ${expandedFilter === 'organization' ? 'rotate-180' : ''}`} />
+                      </button>
                     </div>
-                  </div>
 
-                  {/* ── Organizations ── */}
-                  <div className="px-4 py-3">
-                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Organizations</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                      {organizations.map(o => {
-                        const active = filterOrgIds.has(o.id);
-                        return (
-                          <button
-                            key={o.id}
-                            onClick={() => toggleOrg(o.id)}
-                            className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium transition-all border text-left cursor-pointer ${
-                              active
-                                ? 'border-white/20 bg-white/10 text-white'
-                                : 'border-white/5 bg-slate-800/50 hover:bg-white/5 text-slate-300'
-                            }`}
-                          >
-                            <Building2 className="w-3 h-3 text-blue-400 flex-shrink-0" />
-                            <span className="flex-1 truncate">{o.name}</span>
-                            {active && <span className="w-3 h-3 rounded-sm bg-blue-500 flex items-center justify-center flex-shrink-0"><span className="text-white text-[8px] leading-none">✓</span></span>}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    {expandedFilter === 'organization' && (
+                      <div className="mt-2 pt-2 border-t border-white/5 space-y-0.5 max-h-48 overflow-y-auto">
+                        <button
+                          type="button"
+                          onClick={() => setFilterOrgIds(new Set())}
+                          className={`w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors text-left cursor-pointer ${
+                            filterOrgIds.size === 0
+                              ? 'text-blue-400 bg-blue-500/10 font-semibold'
+                              : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                          }`}
+                        >
+                          <span className="flex items-center gap-2">
+                            <Building2 className="w-3.5 h-3.5 text-blue-400" />
+                            <span>All Organizations</span>
+                          </span>
+                          {filterOrgIds.size === 0 && <Check className="w-3.5 h-3.5 text-blue-400" />}
+                        </button>
+                        <div className="my-1 border-t border-white/5" />
+                        {organizations.map(o => {
+                          const active = filterOrgIds.has(o.id);
+                          return (
+                            <button
+                              key={o.id}
+                              type="button"
+                              onClick={() => toggleOrg(o.id)}
+                              className={`w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors text-left cursor-pointer ${
+                                active
+                                  ? 'text-white bg-blue-500/15 font-semibold'
+                                  : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                              }`}
+                            >
+                              <span className="flex items-center gap-2 truncate">
+                                <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <span className="truncate">{o.name}</span>
+                              </span>
+                              {active && <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                {/* Reset all filters footer */}
+                {(activeFilterCount > 0 || filterCategory !== 'shohojogi' || searchQuery) && (
+                  <>
+                    <div className="my-1 border-t border-white/10" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setFilterStatuses(new Set());
+                        setFilterOrgIds(new Set());
+                        setFilterCategory('shohojogi');
+                        setExpandedFilter(null);
+                        setFilterOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition-colors text-left cursor-pointer"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      <span>Reset all filters</span>
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
