@@ -1258,11 +1258,11 @@ export default function ContactsPage() {
               <button
                 type="button"
                 onClick={handleOpenAddModal}
-                className="h-full px-3.5 sm:px-4.5 rounded-l-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer border-r border-white/10 active:brightness-95 bji-btn-primary bji-keep-white"
+                className="h-full px-3.5 sm:px-4.5 rounded-l-2xl text-slate-300 hover:text-white hover:bg-white/5 font-semibold flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer border-r border-white/10 active:scale-95 group"
                 title={t('addPerson')}
               >
-                <Plus className="w-4 h-4 text-white bji-keep-white stroke-[2.5]" />
-                <span className="text-white text-xs sm:text-sm font-semibold bji-keep-white whitespace-nowrap">
+                <Plus className="w-4 h-4 text-blue-400 group-hover:text-blue-300 stroke-[2.5]" />
+                <span className="text-xs sm:text-sm font-semibold text-slate-300 group-hover:text-white whitespace-nowrap">
                   {language === 'bn' ? 'নতুন' : 'New'}
                   <span className="hidden sm:inline">{language === 'bn' ? ' ব্যক্তি' : ' Person'}</span>
                 </span>
