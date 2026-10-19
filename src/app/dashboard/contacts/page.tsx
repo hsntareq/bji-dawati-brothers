@@ -21,6 +21,7 @@ import {
   enqueueSync,
   generateOfflineId,
   getActivitiesForContact,
+  getMetaItem,
 } from '@/lib/offlineSync';
 import { isSuperAdmin } from '@/lib/superadmin';
 
@@ -196,6 +197,54 @@ export default function ContactsPage() {
   const [form,     setForm]     = useState(emptyForm);
   const [saving,   setSaving]   = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+  const [userPrimaryOrgId, setUserPrimaryOrgId] = useState<string>('');
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (formOpen) {
+      const timer = setTimeout(() => {
+        nameInputRef.current?.focus();
+      }, 80);
+      return () => clearTimeout(timer);
+    }
+  }, [formOpen]);
+
+  const getDefaultOrgId = () => {
+    // 1. If currently filtered by a single org
+    if (filterOrgIds.size === 1) {
+      const filteredId = Array.from(filterOrgIds)[0];
+      if (organizations.some(o => o.id === filteredId)) return filteredId;
+    }
+    // 2. User's profile primaryOrgId
+    if (userPrimaryOrgId && organizations.some(o => o.id === userPrimaryOrgId)) {
+      return userPrimaryOrgId;
+    }
+    // 3. First unit directly created by user
+    const myCreatedUnit = organizations.find(o => o.type === 'unit' && o.createdBy === user?.uid);
+    if (myCreatedUnit) return myCreatedUnit.id;
+    // 4. First unit user is a direct member of
+    const myMemberUnit = organizations.find(o => o.type === 'unit' && o.allowedEmails && user?.email && o.allowedEmails.includes(user.email));
+    if (myMemberUnit) return myMemberUnit.id;
+    // 5. Any unit in user's accessible organizations
+    const anyUnit = organizations.find(o => o.type === 'unit');
+    if (anyUnit) return anyUnit.id;
+    // 6. Any org directly created by user
+    const myCreatedOrg = organizations.find(o => o.createdBy === user?.uid);
+    if (myCreatedOrg) return myCreatedOrg.id;
+    // 7. First available organization
+    if (organizations.length > 0) return organizations[0].id;
+    return '';
+  };
+
+  const handleOpenAddModal = () => {
+    setMoreOpen(false);
+    const defaultOrg = getDefaultOrgId();
+    setForm({
+      ...emptyForm,
+      organizationId: defaultOrg,
+    });
+    setFormOpen(true);
+  };
 
   // ── Filters ────────────────────────────────────────
   const [searchQuery,    setSearchQuery]    = useState('');
@@ -501,6 +550,10 @@ export default function ContactsPage() {
       const cachedOrgs = await getAllFromStore('organizations');
       const cachedContacts = await getAllFromStore('contacts');
       const cachedActs = await getAllFromStore('contact_activities');
+      const cachedProfile = await getMetaItem<any>(`profile_${user.uid}`);
+      if (cachedProfile?.primaryOrgId) {
+        setUserPrimaryOrgId(cachedProfile.primaryOrgId);
+      }
 
       if (cachedOrgs.length > 0 || cachedContacts.length > 0) {
         setAllOrgs(cachedOrgs);
@@ -545,6 +598,16 @@ export default function ContactsPage() {
     }
 
     try {
+      // Fetch user profile to know their primary org
+      get(ref(database, `users/${user.uid}/profile`)).then(snap => {
+        if (snap.exists()) {
+          const p = snap.val();
+          if (p?.primaryOrgId) {
+            setUserPrimaryOrgId(p.primaryOrgId);
+          }
+        }
+      }).catch(err => console.warn('[Contacts] Failed to load profile:', err));
+
       const orgsSnap = await get(ref(database, 'organizations'));
       let myOrgs: any[] = [];
       let allOrgs: any[] = [];
@@ -1140,13 +1203,7 @@ export default function ContactsPage() {
 
           <button
             type="button"
-            onClick={() => {
-              setForm({
-                ...emptyForm,
-                organizationId: organizations.length === 1 ? organizations[0].id : '',
-              });
-              setFormOpen(true);
-            }}
+            onClick={handleOpenAddModal}
             className="group h-10 px-4 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold shadow-md shadow-blue-600/20 hover:shadow-blue-600/35 border border-blue-400/30 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 flex-1 sm:flex-initial bji-btn-primary bji-keep-white"
           >
             <UserPlus className="w-4 h-4 text-white bji-keep-white transition-transform group-hover:scale-110" />
@@ -1234,14 +1291,7 @@ export default function ContactsPage() {
                     {/* Add person quick action */}
                     <button
                       type="button"
-                      onClick={() => {
-                        setMoreOpen(false);
-                        setForm({
-                          ...emptyForm,
-                          organizationId: organizations.length === 1 ? organizations[0].id : '',
-                        });
-                        setFormOpen(true);
-                      }}
+                      onClick={handleOpenAddModal}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors text-left cursor-pointer"
                     >
                       <UserPlus className="w-4 h-4 text-blue-400" />
@@ -2651,6 +2701,8 @@ export default function ContactsPage() {
                     Name *
                   </label>
                   <input
+                    ref={nameInputRef}
+                    autoFocus
                     type="text"
                     value={form.name}
                     placeholder="Full name"
