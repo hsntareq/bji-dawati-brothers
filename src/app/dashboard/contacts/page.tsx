@@ -2412,14 +2412,25 @@ export default function ContactsPage() {
 
                       {/* Middle Details: Name + Unit / Location */}
                       <div className="flex-1 min-w-0 pr-1">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedContact(c)}
-                          className="text-xs font-semibold text-slate-100 hover:text-blue-400 transition-colors truncate max-w-full text-left focus:outline-none block leading-tight"
-                          title={contactName(c)}
-                        >
-                          {contactName(c)}
-                        </button>
+                        <div className="flex items-center gap-1 min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedContact(c)}
+                            className="text-xs font-semibold text-slate-100 hover:text-blue-400 transition-colors truncate text-left focus:outline-none block leading-tight"
+                            title={contactName(c)}
+                          >
+                            {contactName(c)}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => openEdit(c, e)}
+                            className="w-4 h-4 flex items-center justify-center rounded text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 active:scale-90 transition-all cursor-pointer shrink-0"
+                            title={language === 'bn' ? 'দ্রুত সম্পাদনা' : 'Quick edit'}
+                            aria-label={language === 'bn' ? 'দ্রুত সম্পাদনা' : 'Quick edit'}
+                          >
+                            <Pencil className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
                         <p className="text-[10px] text-slate-400 truncate leading-tight mt-0.5">
                           {orgName(c.organizationId)}
                           {c.location ? ` • ${c.location}` : ''}
@@ -2565,6 +2576,15 @@ export default function ContactsPage() {
                           title={contactName(c)}
                         >
                           {contactName(c)}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => openEdit(c, e)}
+                          className="w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 active:scale-90 transition-all cursor-pointer shrink-0"
+                          title={language === 'bn' ? 'দ্রুত সম্পাদনা' : 'Quick edit'}
+                          aria-label={language === 'bn' ? 'দ্রুত সম্পাদনা' : 'Quick edit'}
+                        >
+                          <Pencil className="w-3 h-3" />
                         </button>
                       </div>
 
@@ -2764,14 +2784,25 @@ export default function ContactsPage() {
 
                             {/* Name and subtitle */}
                             <div className="min-w-0 flex-1">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedContact(c)}
-                                className="text-sm font-semibold text-white hover:text-blue-400 transition-colors cursor-pointer text-left block truncate max-w-full focus:outline-none"
-                                title={contactName(c)}
-                              >
-                                {contactName(c)}
-                              </button>
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedContact(c)}
+                                  className="text-sm font-semibold text-white hover:text-blue-400 transition-colors cursor-pointer text-left block truncate max-w-full focus:outline-none"
+                                  title={contactName(c)}
+                                >
+                                  {contactName(c)}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => openEdit(c, e)}
+                                  className="w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 active:scale-90 transition-all cursor-pointer shrink-0"
+                                  title={language === 'bn' ? 'দ্রুত সম্পাদনা' : 'Quick edit'}
+                                  aria-label={language === 'bn' ? 'দ্রুত সম্পাদনা' : 'Quick edit'}
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </button>
+                              </div>
                               <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
                                 <span className={c.category === 'kormi' ? 'text-emerald-400/90 font-medium' : 'text-blue-400/90 font-medium'}>
                                   {c.category === 'kormi' ? t('kormi') : t('shohojogi')}
