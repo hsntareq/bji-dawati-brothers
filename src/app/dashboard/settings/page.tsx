@@ -379,14 +379,14 @@ export default function SuperAdminSettingsPage() {
         <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
-            <div className="bji-admin-badge inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase border">
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
+            <div className="bji-admin-badge inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase border border-amber-500/30 bg-amber-500/15 text-amber-300">
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
               <span>Superadmin Control Center</span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white">
               {language === 'bn' ? 'সিস্টেম সেটিংস ও অ্যাডমিন প্যানেল' : 'System Settings & Controls'}
             </h1>
-            <p className="bji-admin-subtitle text-sm max-w-xl">
+            <p className="bji-admin-subtitle text-sm text-slate-300 max-w-xl">
               {language === 'bn'
                 ? 'সুপারএডমিন হিসেবে অ্যাপের গ্লোবাল কনফিগারেশন, ডাটাবেজ ব্যাকআপ ও ব্যবহারকারী তালিকা পরিচালনা করুন।'
                 : 'Manage global app configurations, broadcast announcements, database exports, and user directories.'}
@@ -394,9 +394,9 @@ export default function SuperAdminSettingsPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div className="bji-admin-login-box backdrop-blur border rounded-2xl px-4 py-2.5">
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Logged in as Superadmin</p>
-              <p className="bji-admin-login-email text-xs font-bold text-amber-600 dark:text-amber-300 flex items-center gap-1.5 mt-0.5">
+            <div className="bji-admin-login-box backdrop-blur bg-slate-900/70 border border-white/10 rounded-2xl px-4 py-2.5">
+              <p className="text-[11px] text-slate-400 font-medium">Logged in as Superadmin</p>
+              <p className="bji-admin-login-email text-xs font-bold text-amber-300 flex items-center gap-1.5 mt-0.5">
                 <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                 {user?.email}
               </p>
@@ -406,48 +406,48 @@ export default function SuperAdminSettingsPage() {
 
         {/* Live System Counter Cards */}
         <div className="bji-admin-divider grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-white/10">
-          <div className="bji-admin-stat-card border rounded-2xl p-3.5">
-            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs mb-1 font-medium">
-              <Building2 className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
+          <div className="bji-admin-stat-card bg-slate-900/60 border border-white/10 rounded-2xl p-3.5 backdrop-blur-sm">
+            <div className="flex items-center gap-2 text-slate-400 text-xs mb-1 font-medium">
+              <Building2 className="w-3.5 h-3.5 text-blue-400" />
               <span>Organizations</span>
             </div>
-            <p className="bji-admin-stat-number text-xl font-bold">{stats.organizations}</p>
+            <p className="bji-admin-stat-number text-xl font-bold text-white">{stats.organizations}</p>
           </div>
 
-          <div className="bji-admin-stat-card border rounded-2xl p-3.5">
-            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs mb-1 font-medium">
-              <Users className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
+          <div className="bji-admin-stat-card bg-slate-900/60 border border-white/10 rounded-2xl p-3.5 backdrop-blur-sm">
+            <div className="flex items-center gap-2 text-slate-400 text-xs mb-1 font-medium">
+              <Users className="w-3.5 h-3.5 text-emerald-400" />
               <span>Total Contacts</span>
             </div>
-            <p className="bji-admin-stat-number text-xl font-bold">{stats.contacts}</p>
+            <p className="bji-admin-stat-number text-xl font-bold text-white">{stats.contacts}</p>
           </div>
 
-          <div className="bji-admin-stat-card border rounded-2xl p-3.5">
-            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs mb-1 font-medium">
-              <UserIcon className="w-3.5 h-3.5 text-purple-500 dark:text-purple-400" />
+          <div className="bji-admin-stat-card bg-slate-900/60 border border-white/10 rounded-2xl p-3.5 backdrop-blur-sm">
+            <div className="flex items-center gap-2 text-slate-400 text-xs mb-1 font-medium">
+              <UserIcon className="w-3.5 h-3.5 text-purple-400" />
               <span>User Profiles</span>
             </div>
-            <p className="bji-admin-stat-number text-xl font-bold">{stats.users}</p>
+            <p className="bji-admin-stat-number text-xl font-bold text-white">{stats.users}</p>
           </div>
 
-          <div className="bji-admin-stat-card border rounded-2xl p-3.5">
-            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs mb-1 font-medium">
-              <Radio className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
+          <div className="bji-admin-stat-card bg-slate-900/60 border border-white/10 rounded-2xl p-3.5 backdrop-blur-sm">
+            <div className="flex items-center gap-2 text-slate-400 text-xs mb-1 font-medium">
+              <Radio className="w-3.5 h-3.5 text-amber-400" />
               <span>Activities Logged</span>
             </div>
-            <p className="bji-admin-stat-number text-xl font-bold">{stats.activities}</p>
+            <p className="bji-admin-stat-number text-xl font-bold text-white">{stats.activities}</p>
           </div>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-black/10 dark:border-white/10 pb-3 overflow-x-auto">
+      <div className="flex items-center gap-2 border-b border-white/10 pb-3 overflow-x-auto">
         <button
           onClick={() => setActiveTab('system')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'system'
               ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25 bji-keep-white'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
           }`}
         >
           <Settings className="w-4 h-4" />
@@ -459,7 +459,7 @@ export default function SuperAdminSettingsPage() {
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'backup'
               ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25 bji-keep-white'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
           }`}
         >
           <Database className="w-4 h-4" />
@@ -471,7 +471,7 @@ export default function SuperAdminSettingsPage() {
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'users'
               ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25 bji-keep-white'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
           }`}
         >
           <Users className="w-4 h-4" />
@@ -513,7 +513,7 @@ export default function SuperAdminSettingsPage() {
                 value={settings.appName}
                 onChange={(e) => setSettings({ ...settings, appName: e.target.value })}
                 placeholder="e.g. BJI Dawati Brothers"
-                className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+                className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                 required
               />
               <p className="text-[11px] text-slate-500">
@@ -550,7 +550,7 @@ export default function SuperAdminSettingsPage() {
                     onChange={(e) => setSettings({ ...settings, allowRegistrations: e.target.checked })}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                 </label>
               </div>
 
@@ -569,7 +569,7 @@ export default function SuperAdminSettingsPage() {
                     onChange={(e) => setSettings({ ...settings, requireStrictPhone: e.target.checked })}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                 </label>
               </div>
 
@@ -586,7 +586,7 @@ export default function SuperAdminSettingsPage() {
                           ? 'bg-red-500/10 text-red-300 border-red-500/30'
                           : settings.allowDeleteIndividual
                           ? 'bg-blue-500/10 text-blue-300 border-blue-500/30'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-white/10'
+                          : 'bg-slate-800 text-slate-400 border-white/10'
                       }`}>
                         {settings.allowDeleteAll && settings.allowDeleteIndividual
                           ? 'All & Individual Allowed'
@@ -605,10 +605,10 @@ export default function SuperAdminSettingsPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                   {/* Switch 1: Individual Deletion */}
-                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-white/5 flex items-center justify-between gap-3">
+                  <div className="p-4 rounded-2xl bg-slate-800/60 border border-white/10 flex items-center justify-between gap-3">
                     <div className="space-y-0.5">
-                      <p className="text-xs font-semibold text-slate-900 dark:text-white">Allow Individual Deletion</p>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      <p className="text-xs font-semibold text-white">Allow Individual Deletion</p>
+                      <p className="text-[11px] text-slate-400">
                         Delete individual contacts one-by-one
                       </p>
                     </div>
@@ -619,18 +619,18 @@ export default function SuperAdminSettingsPage() {
                         onChange={(e) => setSettings({ ...settings, allowDeleteIndividual: e.target.checked })}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                     </label>
                   </div>
 
                   {/* Switch 2: Delete All (Mass Deletion) */}
-                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-white/5 flex items-center justify-between gap-3">
+                  <div className="p-4 rounded-2xl bg-slate-800/60 border border-white/10 flex items-center justify-between gap-3">
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-1.5">
-                        <p className="text-xs font-semibold text-slate-900 dark:text-white">Allow &apos;Delete All&apos;</p>
-                        <span className="text-[9px] font-bold text-red-500 dark:text-red-400 bg-red-500/10 px-1.5 py-0.2 rounded border border-red-500/20">Danger</span>
+                        <p className="text-xs font-semibold text-white">Allow &apos;Delete All&apos;</p>
+                        <span className="text-[9px] font-bold text-red-400 bg-red-500/10 px-1.5 py-0.2 rounded border border-red-500/20">Danger</span>
                       </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      <p className="text-[11px] text-slate-400">
                         Enable mass wipe / delete all contacts
                       </p>
                     </div>
@@ -641,7 +641,7 @@ export default function SuperAdminSettingsPage() {
                         onChange={(e) => setSettings({ ...settings, allowDeleteAll: e.target.checked })}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                      <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
                     </label>
                   </div>
                 </div>
@@ -669,7 +669,7 @@ export default function SuperAdminSettingsPage() {
                   onChange={(e) => setSettings({ ...settings, bannerEnabled: e.target.checked })}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
               </label>
             </div>
 
@@ -684,7 +684,7 @@ export default function SuperAdminSettingsPage() {
                     value={settings.bannerText}
                     onChange={(e) => setSettings({ ...settings, bannerText: e.target.value })}
                     placeholder="e.g. Monthly Dawah meeting will take place this Friday after Asr..."
-                    className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors resize-none"
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all resize-none"
                   />
                 </div>
 
@@ -698,14 +698,14 @@ export default function SuperAdminSettingsPage() {
                         type="button"
                         key={type}
                         onClick={() => setSettings({ ...settings, bannerType: type })}
-                        className={`p-3 rounded-xl border text-xs font-semibold capitalize text-center transition-all ${
+                        className={`p-3 rounded-xl border text-xs font-semibold capitalize text-center transition-all cursor-pointer ${
                           settings.bannerType === type
                             ? type === 'info'
                               ? 'bg-blue-500/20 border-blue-500 text-blue-300'
                               : type === 'warning'
                               ? 'bg-amber-500/20 border-amber-500 text-amber-300'
                               : 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
-                            : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                            : 'bg-slate-800/80 border-white/10 text-slate-400 hover:text-white hover:bg-slate-700'
                         }`}
                       >
                         {type} Notice
@@ -778,10 +778,10 @@ export default function SuperAdminSettingsPage() {
               This will create a standalone, timestamped JSON backup file containing all collections stored in Firebase Realtime Database. Keep this backup safe for audit trails, reporting, or emergency restorations.
             </p>
 
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="p-4 bg-slate-800/60 rounded-2xl border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold text-slate-900 dark:text-white">Estimated Collections</p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                <p className="text-xs font-semibold text-white">Estimated Collections</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
                   {stats.organizations} Organizations · {stats.contacts} Contacts · {stats.activities} Activities · {stats.users} Profiles
                 </p>
               </div>
@@ -790,7 +790,7 @@ export default function SuperAdminSettingsPage() {
                 type="button"
                 onClick={handleExportBackup}
                 disabled={exporting}
-                className="bji-keep-white flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold text-xs transition-all shadow-md shadow-emerald-600/20 whitespace-nowrap"
+                className="bji-keep-white flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold text-xs transition-all shadow-md shadow-emerald-600/20 whitespace-nowrap cursor-pointer"
               >
                 {exporting ? (
                   <>
@@ -833,7 +833,7 @@ export default function SuperAdminSettingsPage() {
               type="button"
               onClick={handleClearCache}
               disabled={cacheClearing}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 border border-amber-300 dark:border-amber-500/30 text-amber-800 dark:text-amber-300 font-semibold text-xs transition-all shadow-sm"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-semibold text-xs transition-all shadow-sm cursor-pointer"
             >
               {cacheClearing ? (
                 <>
@@ -868,14 +868,14 @@ export default function SuperAdminSettingsPage() {
               </div>
 
               {/* Mode Switcher */}
-              <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 rounded-xl p-1 text-xs font-semibold">
+              <div className="flex items-center bg-slate-800 border border-white/10 rounded-xl p-1 text-xs font-semibold">
                 <button
                   type="button"
                   onClick={() => setPurgeMode('individual')}
-                  className={`px-3 py-1.5 rounded-lg transition-all ${
+                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                     purgeMode === 'individual'
                       ? 'bji-keep-white bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   Delete Individual ({contactsList.length})
@@ -883,10 +883,10 @@ export default function SuperAdminSettingsPage() {
                 <button
                   type="button"
                   onClick={() => setPurgeMode('all')}
-                  className={`px-3 py-1.5 rounded-lg transition-all ${
+                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                     purgeMode === 'all'
                       ? 'bji-keep-white bg-red-600 text-white shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   Delete All Contacts
@@ -923,13 +923,13 @@ export default function SuperAdminSettingsPage() {
                         value={confirmDeleteText}
                         onChange={(e) => setConfirmDeleteText(e.target.value)}
                         placeholder="Type DELETE ALL"
-                        className="bg-slate-50 dark:bg-slate-800 border border-red-500/30 rounded-xl px-4 py-2 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-red-500 font-mono"
+                        className="bg-slate-800 border border-red-500/30 rounded-xl px-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500 font-mono"
                       />
                       <button
                         type="button"
                         onClick={handleDeleteAll}
                         disabled={confirmDeleteText.trim() !== 'DELETE ALL' || deletingAllContacts}
-                        className="bji-keep-white flex items-center justify-center gap-2 px-6 py-2 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white font-semibold text-xs transition-all shadow-lg shadow-red-600/30"
+                        className="bji-keep-white flex items-center justify-center gap-2 px-6 py-2 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white font-semibold text-xs transition-all shadow-lg shadow-red-600/30 cursor-pointer"
                       >
                         {deletingAllContacts ? (
                           <>
@@ -966,11 +966,11 @@ export default function SuperAdminSettingsPage() {
                     value={purgeContactSearch}
                     onChange={(e) => setPurgeContactSearch(e.target.value)}
                     placeholder="Search contact to delete by name or phone..."
-                    className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all"
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                   />
                 </div>
 
-                <div className="max-h-80 overflow-y-auto rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-slate-900/50 divide-y divide-slate-200/60 dark:divide-white/5 shadow-inner">
+                <div className="max-h-80 overflow-y-auto rounded-2xl border border-white/10 bg-slate-900/50 divide-y divide-white/5 shadow-inner">
                   {contactsList
                     .filter(c => {
                       const q = purgeContactSearch.toLowerCase();
@@ -980,15 +980,15 @@ export default function SuperAdminSettingsPage() {
                     .map(c => (
                       <div
                         key={c.id}
-                        className="p-3.5 flex items-center justify-between gap-3 hover:bg-white dark:hover:bg-slate-800/60 transition-colors"
+                        className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-800/60 transition-colors"
                       >
                         <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-800 dark:text-white truncate">{c.name}</p>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                          <p className="text-xs font-semibold text-white truncate">{c.name}</p>
+                          <p className="text-[11px] text-slate-400 truncate mt-0.5">
                             {c.phone ? (
-                              <span className="font-mono text-slate-600 dark:text-slate-300">{c.phone}</span>
+                              <span className="font-mono text-slate-300">{c.phone}</span>
                             ) : (
-                              <span className="italic text-slate-400">No phone</span>
+                              <span className="italic text-slate-500">No phone</span>
                             )}
                             <span className="mx-1.5 opacity-40">·</span>
                             <span className="capitalize">{c.status || 'No status'}</span>
@@ -999,7 +999,7 @@ export default function SuperAdminSettingsPage() {
                           type="button"
                           onClick={() => handleDeleteIndividual(c.id, c.name)}
                           disabled={!settings.allowDeleteIndividual || deletingContactId === c.id}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 border border-red-200/80 dark:border-red-500/20 text-red-600 dark:text-red-400 disabled:opacity-40 font-medium text-xs transition-colors cursor-pointer flex-shrink-0"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 disabled:opacity-40 font-medium text-xs transition-colors cursor-pointer flex-shrink-0"
                         >
                           {deletingContactId === c.id ? (
                             <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -1036,7 +1036,7 @@ export default function SuperAdminSettingsPage() {
                 value={userSearch}
                 onChange={(e) => setUserSearch(e.target.value)}
                 placeholder="Search by name or email..."
-                className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all"
+                className="w-full bg-slate-800 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
               />
             </div>
           </div>

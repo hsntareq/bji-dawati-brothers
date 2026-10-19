@@ -372,7 +372,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
   const activeTheme = THEMES.find((t) => t.id === themeId) || THEMES[0];
   const isLight   = activeTheme.mode === 'light';
-  const rootClass = `min-h-screen flex ${isLight ? 'bji-light' : 'bji-dark'} bji-theme-${activeTheme.id} ${compact ? 'bji-compact' : ''}`;
+  const rootClass = `min-h-screen flex ${isLight ? 'bji-light' : 'bji-dark dark'} bji-theme-${activeTheme.id} ${compact ? 'bji-compact' : ''}`;
 
   return (
     <div className={rootClass}>

@@ -50,6 +50,7 @@ nextjs-portal,
 
 /* ── Dark mode (default) ──────────────────────────── */
 .bji-dark {
+  color:             var(--bji-text-1);
   --bji-bg:          #020817;
   --bji-sidebar-bg:  #0f172a;
   --bji-card-bg:     #0f172a;
@@ -69,6 +70,7 @@ nextjs-portal,
 
 /* ── Light mode ───────────────────────────────────── */
 .bji-light {
+  color:             var(--bji-text-1);
   --bji-bg:          #f1f5f9;
   --bji-sidebar-bg:  #ffffff;
   --bji-card-bg:     #ffffff;
@@ -649,9 +651,50 @@ nextjs-portal,
    Settings Admin Hero Banner
    ═══════════════════════════════════════════════════════ */
 .bji-dark .bji-admin-hero {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 27, 75, 0.45) 50%, rgba(15, 23, 42, 0.98) 100%) !important;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 27, 75, 0.55) 50%, rgba(15, 23, 42, 0.98) 100%) !important;
   border-color: rgba(245, 158, 11, 0.25) !important;
   box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5) !important;
+  color: #f8fafc !important;
+}
+
+.bji-dark .bji-admin-hero h1 {
+  color: #ffffff !important;
+}
+
+.bji-dark .bji-admin-hero p.bji-admin-subtitle {
+  color: #cbd5e1 !important;
+}
+
+.bji-dark .bji-admin-hero .bji-admin-badge {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  color: #fcd34d !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+
+.bji-dark .bji-admin-hero .bji-admin-login-box {
+  background-color: rgba(15, 23, 42, 0.75) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.bji-dark .bji-admin-hero .bji-admin-login-box p.bji-admin-login-email {
+  color: #fbbf24 !important;
+}
+
+.bji-dark .bji-admin-hero .bji-admin-stat-card {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.bji-dark .bji-admin-hero .bji-admin-stat-card .bji-admin-stat-number {
+  color: #ffffff !important;
+}
+
+.bji-dark .bji-admin-hero .bji-admin-stat-card span {
+  color: #94a3b8 !important;
+}
+
+.bji-dark .bji-admin-hero .bji-admin-divider {
+  border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 .bji-light .bji-admin-hero {
