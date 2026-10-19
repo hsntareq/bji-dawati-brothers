@@ -29,6 +29,7 @@ const PREFIX = '01';
 const emptyForm = {
   name: '',
   mobile: PREFIX,
+  secondaryMobile: '',
   numberType: 'both' as 'both' | 'phone' | 'whatsapp',
   whatsappNumber: '',
   note: '',
@@ -208,7 +209,10 @@ export default function ContactsPage() {
   const [form,     setForm]     = useState(emptyForm);
   const [saving,   setSaving]   = useState(false);
   const [formOpen, setFormOpen] = useState(false);
-  const [addShowWhatsApp, setAddShowWhatsApp] = useState(false);
+  const [addNumberDropdownOpen, setAddNumberDropdownOpen] = useState(false);
+  const addNumberDropdownRef = useRef<HTMLDivElement>(null);
+  const [editNumberDropdownOpen, setEditNumberDropdownOpen] = useState(false);
+  const editNumberDropdownRef = useRef<HTMLDivElement>(null);
   const [userPrimaryOrgId, setUserPrimaryOrgId] = useState<string>('');
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -255,7 +259,7 @@ export default function ContactsPage() {
       ...emptyForm,
       organizationId: defaultOrg,
     });
-    setAddShowWhatsApp(false);
+    setAddNumberDropdownOpen(false);
     setFormOpen(true);
   };
 
@@ -286,10 +290,18 @@ export default function ContactsPage() {
       if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
         setMoreOpen(false);
       }
+      if (addNumberDropdownRef.current && !addNumberDropdownRef.current.contains(e.target as Node)) {
+        setAddNumberDropdownOpen(false);
+      }
+      if (editNumberDropdownRef.current && !editNumberDropdownRef.current.contains(e.target as Node)) {
+        setEditNumberDropdownOpen(false);
+      }
     };
-    if (filterOpen || moreOpen) document.addEventListener('mousedown', handler);
+    if (filterOpen || moreOpen || addNumberDropdownOpen || editNumberDropdownOpen) {
+      document.addEventListener('mousedown', handler);
+    }
     return () => document.removeEventListener('mousedown', handler);
-  }, [filterOpen, moreOpen]);
+  }, [filterOpen, moreOpen, addNumberDropdownOpen, editNumberDropdownOpen]);
 
   const toggleStatus = (v: string) =>
     setFilterStatuses(prev => { const s = new Set(prev); s.has(v) ? s.delete(v) : s.add(v); return s; });
@@ -304,7 +316,6 @@ export default function ContactsPage() {
   const [editContact, setEditContact] = useState<any | null>(null);
   const [editForm, setEditForm] = useState(emptyForm);
   const [editSaving, setEditSaving] = useState(false);
-  const [editShowWhatsApp, setEditShowWhatsApp] = useState(false);
 
   // ── Delete ─────────────────────────────────────────
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -749,17 +760,21 @@ export default function ContactsPage() {
     },
   });
 
-  const addMobileHandlers      = makeMobileHandlers(v => setForm(f => ({ ...f, mobile: v })));
-  const addWhatsAppHandlers    = makeMobileHandlers(v => setForm(f => ({ ...f, whatsappNumber: v })), true);
-  const editMobileHandlers     = makeMobileHandlers(v => setEditForm(f => ({ ...f, mobile: v })));
-  const editWhatsAppHandlers   = makeMobileHandlers(v => setEditForm(f => ({ ...f, whatsappNumber: v })), true);
+  const addMobileHandlers         = makeMobileHandlers(v => setForm(f => ({ ...f, mobile: v })));
+  const addSecondaryPhoneHandlers = makeMobileHandlers(v => setForm(f => ({ ...f, secondaryMobile: v })), true);
+  const addWhatsAppHandlers       = makeMobileHandlers(v => setForm(f => ({ ...f, whatsappNumber: v })), true);
+  const editMobileHandlers        = makeMobileHandlers(v => setEditForm(f => ({ ...f, mobile: v })));
+  const editSecondaryPhoneHandlers= makeMobileHandlers(v => setEditForm(f => ({ ...f, secondaryMobile: v })), true);
+  const editWhatsAppHandlers      = makeMobileHandlers(v => setEditForm(f => ({ ...f, whatsappNumber: v })), true);
 
   // ── Add person ─────────────────────────────────────
   const mobileDigits = form.mobile.slice(PREFIX.length).replace(/\D/g, '');
   const mobileComplete = mobileDigits.length === 9;
   const waDigits = (form.whatsappNumber || '').replace(/\D/g, '');
   const isWhatsAppValid = !form.whatsappNumber || waDigits.length === 11;
-  const isFormValid = form.name.trim() && mobileComplete && isWhatsAppValid && form.organizationId;
+  const secDigits = (form.secondaryMobile || '').replace(/\D/g, '');
+  const isSecondaryValid = !form.secondaryMobile || secDigits.length === 11;
+  const isFormValid = form.name.trim() && mobileComplete && isWhatsAppValid && isSecondaryValid && form.organizationId;
 
   const handleAddPerson = async () => {
     if (!user || !isFormValid || saving) return;
@@ -769,8 +784,9 @@ export default function ContactsPage() {
       const contactData = {
         name: form.name.trim(),
         mobile: form.mobile.trim(),
-        numberType: form.numberType || 'both',
+        secondaryMobile: form.secondaryMobile?.trim() && form.secondaryMobile.replace(/\D/g, '').length === 11 ? form.secondaryMobile.trim() : null,
         whatsappNumber: form.whatsappNumber?.trim() && form.whatsappNumber.replace(/\D/g, '').length === 11 ? form.whatsappNumber.trim() : null,
+        numberType: form.numberType || 'both',
         category: form.category || 'shohojogi',
         note: form.note.trim() || null,
         email: form.email.trim() || null,
@@ -800,7 +816,7 @@ export default function ContactsPage() {
       });
 
       setForm(emptyForm);
-      setAddShowWhatsApp(false);
+      setAddNumberDropdownOpen(false);
       setFormOpen(false);
 
       const path = `contacts/${newId}`;
@@ -827,8 +843,9 @@ export default function ContactsPage() {
     setEditForm({
       name: c.name ?? '',
       mobile: c.mobile ?? PREFIX,
-      numberType: c.numberType || 'both',
+      secondaryMobile: c.secondaryMobile ?? '',
       whatsappNumber: c.whatsappNumber ?? '',
+      numberType: c.numberType || 'both',
       category: c.category || 'shohojogi',
       note: c.note ?? '',
       organizationId: c.organizationId ?? '',
@@ -836,14 +853,16 @@ export default function ContactsPage() {
       location: c.location ?? '',
       address: c.address ?? '',
     });
-    setEditShowWhatsApp(Boolean(c.whatsappNumber));
+    setEditNumberDropdownOpen(false);
   };
 
   const editMobileDigits = editForm.mobile.slice(PREFIX.length).replace(/\D/g, '');
   const editMobileComplete = editMobileDigits.length === 9;
   const editWaDigits = (editForm.whatsappNumber || '').replace(/\D/g, '');
   const isEditWhatsAppValid = !editForm.whatsappNumber || editWaDigits.length === 11;
-  const isEditValid = editForm.name.trim() && editMobileComplete && isEditWhatsAppValid && editForm.organizationId;
+  const editSecDigits = (editForm.secondaryMobile || '').replace(/\D/g, '');
+  const isEditSecondaryValid = !editForm.secondaryMobile || editSecDigits.length === 11;
+  const isEditValid = editForm.name.trim() && editMobileComplete && isEditWhatsAppValid && isEditSecondaryValid && editForm.organizationId;
 
   const handleEditSave = async () => {
     if (!editContact || !isEditValid || editSaving) return;
@@ -852,8 +871,9 @@ export default function ContactsPage() {
       const updated = {
         name: editForm.name.trim(),
         mobile: editForm.mobile.trim(),
-        numberType: editForm.numberType || 'both',
+        secondaryMobile: editForm.secondaryMobile?.trim() && editForm.secondaryMobile.replace(/\D/g, '').length === 11 ? editForm.secondaryMobile.trim() : null,
         whatsappNumber: editForm.whatsappNumber?.trim() && editForm.whatsappNumber.replace(/\D/g, '').length === 11 ? editForm.whatsappNumber.trim() : null,
+        numberType: editForm.numberType || 'both',
         category: editForm.category || 'shohojogi',
         note: editForm.note.trim() || null,
         email: editForm.email.trim() || null,
@@ -1061,12 +1081,13 @@ export default function ContactsPage() {
       alert('No contacts to export.');
       return;
     }
-    const headers = ['Name', 'Mobile', 'Number Type', 'WhatsApp Number', 'Category', 'Status', 'Organization', 'Location', 'Address', 'Email', 'Note'];
+    const headers = ['Name', 'Mobile', 'Secondary Phone', 'WhatsApp Number', 'Number Type', 'Category', 'Status', 'Organization', 'Location', 'Address', 'Email', 'Note'];
     const rows = filtered.map(c => [
       `"${(c.name || '').replace(/"/g, '""')}"`,
       `"${(c.mobile || '').replace(/"/g, '""')}"`,
-      `"${(c.numberType || 'both').replace(/"/g, '""')}"`,
+      `"${(c.secondaryMobile || '').replace(/"/g, '""')}"`,
       `"${(c.whatsappNumber || '').replace(/"/g, '""')}"`,
+      `"${(c.numberType || 'both').replace(/"/g, '""')}"`,
       `"${(c.category || 'shohojogi').replace(/"/g, '""')}"`,
       `"${(statusMeta(c.status).label || '').replace(/"/g, '""')}"`,
       `"${(orgName(c.organizationId) || '').replace(/"/g, '""')}"`,
@@ -1090,6 +1111,7 @@ export default function ContactsPage() {
     const matchSearch = !q ||
       c.name?.toLowerCase().includes(q) ||
       c.mobile?.includes(q) ||
+      c.secondaryMobile?.includes(q) ||
       c.whatsappNumber?.includes(q) ||
       c.location?.toLowerCase().includes(q) ||
       c.address?.toLowerCase().includes(q) ||
@@ -1106,7 +1128,7 @@ export default function ContactsPage() {
   const clean   = (m?: string | null) => m ? toE164(m) : '';
   const getCallNumber = (c: any): string | null => {
     if (c?.numberType === 'whatsapp') return null;
-    return c?.mobile || null;
+    return c?.mobile || c?.secondaryMobile || null;
   };
   const getWhatsAppNumber = (c: any): string | null => {
     if (c?.whatsappNumber) return c.whatsappNumber;
@@ -2648,6 +2670,12 @@ export default function ContactsPage() {
                     </span>
                   )}
                 </div>
+                {selectedContact.secondaryMobile && (
+                  <p className="text-xs text-blue-400 font-mono mt-1 flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>Phone: {selectedContact.secondaryMobile}</span>
+                  </p>
+                )}
                 {selectedContact.whatsappNumber && (
                   <p className="text-xs text-emerald-400 font-mono mt-1 flex items-center gap-1.5">
                     <FaWhatsapp className="w-3.5 h-3.5" />
@@ -2757,7 +2785,8 @@ export default function ContactsPage() {
               {secOpen.info && (
                 <div className="px-6 pb-5 space-y-4">
                   {([
-                    { icon: Phone,     label: `Mobile (${selectedContact.numberType === 'phone' ? 'Phone only' : selectedContact.numberType === 'whatsapp' ? 'WhatsApp only' : 'Phone & WhatsApp'})`, value: selectedContact.mobile },
+                    { icon: Phone,     label: 'Primary Mobile', value: selectedContact.mobile },
+                    ...(selectedContact.secondaryMobile ? [{ icon: Phone, label: 'Secondary Phone', value: selectedContact.secondaryMobile }] : []),
                     ...(selectedContact.whatsappNumber ? [{ icon: FaWhatsapp, label: 'WhatsApp Number', value: selectedContact.whatsappNumber }] : []),
                     { icon: Mail,      label: 'Email',        value: selectedContact.email },
                     { icon: MapPin,    label: 'Location',     value: selectedContact.location },
@@ -2855,77 +2884,111 @@ export default function ContactsPage() {
                 />
               </div>
               {/* Mobile & Number Type */}
+              {/* ── Mobile & Additional Numbers ── */}
               <div>
-                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Mobile *</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                    Mobile * <span className="text-[10px] font-normal text-slate-500 lowercase">(default: both call & whatsapp)</span>
+                  </label>
+
+                  {/* Dropdown to add numbers */}
+                  {(!editForm.secondaryMobile || !editForm.whatsappNumber) && (
+                    <div className="relative" ref={editNumberDropdownRef}>
+                      <button
+                        type="button"
+                        onClick={() => setEditNumberDropdownOpen(o => !o)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition-all cursor-pointer shadow-sm active:scale-95"
+                      >
+                        <Plus className="w-3 h-3 text-blue-400" />
+                        <span>Add number</span>
+                        <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${editNumberDropdownOpen ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      {editNumberDropdownOpen && (
+                        <div className="absolute right-0 top-full mt-1.5 z-30 w-44 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden py-1 backdrop-blur-xl">
+                          {!editForm.secondaryMobile && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditForm(f => ({ ...f, secondaryMobile: PREFIX }));
+                                setEditNumberDropdownOpen(false);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors text-left cursor-pointer"
+                            >
+                              <Phone className="w-3.5 h-3.5 text-blue-400" />
+                              <span>+ Phone</span>
+                            </button>
+                          )}
+                          {!editForm.whatsappNumber && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditForm(f => ({ ...f, whatsappNumber: PREFIX }));
+                                setEditNumberDropdownOpen(false);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors text-left cursor-pointer"
+                            >
+                              <FaWhatsapp className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>+ WhatsApp</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 <input type="tel" value={editForm.mobile} maxLength={12}
                   {...editMobileHandlers}
                   className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
                 />
 
-                {/* Number Type Selector */}
-                <div className="mt-2 grid grid-cols-3 gap-1.5 p-1 bg-slate-950/60 rounded-xl border border-white/5">
-                  <button
-                    type="button"
-                    onClick={() => setEditForm(f => ({ ...f, numberType: 'both' }))}
-                    className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
-                      (editForm.numberType || 'both') === 'both'
-                        ? 'bg-gradient-to-r from-blue-500/20 to-emerald-500/20 text-white border border-emerald-500/30 shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
-                    }`}
-                  >
-                    <span className="flex items-center gap-1">
-                      <Phone className="w-3 h-3 text-blue-400" />
-                      <span className="text-slate-500 text-[10px]">+</span>
-                      <FaWhatsapp className="w-3 h-3 text-emerald-400" />
-                    </span>
-                    <span>Both</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditForm(f => ({ ...f, numberType: 'phone' }))}
-                    className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
-                      editForm.numberType === 'phone'
-                        ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
-                    }`}
-                  >
-                    <Phone className="w-3 h-3 text-blue-400" />
-                    <span>Phone</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditForm(f => ({ ...f, numberType: 'whatsapp' }))}
-                    className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
-                      editForm.numberType === 'whatsapp'
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
-                    }`}
-                  >
-                    <FaWhatsapp className="w-3 h-3 text-emerald-400" />
-                    <span>WhatsApp</span>
-                  </button>
-                </div>
+                {/* Additional Phone Number (if added) */}
+                {Boolean(editForm.secondaryMobile) && (
+                  <div className="mt-2.5 p-2.5 bg-slate-900/60 rounded-xl border border-blue-500/20">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[11px] font-semibold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5 text-blue-400" />
+                        <span>Phone Number</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setEditForm(f => ({ ...f, secondaryMobile: '' }))}
+                        className="text-[10px] text-slate-400 hover:text-rose-400 transition-colors cursor-pointer flex items-center gap-1"
+                        title="Remove phone number"
+                      >
+                        <X className="w-3 h-3" />
+                        <span>Remove</span>
+                      </button>
+                    </div>
+                    <input
+                      type="tel"
+                      value={editForm.secondaryMobile}
+                      maxLength={12}
+                      {...editSecondaryPhoneHandlers}
+                      placeholder="01XXXXXXXXX"
+                      className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    />
+                  </div>
+                )}
 
-                {/* Optional Separate WhatsApp Number */}
-                {(editShowWhatsApp || editForm.whatsappNumber || editForm.numberType === 'phone') && (
+                {/* WhatsApp Number (if added) */}
+                {Boolean(editForm.whatsappNumber) && (
                   <div className="mt-2.5 p-2.5 bg-slate-900/60 rounded-xl border border-emerald-500/20">
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
                         <FaWhatsapp className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Different WhatsApp Number</span>
+                        <span>WhatsApp Number</span>
                       </label>
-                      {editForm.numberType !== 'phone' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditShowWhatsApp(false);
-                            setEditForm(f => ({ ...f, whatsappNumber: '' }));
-                          }}
-                          className="text-[10px] text-slate-400 hover:text-rose-400 transition-colors"
-                        >
-                          Remove
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => setEditForm(f => ({ ...f, whatsappNumber: '' }))}
+                        className="text-[10px] text-slate-400 hover:text-rose-400 transition-colors cursor-pointer flex items-center gap-1"
+                        title="Remove WhatsApp number"
+                      >
+                        <X className="w-3 h-3" />
+                        <span>Remove</span>
+                      </button>
                     </div>
                     <input
                       type="tel"
@@ -2936,20 +2999,6 @@ export default function ContactsPage() {
                       className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                     />
                   </div>
-                )}
-
-                {editForm.numberType !== 'phone' && !editShowWhatsApp && !editForm.whatsappNumber && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditShowWhatsApp(true);
-                      setEditForm(f => ({ ...f, whatsappNumber: PREFIX }));
-                    }}
-                    className="mt-1.5 text-[11px] text-slate-400 hover:text-emerald-400 transition-colors flex items-center gap-1 font-medium"
-                  >
-                    <Plus className="w-3 h-3" />
-                    <span>Different number for WhatsApp?</span>
-                  </button>
                 )}
               </div>
               <div>
@@ -3143,11 +3192,60 @@ export default function ContactsPage() {
                   />
                 </div>
 
-                {/* Mobile & Number Type */}
+                {/* ── Mobile & Additional Numbers ── */}
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
-                    Mobile *
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                      Mobile * <span className="text-[10px] font-normal text-slate-500 lowercase">(default: both call & whatsapp)</span>
+                    </label>
+
+                    {/* Dropdown to add numbers */}
+                    {(!form.secondaryMobile || !form.whatsappNumber) && (
+                      <div className="relative" ref={addNumberDropdownRef}>
+                        <button
+                          type="button"
+                          onClick={() => setAddNumberDropdownOpen(o => !o)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition-all cursor-pointer shadow-sm active:scale-95"
+                        >
+                          <Plus className="w-3 h-3 text-blue-400" />
+                          <span>Add number</span>
+                          <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${addNumberDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {addNumberDropdownOpen && (
+                          <div className="absolute right-0 top-full mt-1.5 z-30 w-44 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden py-1 backdrop-blur-xl">
+                            {!form.secondaryMobile && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setForm(f => ({ ...f, secondaryMobile: PREFIX }));
+                                  setAddNumberDropdownOpen(false);
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors text-left cursor-pointer"
+                              >
+                                <Phone className="w-3.5 h-3.5 text-blue-400" />
+                                <span>+ Phone</span>
+                              </button>
+                            )}
+                            {!form.whatsappNumber && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setForm(f => ({ ...f, whatsappNumber: PREFIX }));
+                                  setAddNumberDropdownOpen(false);
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors text-left cursor-pointer"
+                              >
+                                <FaWhatsapp className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>+ WhatsApp</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   <input
                     type="tel"
                     value={form.mobile}
@@ -3156,70 +3254,52 @@ export default function ContactsPage() {
                     className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                   />
 
-                  {/* Number Type Selector */}
-                  <div className="mt-2 grid grid-cols-3 gap-1.5 p-1 bg-slate-950/60 rounded-xl border border-white/5">
-                    <button
-                      type="button"
-                      onClick={() => setForm(f => ({ ...f, numberType: 'both' }))}
-                      className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
-                        (form.numberType || 'both') === 'both'
-                          ? 'bg-gradient-to-r from-blue-500/20 to-emerald-500/20 text-white border border-emerald-500/30 shadow-sm'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
-                      }`}
-                    >
-                      <span className="flex items-center gap-1">
-                        <Phone className="w-3 h-3 text-blue-400" />
-                        <span className="text-slate-500 text-[10px]">+</span>
-                        <FaWhatsapp className="w-3 h-3 text-emerald-400" />
-                      </span>
-                      <span>Both</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setForm(f => ({ ...f, numberType: 'phone' }))}
-                      className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
-                        form.numberType === 'phone'
-                          ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
-                      }`}
-                    >
-                      <Phone className="w-3 h-3 text-blue-400" />
-                      <span>Phone</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setForm(f => ({ ...f, numberType: 'whatsapp' }))}
-                      className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
-                        form.numberType === 'whatsapp'
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent font-medium'
-                      }`}
-                    >
-                      <FaWhatsapp className="w-3 h-3 text-emerald-400" />
-                      <span>WhatsApp</span>
-                    </button>
-                  </div>
+                  {/* Additional Phone Number (if added) */}
+                  {Boolean(form.secondaryMobile) && (
+                    <div className="mt-2.5 p-2.5 bg-slate-900/60 rounded-xl border border-blue-500/20">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-[11px] font-semibold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5 text-blue-400" />
+                          <span>Phone Number</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setForm(f => ({ ...f, secondaryMobile: '' }))}
+                          className="text-[10px] text-slate-400 hover:text-rose-400 transition-colors cursor-pointer flex items-center gap-1"
+                          title="Remove phone number"
+                        >
+                          <X className="w-3 h-3" />
+                          <span>Remove</span>
+                        </button>
+                      </div>
+                      <input
+                        type="tel"
+                        value={form.secondaryMobile}
+                        maxLength={12}
+                        {...addSecondaryPhoneHandlers}
+                        placeholder="01XXXXXXXXX"
+                        className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                      />
+                    </div>
+                  )}
 
-                  {/* Optional Separate WhatsApp Number */}
-                  {(addShowWhatsApp || form.whatsappNumber || form.numberType === 'phone') && (
+                  {/* WhatsApp Number (if added) */}
+                  {Boolean(form.whatsappNumber) && (
                     <div className="mt-2.5 p-2.5 bg-slate-900/60 rounded-xl border border-emerald-500/20">
                       <div className="flex items-center justify-between mb-1.5">
                         <label className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
                           <FaWhatsapp className="w-3.5 h-3.5 text-emerald-400" />
-                          <span>Different WhatsApp Number</span>
+                          <span>WhatsApp Number</span>
                         </label>
-                        {form.numberType !== 'phone' && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setAddShowWhatsApp(false);
-                              setForm(f => ({ ...f, whatsappNumber: '' }));
-                            }}
-                            className="text-[10px] text-slate-400 hover:text-rose-400 transition-colors"
-                          >
-                            Remove
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => setForm(f => ({ ...f, whatsappNumber: '' }))}
+                          className="text-[10px] text-slate-400 hover:text-rose-400 transition-colors cursor-pointer flex items-center gap-1"
+                          title="Remove WhatsApp number"
+                        >
+                          <X className="w-3 h-3" />
+                          <span>Remove</span>
+                        </button>
                       </div>
                       <input
                         type="tel"
@@ -3230,20 +3310,6 @@ export default function ContactsPage() {
                         className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                       />
                     </div>
-                  )}
-
-                  {form.numberType !== 'phone' && !addShowWhatsApp && !form.whatsappNumber && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAddShowWhatsApp(true);
-                        setForm(f => ({ ...f, whatsappNumber: PREFIX }));
-                      }}
-                      className="mt-1.5 text-[11px] text-slate-400 hover:text-emerald-400 transition-colors flex items-center gap-1 font-medium"
-                    >
-                      <Plus className="w-3 h-3" />
-                      <span>Different number for WhatsApp?</span>
-                    </button>
                   )}
                 </div>
 
