@@ -15,6 +15,7 @@ import {
   setMetaItem,
   enqueueSync,
 } from '@/lib/offlineSync';
+import { getAccessibleOrganizations } from '@/lib/permissions';
 
 const ROLES = [
   'Unit Leader (ইউনিট প্রধান)',
@@ -65,14 +66,7 @@ export default function ProfilePage() {
       try {
         const cachedOrgs = await getAllFromStore('organizations');
         if (cachedOrgs.length > 0) {
-          setOrgs(cachedOrgs.filter((o: any) => {
-            if (o.createdBy === user.uid || (o.allowedEmails && o.allowedEmails.includes(user.email))) return true;
-            if (o.type === 'unit' && o.parentOrgId) {
-              const parent = cachedOrgs.find((p: any) => p.id === o.parentOrgId);
-              return parent && (parent.createdBy === user.uid || (parent.allowedEmails && parent.allowedEmails.includes(user.email)));
-            }
-            return false;
-          }));
+          setOrgs(getAccessibleOrganizations(user, cachedOrgs));
         }
 
         const cachedProfile = await getMetaItem<any>(`profile_${user.uid}`);
@@ -96,14 +90,7 @@ export default function ProfilePage() {
         const orgsSnap = await get(ref(database, 'organizations'));
         if (orgsSnap.exists()) {
           const all = Object.entries(orgsSnap.val()).map(([id, v]: any) => ({ id, ...v }));
-          setOrgs(all.filter(o => {
-            if (o.createdBy === user.uid || (o.allowedEmails && o.allowedEmails.includes(user.email))) return true;
-            if (o.type === 'unit' && o.parentOrgId) {
-              const parent = all.find(p => p.id === o.parentOrgId);
-              return parent && (parent.createdBy === user.uid || (parent.allowedEmails && parent.allowedEmails.includes(user.email)));
-            }
-            return false;
-          }));
+          setOrgs(getAccessibleOrganizations(user, all));
         }
         // Load profile via onValue for real-time
         const unsub = onValue(ref(database, `users/${user.uid}/profile`), snap => {

@@ -24,6 +24,11 @@ import {
   getMetaItem,
 } from '@/lib/offlineSync';
 import { isSuperAdmin } from '@/lib/superadmin';
+import {
+  getAccessibleOrganizations,
+  getAccessibleOrgIds,
+  filterAccessibleContacts,
+} from '@/lib/permissions';
 
 const PREFIX = '01';
 const emptyForm = {
@@ -766,19 +771,32 @@ export default function ContactsPage() {
     if (!user) return;
     const unsub = onValue(ref(database, 'contacts'), snap => {
       if (snap.exists()) {
-        const allContacts = Object.entries(snap.val()).map(([id, v]: any) => ({ id, ...v }));
-        putAllInStore('contacts', allContacts).catch(() => {});
+        const rawContacts = Object.entries(snap.val()).map(([id, v]: any) => ({ id, ...v }));
+        const currentOrgs = allOrgs.length > 0 ? allOrgs : organizations;
+        const accessibleOrgIds = getAccessibleOrgIds(user, currentOrgs);
+
+        // Filter only contacts accessible to this user
+        // ("ward can only see their own persons", "ward owner can see their and their children's persons")
+        const accessibleCloudContacts = filterAccessibleContacts(rawContacts, user, accessibleOrgIds);
+
+        // Save only accessible contacts to store (prevents caching other wards' private data)
+        putAllInStore('contacts', accessibleCloudContacts).catch(() => {});
+
         setContacts(prev => {
-          const cloudMap = new Map(allContacts.map(c => [c.id, c]));
-          const updated = prev.map(c => cloudMap.get(c.id) ? { ...c, ...cloudMap.get(c.id) } : c);
-          const localIds = new Set(prev.map(c => c.id));
-          const newFromCloud = allContacts.filter(c => !localIds.has(c.id));
+          // Keep optimistic local contacts that haven't reached Firebase yet
+          const localOnly = prev.filter(c => c.id?.startsWith('offline_') || !rawContacts.some((rc: any) => rc.id === c.id));
+          const validLocalOnly = filterAccessibleContacts(localOnly, user, accessibleOrgIds);
+
+          const cloudMap = new Map(accessibleCloudContacts.map(c => [c.id, c]));
+          const updated = validLocalOnly.map(c => cloudMap.get(c.id) ? { ...c, ...cloudMap.get(c.id) } : c);
+          const updatedIds = new Set(updated.map(c => c.id));
+          const newFromCloud = accessibleCloudContacts.filter(c => !updatedIds.has(c.id));
           return [...updated, ...newFromCloud];
         });
       }
     });
     return () => unsub();
-  }, [user]);
+  }, [user, allOrgs, organizations]);
 
   // Listen to system settings for deletion permissions
   useEffect(() => {
@@ -1010,18 +1028,11 @@ export default function ContactsPage() {
 
       if (cachedOrgs.length > 0 || cachedContacts.length > 0) {
         setAllOrgs(cachedOrgs);
-        const myOrgs = cachedOrgs.filter((o: any) => {
-          if (o.createdBy === user.uid || (o.allowedEmails && o.allowedEmails.includes(user.email))) return true;
-          if (o.type === 'unit' && o.parentOrgId) {
-            const parent = cachedOrgs.find((p: any) => p.id === o.parentOrgId);
-            return parent && (parent.createdBy === user.uid || (parent.allowedEmails && parent.allowedEmails.includes(user.email)));
-          }
-          return false;
-        });
+        const myOrgs = getAccessibleOrganizations(user, cachedOrgs);
         setOrganizations(myOrgs);
 
-        const myOrgIds = myOrgs.map(o => o.id);
-        const myContacts = cachedContacts.filter((c: any) => myOrgIds.includes(c.organizationId));
+        const myOrgIds = new Set(myOrgs.map(o => o.id));
+        const myContacts = filterAccessibleContacts(cachedContacts, user, myOrgIds);
         setContacts(myContacts);
 
         if (cachedActs.length > 0) {
@@ -1063,35 +1074,29 @@ export default function ContactsPage() {
 
       const orgsSnap = await get(ref(database, 'organizations'));
       let myOrgs: any[] = [];
-      let allOrgs: any[] = [];
+      let allOrgsList: any[] = [];
       if (orgsSnap.exists()) {
-        allOrgs = Object.entries(orgsSnap.val()).map(([id, v]: any) => ({ id, ...v }));
-        setAllOrgs(allOrgs);
-        myOrgs = allOrgs.filter(o => {
-          if (o.createdBy === user.uid || (o.allowedEmails && o.allowedEmails.includes(user.email))) return true;
-          if (o.type === 'unit' && o.parentOrgId) {
-            const parent = allOrgs.find(p => p.id === o.parentOrgId);
-            return parent && (parent.createdBy === user.uid || (parent.allowedEmails && parent.allowedEmails.includes(user.email)));
-          }
-          return false;
-        });
+        allOrgsList = Object.entries(orgsSnap.val()).map(([id, v]: any) => ({ id, ...v }));
+        setAllOrgs(allOrgsList);
+        myOrgs = getAccessibleOrganizations(user, allOrgsList);
         setOrganizations(myOrgs);
-        await putAllInStore('organizations', allOrgs);
+        await putAllInStore('organizations', allOrgsList);
       }
 
       const cSnap = await get(ref(database, 'contacts'));
       if (cSnap.exists()) {
-        const allContacts = Object.entries(cSnap.val()).map(([id, v]: any) => ({ id, ...v }));
-        const myOrgIds = myOrgs.map(o => o.id);
-        const myContacts = allContacts.filter(c => myOrgIds.includes(c.organizationId));
+        const rawContacts = Object.entries(cSnap.val()).map(([id, v]: any) => ({ id, ...v }));
+        const myOrgIds = new Set(myOrgs.map(o => o.id));
+        const myContacts = filterAccessibleContacts(rawContacts, user, myOrgIds);
         
         // Preserve any optimistic locally added contacts that haven't reached Firebase yet
         setContacts(prev => {
           const cloudIds = new Set(myContacts.map(c => c.id));
           const localOnly = prev.filter(c => !cloudIds.has(c.id));
-          return [...localOnly, ...myContacts];
+          const validLocalOnly = filterAccessibleContacts(localOnly, user, myOrgIds);
+          return [...validLocalOnly, ...myContacts];
         });
-        await putAllInStore('contacts', allContacts);
+        await putAllInStore('contacts', myContacts);
       } else {
         setContacts(prev => prev.filter(c => c.id?.startsWith('offline_')));
       }

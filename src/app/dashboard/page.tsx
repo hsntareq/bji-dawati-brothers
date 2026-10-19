@@ -11,6 +11,10 @@ import {
   setMetaItem,
   enqueueSync,
 } from '@/lib/offlineSync';
+import {
+  getAccessibleOrganizations,
+  filterAccessibleContacts,
+} from '@/lib/permissions';
 import Link from 'next/link';
 import {
   Building2, Users, Target, TrendingUp, Award,
@@ -104,18 +108,11 @@ export default function DashboardPage() {
       }
 
       if (cachedOrgs && cachedOrgs.length > 0) {
-        const mine = cachedOrgs.filter((o: any) => {
-          if (o.createdBy === user.uid || (o.allowedEmails && o.allowedEmails.includes(user.email))) return true;
-          if (o.type === 'unit' && o.parentOrgId) {
-            const parent = cachedOrgs.find((p: any) => p.id === o.parentOrgId);
-            return parent && (parent.createdBy === user.uid || (parent.allowedEmails && parent.allowedEmails.includes(user.email)));
-          }
-          return false;
-        });
+        const mine = getAccessibleOrganizations(user, cachedOrgs);
         setOrganizations(mine);
 
-        const myOrgIds = mine.map((o: any) => o.id);
-        const myContacts = (cachedContacts || []).filter((c: any) => myOrgIds.includes(c.organizationId));
+        const myOrgIds = new Set(mine.map((o: any) => o.id));
+        const myContacts = filterAccessibleContacts(cachedContacts || [], user, myOrgIds);
         setContacts(myContacts);
 
         if (cachedActs) setActivities(cachedActs);
@@ -147,14 +144,7 @@ export default function DashboardPage() {
         const allOrgs = Object.entries(oSnap.val()).map(([id, v]: any) => ({ id, ...v }));
         await putAllInStore('organizations', allOrgs);
 
-        myOrgs = allOrgs.filter(o => {
-          if (o.createdBy === user.uid || (o.allowedEmails && o.allowedEmails.includes(user.email))) return true;
-          if (o.type === 'unit' && o.parentOrgId) {
-            const parent = allOrgs.find(p => p.id === o.parentOrgId);
-            return parent && (parent.createdBy === user.uid || (parent.allowedEmails && parent.allowedEmails.includes(user.email)));
-          }
-          return false;
-        });
+        myOrgs = getAccessibleOrganizations(user, allOrgs);
         setOrganizations(myOrgs);
       }
 
@@ -162,9 +152,9 @@ export default function DashboardPage() {
       const cSnap = await get(ref(database, 'contacts'));
       if (cSnap.exists()) {
         const allContacts = Object.entries(cSnap.val()).map(([id, v]: any) => ({ id, ...v }));
-        await putAllInStore('contacts', allContacts);
-        const myOrgIds = myOrgs.map(o => o.id);
-        const myContacts = allContacts.filter(c => myOrgIds.includes(c.organizationId));
+        const myOrgIds = new Set(myOrgs.map(o => o.id));
+        const myContacts = filterAccessibleContacts(allContacts, user, myOrgIds);
+        await putAllInStore('contacts', myContacts);
         setContacts(myContacts);
       } else {
         setContacts([]);

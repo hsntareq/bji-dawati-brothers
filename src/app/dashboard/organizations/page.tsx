@@ -19,6 +19,10 @@ import {
   getMetaItem,
   setMetaItem,
 } from '@/lib/offlineSync';
+import {
+  getAccessibleOrganizations,
+  filterAccessibleContacts,
+} from '@/lib/permissions';
 
 const ORG_TYPES = [
   { value: 'ward',   label: 'Ward',   desc: 'Parent ward — oversees multiple units', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
@@ -91,14 +95,7 @@ export default function OrganizationsPage() {
       const cached = await getAllFromStore('organizations');
       if (cached && cached.length > 0) {
         setAllOrgsRaw(cached);
-        const mine = cached.filter((o: any) => {
-          if (o.createdBy === user.uid || (o.allowedEmails && o.allowedEmails.includes(user.email))) return true;
-          if (o.type === 'unit' && o.parentOrgId) {
-            const parent = cached.find((p: any) => p.id === o.parentOrgId);
-            return parent && (parent.createdBy === user.uid || parent.allowedEmails?.includes(user.email));
-          }
-          return false;
-        });
+        const mine = getAccessibleOrganizations(user, cached);
         setOrganizations(mine);
         const wardIds = new Set(mine.filter((o: any) => o.type === 'ward').map((o: any) => o.id));
         setExpandedWards(wardIds as Set<string>);
@@ -121,6 +118,7 @@ export default function OrganizationsPage() {
     }
 
     try {
+      let mine: any[] = [];
       const snap = await get(ref(database, 'organizations'));
       if (snap.exists()) {
         const all = Object.entries(snap.val()).map(([id, v]: any) => ({ id, ...v }));
@@ -128,17 +126,11 @@ export default function OrganizationsPage() {
         await putAllInStore('organizations', all);
 
         // Access rule:
-        // 1. Direct creator
-        // 2. Directly in allowedEmails
-        // 3. Child unit whose parent ward allows this user
-        const mine = all.filter(o => {
-          if (o.createdBy === user.uid || (o.allowedEmails && o.allowedEmails.includes(user.email))) return true;
-          if (o.type === 'unit' && o.parentOrgId) {
-            const parent = all.find(p => p.id === o.parentOrgId);
-            return parent && (parent.createdBy === user.uid || parent.allowedEmails?.includes(user.email));
-          }
-          return false;
-        });
+        // - SuperAdmin: All orgs
+        // - Ward owner: Their ward and all child units
+        // - Ward member: Only their ward
+        // - Unit owner/member: Only their unit
+        mine = getAccessibleOrganizations(user, all);
         setOrganizations(mine);
 
         // Keep selectedOrg in sync if currently open
@@ -157,11 +149,14 @@ export default function OrganizationsPage() {
         setAllOrgsRaw([]);
       }
 
-      // Fetch contact counts per org
+      // Fetch contact counts per accessible org
       const cSnap = await get(ref(database, 'contacts'));
       if (cSnap.exists()) {
         const counts: Record<string, number> = {};
-        Object.values(cSnap.val()).forEach((c: any) => {
+        const allContacts = Object.values(cSnap.val()) as any[];
+        const accessibleOrgIds = new Set<string>(mine.map((o: any) => o.id));
+        const accessibleContacts = filterAccessibleContacts(allContacts, user, accessibleOrgIds);
+        accessibleContacts.forEach((c: any) => {
           if (c.organizationId) {
             counts[c.organizationId] = (counts[c.organizationId] || 0) + 1;
           }
