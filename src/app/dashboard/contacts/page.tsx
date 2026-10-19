@@ -1224,59 +1224,29 @@ export default function ContactsPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-4">
-
-      {/* ── Page Header & Primary Actions ────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pb-1">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600/25 via-indigo-600/20 to-blue-400/10 border border-blue-500/30 flex items-center justify-center text-blue-400 shadow-sm shadow-blue-500/10 shrink-0">
-            <Users className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                {t('contacts')}
-              </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-500/15 text-blue-300 border border-blue-500/30">
-                {filtered.length}{filtered.length !== contacts.length ? ` / ${contacts.length}` : ''}
-              </span>
-            </div>
-            <p className="text-xs text-slate-400">
-              {language === 'bn' ? 'সকল পরিচিতি ও দাওয়াতি কার্যক্রম পরিচালনা করুন' : 'Manage dawati contacts & activity logs'}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          {allowDeleteAll && (isSuperAdmin(user?.email) || isHasanTareq) && contacts.length > 0 && (
-            <button
-              type="button"
-              onClick={handleDeleteAllVisibleContacts}
-              disabled={deletingAll}
-              title="Delete All Contacts"
-              className="h-10 px-3.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 flex-shrink-0"
-            >
-              {deletingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-              <span className="hidden sm:inline">Delete All ({contacts.length})</span>
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={handleOpenAddModal}
-            className="group h-10 px-4 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold shadow-md shadow-blue-600/20 hover:shadow-blue-600/35 border border-blue-400/30 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 flex-1 sm:flex-initial bji-btn-primary bji-keep-white"
-          >
-            <UserPlus className="w-4 h-4 text-white bji-keep-white transition-transform group-hover:scale-110" />
-            <span className="text-white text-sm font-semibold bji-keep-white">{t('addPerson')}</span>
-          </button>
-        </div>
-      </div>
-
+      <h1 className="sr-only">{t('contacts')}</h1>
 
       {/* ── People List ──────────────────────────────── */}
       <div className="space-y-4">
         <div className="sticky top-[var(--header-offset,0px)] z-20 py-1.5 transition-[top] duration-300">
           <div className="relative w-full">
-            <div className="flex items-center w-full bg-slate-900/90 border border-white/10 rounded-2xl focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+            <div className="flex items-center gap-2 w-full">
+              {/* + New Button */}
+              <button
+                type="button"
+                onClick={handleOpenAddModal}
+                className="h-11 px-3.5 sm:px-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold shadow-md shadow-blue-600/20 hover:shadow-blue-600/35 border border-blue-400/30 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0 bji-btn-primary bji-keep-white"
+                title={t('addPerson')}
+              >
+                <Plus className="w-4 h-4 text-white bji-keep-white stroke-[2.5]" />
+                <span className="text-white text-xs sm:text-sm font-semibold bji-keep-white whitespace-nowrap">
+                  {language === 'bn' ? 'নতুন' : 'New'}
+                  <span className="hidden sm:inline">{language === 'bn' ? ' ব্যক্তি' : ' Person'}</span>
+                </span>
+              </button>
+
+              {/* Search bar */}
+              <div className="flex items-center flex-1 min-w-0 bg-slate-900/90 border border-white/10 rounded-2xl focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
               {/* Search Input */}
               <div className="relative flex-1 min-w-0">
                 <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -1516,10 +1486,29 @@ export default function ContactsPage() {
                         </button>
                       </>
                     )}
+
+                    {allowDeleteAll && (isSuperAdmin(user?.email) || isHasanTareq) && contacts.length > 0 && (
+                      <>
+                        <div className="my-1 border-t border-white/10" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMoreOpen(false);
+                            handleDeleteAllVisibleContacts();
+                          }}
+                          disabled={deletingAll}
+                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/15 transition-colors text-left cursor-pointer"
+                        >
+                          {deletingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                          <span>Delete All Contacts ({contacts.length})</span>
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
             </div>
+          </div>
 
             {/* Filter Dropdown – Equal width as the bar, opens in the middle / full-width */}
             {filterOpen && (
