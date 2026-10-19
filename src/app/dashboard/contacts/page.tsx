@@ -8,7 +8,7 @@ import {
   Users, Loader2, Phone, Search, Building2,
   Pencil, Trash2, X, Mail, MapPin, Calendar, SlidersHorizontal, ChevronDown, ChevronLeft,
   Plus, BookOpen, BookMarked, Library, Check, Trash2 as Delete, Send, UserPlus,
-  MoreVertical, Download, RefreshCw, RotateCcw, CheckSquare,
+  MoreVertical, Download, RefreshCw, RotateCcw, CheckSquare, LayoutList,
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useLanguage } from '@/context/LanguageContext';
@@ -314,11 +314,21 @@ export default function ContactsPage() {
 
   // ── Bulk Selection & Actions ─────────────────────────
   const [editOrgOrDeleteMode, setEditOrgOrDeleteMode] = useState(false);
+  const [compactMode, setCompactMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkOrgModalOpen, setBulkOrgModalOpen] = useState(false);
   const [targetBulkOrgId, setTargetBulkOrgId] = useState('');
   const [bulkUpdatingOrg, setBulkUpdatingOrg] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('bji_compact_contacts');
+      if (saved === 'true') {
+        setCompactMode(true);
+      }
+    }
+  }, []);
 
   // ── Activities ─────────────────────────────────────
   const [activities,       setActivities]       = useState<any[]>([]);
@@ -1385,6 +1395,33 @@ export default function ContactsPage() {
                       <CustomCheckbox checked={editOrgOrDeleteMode} />
                     </button>
 
+                    {/* Checkbox: Compact list view */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCompactMode(prev => {
+                          const next = !prev;
+                          if (typeof window !== 'undefined') {
+                            try {
+                              localStorage.setItem('bji_compact_contacts', String(next));
+                            } catch {}
+                          }
+                          return next;
+                        });
+                      }}
+                      className={`w-full flex items-center justify-between px-3.5 py-2 text-xs font-medium transition-colors text-left cursor-pointer ${
+                        compactMode
+                          ? 'bg-blue-500/15 text-blue-300 font-semibold'
+                          : 'text-slate-200 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <LayoutList className={`w-4 h-4 ${compactMode ? 'text-blue-400' : 'text-slate-400'}`} />
+                        <span>Compact view</span>
+                      </div>
+                      <CustomCheckbox checked={compactMode} />
+                    </button>
+
                     {/* Quick Select All */}
                     <button
                       type="button"
@@ -1731,8 +1768,152 @@ export default function ContactsPage() {
             )}
 
             {/* ── Mobile card list (< md) ── */}
-            <div className="md:hidden space-y-2.5 pt-1">
+            <div className={`md:hidden ${compactMode ? 'space-y-1.5 pt-0.5' : 'space-y-2.5 pt-1'}`}>
               {filtered.map(c => (
+                compactMode ? (
+                  <div
+                    key={c.id}
+                    className={`group relative border rounded-xl px-2.5 py-2 shadow-sm backdrop-blur-sm transition-all ${
+                      selectedIds.has(c.id)
+                        ? 'bji-selected-card border-blue-500/40'
+                        : 'border-white/[0.08] hover:border-white/15 bg-slate-900/90'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {/* Bulk Selection Checkbox */}
+                      {editOrgOrDeleteMode && (
+                        <div
+                          onClick={(e) => toggleSelectOne(c.id, e)}
+                          className="p-1 -ml-1 rounded-md hover:bg-white/5 active:scale-90 transition-all cursor-pointer flex-shrink-0 flex items-center justify-center"
+                          title={selectedIds.has(c.id) ? "Deselect contact" : "Select contact"}
+                        >
+                          <CustomCheckbox checked={selectedIds.has(c.id)} className="w-4 h-4 !rounded-md" />
+                        </div>
+                      )}
+
+                      {/* Small Avatar with S / K badge */}
+                      <div
+                        onClick={() => setSelectedContact(c)}
+                        className="relative shrink-0 cursor-pointer group/avatar"
+                        title="View contact details"
+                      >
+                        <div
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shadow-inner border select-none transition-transform group-hover/avatar:scale-105 active:scale-95 ${
+                            c.category === 'kormi'
+                              ? 'bg-gradient-to-br from-emerald-500/20 via-teal-500/15 to-emerald-600/30 text-emerald-300 border-emerald-500/30'
+                              : 'bg-gradient-to-br from-blue-500/20 via-indigo-500/15 to-blue-600/30 text-blue-300 border-blue-500/30'
+                          }`}
+                        >
+                          {c.name?.[0]?.toUpperCase() ?? '?'}
+                        </div>
+                        <span
+                          title={c.category === 'kormi' ? 'কর্মী (Kormi)' : 'সহযোগী (Shohojogi)'}
+                          className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black border border-slate-900 bji-avatar-border shadow-sm ${
+                            c.category === 'kormi'
+                              ? 'bg-emerald-500 text-slate-950'
+                              : 'bg-blue-500 text-white'
+                          }`}
+                        >
+                          {c.category === 'kormi' ? 'K' : 'S'}
+                        </span>
+                      </div>
+
+                      {/* Middle Details: Name + Unit / Location */}
+                      <div className="flex-1 min-w-0 pr-1">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedContact(c)}
+                          className="text-xs font-semibold text-slate-100 hover:text-blue-400 transition-colors truncate max-w-full text-left focus:outline-none block leading-tight"
+                          title="View contact details"
+                        >
+                          {c.name}
+                        </button>
+                        <p className="text-[10px] text-slate-400 truncate leading-tight mt-0.5">
+                          {orgName(c.organizationId)}
+                          {c.location ? ` • ${c.location}` : ''}
+                        </p>
+                      </div>
+
+                      {/* Status Dropdown Pill */}
+                      <div
+                        className={`relative inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all hover:brightness-110 cursor-pointer shrink-0 ${
+                          c.status ? '' : 'bji-status-unset border-dashed'
+                        }`}
+                        style={c.status ? {
+                          backgroundColor: `${statusMeta(c.status).dot}15`,
+                          borderColor: `${statusMeta(c.status).dot}40`,
+                          color: statusMeta(c.status).dot,
+                        } : {}}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <span
+                          className="w-1.5 h-1.5 rounded-full shrink-0"
+                          style={{ backgroundColor: statusMeta(c.status).dot }}
+                        />
+                        <span className="truncate max-w-[62px]">
+                          {statusMeta(c.status).label}
+                        </span>
+                        <ChevronDown className="w-2.5 h-2.5 opacity-60 shrink-0" />
+                        <select
+                          value={c.status ?? ''}
+                          onChange={e => handleStatusChange(c, e.target.value, e)}
+                          onClick={e => e.stopPropagation()}
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                        >
+                          {STATUSES.map(s => (
+                            <option key={s.value} value={s.value} style={{ background: '#0f172a', color: s.dot }}>
+                              {s.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Quick Action Buttons */}
+                      {(() => {
+                        const callNum = getCallNumber(c);
+                        const waNum = getWhatsAppNumber(c);
+                        return (
+                          <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                            {callNum ? (
+                              <a
+                                href={`tel:${clean(callNum)}`}
+                                title={`Call ${callNum}`}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-500/10 hover:bg-blue-500/25 text-blue-400 border border-blue-500/20 active:scale-95 transition-all shadow-sm"
+                              >
+                                <Phone className="w-3.5 h-3.5" />
+                              </a>
+                            ) : (
+                              <span
+                                title="WhatsApp only"
+                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.02] text-slate-600 border border-white/5 opacity-40 cursor-not-allowed"
+                              >
+                                <Phone className="w-3.5 h-3.5" />
+                              </span>
+                            )}
+                            {waNum ? (
+                              <a
+                                href={`https://wa.me/${clean(waNum)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title={`WhatsApp ${waNum}`}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/20 active:scale-95 transition-all shadow-sm"
+                              >
+                                <FaWhatsapp className="w-3.5 h-3.5" />
+                              </a>
+                            ) : (
+                              <span
+                                title="Phone only"
+                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.02] text-slate-600 border border-white/5 opacity-40 cursor-not-allowed"
+                              >
+                                <FaWhatsapp className="w-3.5 h-3.5" />
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                ) : (
                 <div
                   key={c.id}
                   className={`group relative border rounded-2xl p-3.5 shadow-sm backdrop-blur-sm transition-all ${
@@ -1929,6 +2110,7 @@ export default function ContactsPage() {
                     ) : null}
                   </div>
                 </div>
+                )
               ))}
             </div>
 
