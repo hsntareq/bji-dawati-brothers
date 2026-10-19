@@ -28,6 +28,7 @@ import { isSuperAdmin } from '@/lib/superadmin';
 const PREFIX = '01';
 const emptyForm = {
   name: '',
+  nameBn: '',
   mobile: PREFIX,
   secondaryMobile: '',
   numberType: 'both' as 'both' | 'phone' | 'whatsapp',
@@ -783,6 +784,7 @@ export default function ContactsPage() {
       const newId = generateOfflineId('contact');
       const contactData = {
         name: form.name.trim(),
+        nameBn: form.nameBn?.trim() || null,
         mobile: form.mobile.trim(),
         secondaryMobile: form.secondaryMobile?.trim() && form.secondaryMobile.replace(/\D/g, '').length === 11 ? form.secondaryMobile.trim() : null,
         whatsappNumber: form.whatsappNumber?.trim() && form.whatsappNumber.replace(/\D/g, '').length === 11 ? form.whatsappNumber.trim() : null,
@@ -842,6 +844,7 @@ export default function ContactsPage() {
     setEditContact(c);
     setEditForm({
       name: c.name ?? '',
+      nameBn: c.nameBn ?? '',
       mobile: c.mobile ?? PREFIX,
       secondaryMobile: c.secondaryMobile ?? '',
       whatsappNumber: c.whatsappNumber ?? '',
@@ -870,6 +873,7 @@ export default function ContactsPage() {
     try {
       const updated = {
         name: editForm.name.trim(),
+        nameBn: editForm.nameBn?.trim() || null,
         mobile: editForm.mobile.trim(),
         secondaryMobile: editForm.secondaryMobile?.trim() && editForm.secondaryMobile.replace(/\D/g, '').length === 11 ? editForm.secondaryMobile.trim() : null,
         whatsappNumber: editForm.whatsappNumber?.trim() && editForm.whatsappNumber.replace(/\D/g, '').length === 11 ? editForm.whatsappNumber.trim() : null,
@@ -1081,9 +1085,10 @@ export default function ContactsPage() {
       alert('No contacts to export.');
       return;
     }
-    const headers = ['Name', 'Mobile', 'Secondary Phone', 'WhatsApp Number', 'Number Type', 'Category', 'Status', 'Organization', 'Location', 'Address', 'Email', 'Note'];
+    const headers = ['Name', 'Bangla Name', 'Mobile', 'Secondary Phone', 'WhatsApp Number', 'Number Type', 'Category', 'Status', 'Organization', 'Location', 'Address', 'Email', 'Note'];
     const rows = filtered.map(c => [
       `"${(c.name || '').replace(/"/g, '""')}"`,
+      `"${(c.nameBn || '').replace(/"/g, '""')}"`,
       `"${(c.mobile || '').replace(/"/g, '""')}"`,
       `"${(c.secondaryMobile || '').replace(/"/g, '""')}"`,
       `"${(c.whatsappNumber || '').replace(/"/g, '""')}"`,
@@ -1110,6 +1115,7 @@ export default function ContactsPage() {
     const q = searchQuery.toLowerCase().trim();
     const matchSearch = !q ||
       c.name?.toLowerCase().includes(q) ||
+      c.nameBn?.toLowerCase().includes(q) ||
       c.mobile?.includes(q) ||
       c.secondaryMobile?.includes(q) ||
       c.whatsappNumber?.includes(q) ||
@@ -1833,9 +1839,12 @@ export default function ContactsPage() {
                           type="button"
                           onClick={() => setSelectedContact(c)}
                           className="text-xs font-semibold text-slate-100 hover:text-blue-400 transition-colors truncate max-w-full text-left focus:outline-none block leading-tight"
-                          title="View contact details"
+                          title={c.nameBn ? `${c.name} (${c.nameBn})` : c.name}
                         >
-                          {c.name}
+                          <span>{c.name}</span>
+                          {c.nameBn && (
+                            <span className="ml-1 text-[11px] font-normal text-slate-400">({c.nameBn})</span>
+                          )}
                         </button>
                         <p className="text-[10px] text-slate-400 truncate leading-tight mt-0.5">
                           {orgName(c.organizationId)}
@@ -2000,9 +2009,12 @@ export default function ContactsPage() {
                           type="button"
                           onClick={() => setSelectedContact(c)}
                           className="text-sm font-semibold text-slate-100 hover:text-blue-400 transition-colors truncate max-w-[190px] sm:max-w-xs cursor-pointer text-left focus:outline-none"
-                          title="View contact details"
+                          title={c.nameBn ? `${c.name} (${c.nameBn})` : c.name}
                         >
-                          {c.name}
+                          <span>{c.name}</span>
+                          {c.nameBn && (
+                            <span className="ml-1.5 text-xs font-normal text-slate-400">({c.nameBn})</span>
+                          )}
                         </button>
                       </div>
 
@@ -2229,9 +2241,12 @@ export default function ContactsPage() {
                                 type="button"
                                 onClick={() => setSelectedContact(c)}
                                 className="text-sm font-semibold text-white hover:text-blue-400 transition-colors cursor-pointer text-left block truncate max-w-full focus:outline-none"
-                                title={c.name}
+                                title={c.nameBn ? `${c.name} (${c.nameBn})` : c.name}
                               >
-                                {c.name}
+                                <span>{c.name}</span>
+                                {c.nameBn && (
+                                  <span className="ml-1.5 text-xs font-normal text-slate-400">({c.nameBn})</span>
+                                )}
                               </button>
                               <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
                                 <span className={c.category === 'kormi' ? 'text-emerald-400/90 font-medium' : 'text-blue-400/90 font-medium'}>
@@ -2642,7 +2657,12 @@ export default function ContactsPage() {
               })()}
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-lg font-semibold text-white leading-tight">{selectedContact.name}</p>
+                  <p className="text-lg font-semibold text-white leading-tight">
+                    <span>{selectedContact.name}</span>
+                    {selectedContact.nameBn && (
+                      <span className="ml-2 text-sm font-normal text-slate-400">({selectedContact.nameBn})</span>
+                    )}
+                  </p>
                   <StarBadge level={getPerfLevel(actSummary[selectedContact.id] ?? 0)} />
                 </div>
                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -2876,12 +2896,25 @@ export default function ContactsPage() {
                   </button>
                 </div>
               </div>
-              <div>
-                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Name *</label>
-                <input type="text" value={editForm.name} placeholder="Full name"
-                  onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                  className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
-                />
+              {/* Name & Bangla Name */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">Name *</label>
+                  <input type="text" value={editForm.name} placeholder="Full name (English)"
+                    onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5 flex items-center justify-between">
+                    <span>Bangla Name</span>
+                    <span className="text-[10px] text-slate-500 lowercase font-normal">(ঐচ্ছিক)</span>
+                  </label>
+                  <input type="text" value={editForm.nameBn || ''} placeholder="বাংলা নাম (যেমন: রনি)"
+                    onChange={e => setEditForm(f => ({ ...f, nameBn: e.target.value }))}
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                  />
+                </div>
               </div>
               {/* Mobile & Number Type */}
               {/* ── Mobile Input Group with Inline Dropdown ── */}
@@ -3254,20 +3287,35 @@ export default function ContactsPage() {
                   </div>
                 </div>
 
-                {/* Name */}
-                <div>
-                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
-                    Name *
-                  </label>
-                  <input
-                    ref={nameInputRef}
-                    autoFocus
-                    type="text"
-                    value={form.name}
-                    placeholder="Full name"
-                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                  />
+                {/* Name & Bangla Name */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
+                      Name *
+                    </label>
+                    <input
+                      ref={nameInputRef}
+                      autoFocus
+                      type="text"
+                      value={form.name}
+                      placeholder="Full name (English)"
+                      onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                      className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5 flex items-center justify-between">
+                      <span>Bangla Name</span>
+                      <span className="text-[10px] text-slate-500 lowercase font-normal">(ঐচ্ছিক)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form.nameBn || ''}
+                      placeholder="বাংলা নাম (যেমন: রনি)"
+                      onChange={e => setForm(f => ({ ...f, nameBn: e.target.value }))}
+                      className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    />
+                  </div>
                 </div>
 
                 {/* ── Mobile Input Group with Inline Dropdown ── */}
