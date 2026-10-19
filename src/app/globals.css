@@ -808,3 +808,12 @@ body {
   to   { transform: translateX(0);     opacity: 1; }
 }
 
+/* Ensure contact card with open status dropdown stacks above adjacent cards */
+.bji-contact-card:has([data-status-open="true"]) {
+  z-index: 50 !important;
+}
+tr.bji-contact-card:has([data-status-open="true"]) {
+  position: relative;
+  z-index: 50 !important;
+}
+

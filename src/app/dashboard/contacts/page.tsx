@@ -143,13 +143,22 @@ function StatusSelectOrCreate({
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 50);
+      const card = containerRef.current?.closest<HTMLElement>('.bji-contact-card, tr');
+      if (card) {
+        card.style.zIndex = '50';
+      }
       const handleClick = (e: MouseEvent) => {
         if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
           setIsOpen(false);
         }
       };
       document.addEventListener('mousedown', handleClick);
-      return () => document.removeEventListener('mousedown', handleClick);
+      return () => {
+        if (card) {
+          card.style.zIndex = '';
+        }
+        document.removeEventListener('mousedown', handleClick);
+      };
     }
   }, [isOpen]);
 
@@ -178,7 +187,12 @@ function StatusSelectOrCreate({
   };
 
   return (
-    <div ref={containerRef} className="relative inline-block" onClick={e => e.stopPropagation()}>
+    <div
+      ref={containerRef}
+      data-status-open={isOpen ? "true" : undefined}
+      className={`relative inline-block ${isOpen ? 'z-50' : ''}`}
+      onClick={e => e.stopPropagation()}
+    >
       <div
         ref={buttonRef}
         onClick={handleToggle}
@@ -2351,7 +2365,7 @@ export default function ContactsPage() {
                 compactMode ? (
                   <div
                     key={c.id}
-                    className={`group relative border rounded-xl px-2.5 py-2 shadow-sm backdrop-blur-sm transition-all ${
+                    className={`bji-contact-card group relative border rounded-xl px-2.5 py-2 shadow-sm backdrop-blur-sm transition-all ${
                       selectedIds.has(c.id)
                         ? 'bji-selected-card border-blue-500/40'
                         : 'border-white/[0.08] hover:border-white/15 bg-slate-900/90'
@@ -2473,7 +2487,7 @@ export default function ContactsPage() {
                 ) : (
                 <div
                   key={c.id}
-                  className={`group relative border rounded-2xl p-3.5 shadow-sm backdrop-blur-sm transition-all ${
+                  className={`bji-contact-card group relative border rounded-2xl p-3.5 shadow-sm backdrop-blur-sm transition-all ${
                     selectedIds.has(c.id)
                       ? 'bji-selected-card border-blue-500/40'
                       : 'border-white/[0.08] hover:border-white/15 bg-slate-900/90'
@@ -2684,7 +2698,7 @@ export default function ContactsPage() {
                     return (
                       <tr
                         key={c.id}
-                        className={`group/row transition-all duration-150 ${
+                        className={`bji-contact-card group/row transition-all duration-150 ${
                           isSelected
                             ? 'bji-selected-row'
                             : 'hover:bg-white/[0.03]'
