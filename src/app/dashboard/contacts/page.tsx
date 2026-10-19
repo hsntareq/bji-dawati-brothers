@@ -1230,12 +1230,13 @@ export default function ContactsPage() {
       <div className="space-y-4">
         <div className="sticky top-[var(--header-offset,0px)] z-20 py-1.5 transition-[top] duration-300">
           <div className="relative w-full">
-            <div className="flex items-center gap-2 w-full">
-              {/* + New Button */}
+            {/* Unified connected search & actions bar */}
+            <div className="flex items-stretch w-full h-12 sm:h-[50px] bg-slate-900/90 border border-white/10 rounded-2xl focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all shadow-sm">
+              {/* Connected + New Button */}
               <button
                 type="button"
                 onClick={handleOpenAddModal}
-                className="h-11 px-3.5 sm:px-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold shadow-md shadow-blue-600/20 hover:shadow-blue-600/35 border border-blue-400/30 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0 bji-btn-primary bji-keep-white"
+                className="h-full px-3.5 sm:px-4.5 rounded-l-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer border-r border-white/10 active:brightness-95 bji-btn-primary bji-keep-white"
                 title={t('addPerson')}
               >
                 <Plus className="w-4 h-4 text-white bji-keep-white stroke-[2.5]" />
@@ -1245,17 +1246,15 @@ export default function ContactsPage() {
                 </span>
               </button>
 
-              {/* Search bar */}
-              <div className="flex items-center flex-1 min-w-0 bg-slate-900/90 border border-white/10 rounded-2xl focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
               {/* Search Input */}
-              <div className="relative flex-1 min-w-0">
-                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <div className="relative flex-1 min-w-0 h-full flex items-center">
+                <Search className="w-4.5 h-4.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Search by name, phone, location…"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full bg-transparent pl-10 pr-9 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none transition-all rounded-l-2xl"
+                  className="w-full h-full bg-transparent pl-10 sm:pl-11 pr-9 text-sm sm:text-base text-white placeholder-slate-500 focus:outline-none transition-all"
                 />
                 {searchQuery && (
                   <button
@@ -1269,7 +1268,7 @@ export default function ContactsPage() {
                 )}
               </div>
 
-              <div className="w-[1px] h-6 bg-white/10 shrink-0" />
+              <div className="w-[1px] h-6 sm:h-7 self-center bg-white/10 shrink-0" />
 
               {/* Filter button */}
               <button
@@ -1279,13 +1278,13 @@ export default function ContactsPage() {
                   setFilterOpen(o => !o);
                   setMoreOpen(false);
                 }}
-                className={`relative flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-semibold transition-all cursor-pointer ${
+                className={`h-full relative flex items-center gap-1.5 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                   filterOpen || activeFilterCount > 0
                     ? 'bg-blue-600/20 text-blue-400 font-bold'
                     : 'text-slate-300 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <SlidersHorizontal className="w-4 h-4" />
                 <span className="hidden sm:inline">Filter</span>
                 {activeFilterCount > 0 && (
                   <span className="w-4 h-4 rounded-full bg-blue-500 text-white text-[9px] font-bold flex items-center justify-center">
@@ -1294,24 +1293,24 @@ export default function ContactsPage() {
                 )}
               </button>
 
-              <div className="w-[1px] h-6 bg-white/10 shrink-0" />
+              <div className="w-[1px] h-6 sm:h-7 self-center bg-white/10 shrink-0" />
 
               {/* Three dots dropdown at the end */}
-              <div className="relative shrink-0" ref={moreRef}>
+              <div className="relative shrink-0 h-full flex items-center" ref={moreRef}>
                 <button
                   type="button"
                   onClick={() => {
                     setMoreOpen(o => !o);
                     setFilterOpen(false);
                   }}
-                  className={`flex items-center justify-center px-3 py-2.5 text-xs font-medium rounded-r-2xl transition-all cursor-pointer ${
+                  className={`h-full flex items-center justify-center px-3 sm:px-3.5 text-xs font-medium rounded-r-2xl transition-all cursor-pointer ${
                     moreOpen
                       ? 'bg-blue-600/20 text-blue-400 font-bold'
                       : 'text-slate-300 hover:text-white hover:bg-white/5'
                   }`}
                   title="More options"
                 >
-                  <MoreVertical className="w-4 h-4" />
+                  <MoreVertical className="w-4.5 h-4.5" />
                 </button>
 
                 {/* Three dots dropdown menu */}
@@ -1508,7 +1507,6 @@ export default function ContactsPage() {
                 )}
               </div>
             </div>
-          </div>
 
             {/* Filter Dropdown – Equal width as the bar, opens in the middle / full-width */}
             {filterOpen && (
