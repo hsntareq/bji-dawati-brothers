@@ -229,7 +229,7 @@ export default function DashboardPage() {
   const statusCounts = useMemo(() => {
     const map: Record<string, number> = {};
     scopedContacts.forEach(c => {
-      const st = c.status || 'new';
+      const st = (!c.status || c.status === '' || c.status === 'new') ? '' : c.status;
       map[st] = (map[st] || 0) + 1;
     });
     return map;
@@ -240,7 +240,7 @@ export default function DashboardPage() {
   const silentCount       = statusCounts['silent'] || 0;
   const donorCount        = statusCounts['donor'] || 0;
   const callNextCount     = statusCounts['call_next'] || 0;
-  const newCount          = statusCounts['new'] || 0;
+  const newCount          = statusCounts[''] || 0;
   const noAnswerCount     = statusCounts['no_answer'] || 0;
   const wontComeCount     = statusCounts['wont_come'] || 0;
   const notInterestedCount= statusCounts['not_interested'] || 0;

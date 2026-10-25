@@ -9,9 +9,11 @@ import {
   Pencil, Trash2, X, Mail, MapPin, Calendar, SlidersHorizontal, ChevronDown, ChevronLeft,
   Plus, BookOpen, BookMarked, Library, Check, Trash2 as Delete, Send, UserPlus,
   MoreVertical, Download, RefreshCw, RotateCcw, CheckSquare, LayoutList,
+  FileSpreadsheet, UploadCloud, AlertTriangle, Info, BarChart3, ShieldCheck,
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useLanguage } from '@/context/LanguageContext';
+import ImportContactsModal from '@/components/ImportContactsModal';
 
 import {
   getAllFromStore,
@@ -22,6 +24,7 @@ import {
   generateOfflineId,
   getActivitiesForContact,
   getMetaItem,
+  setMetaItem,
 } from '@/lib/offlineSync';
 import { isSuperAdmin } from '@/lib/superadmin';
 import {
@@ -76,7 +79,6 @@ const CUSTOM_COLORS = [
 
 const STATUSES: StatusOption[] = [
   { value: '',             label: 'Set status…',       dot: '#475569', ring: 'ring-slate-600'   },
-  { value: 'new',          label: 'New',               dot: '#64748b', ring: 'ring-slate-500'   },
   { value: 'no_answer',    label: 'No Answer',         dot: '#94a3b8', ring: 'ring-slate-400'   },
   { value: 'not_interested', label: 'Not Interested',  dot: '#f87171', ring: 'ring-red-400'     },
   { value: 'wont_come',    label: "Won't Come",        dot: '#fb923c', ring: 'ring-orange-400'  },
@@ -123,10 +125,11 @@ function StatusSelectOrCreate({
   const buttonRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const curMeta = statuses.find(s => s.value === value) || {
+  const isUnsetVal = !value || value === 'new';
+  const curMeta = (isUnsetVal ? statuses.find(s => s.value === '') : statuses.find(s => s.value === value)) || {
     value,
-    label: value ? value.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Set status…',
-    dot: value ? '#38bdf8' : '#475569',
+    label: (!isUnsetVal) ? value.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Set status…',
+    dot: (!isUnsetVal) ? '#38bdf8' : '#475569',
     ring: 'ring-slate-600',
   };
 
@@ -440,14 +443,14 @@ export default function ContactsPage() {
     const existingValues = new Set(list.map(s => s.value));
 
     customStatuses.forEach(cs => {
-      if (!existingValues.has(cs.value)) {
+      if (cs.value !== 'new' && !existingValues.has(cs.value)) {
         list.push(cs);
         existingValues.add(cs.value);
       }
     });
 
     contacts.forEach(c => {
-      if (c.status && !existingValues.has(c.status)) {
+      if (c.status && c.status !== 'new' && !existingValues.has(c.status)) {
         const dot = CUSTOM_COLORS[list.length % CUSTOM_COLORS.length];
         list.push({
           value: c.status,
@@ -464,7 +467,7 @@ export default function ContactsPage() {
   }, [customStatuses, contacts]);
 
   const statusMeta = (v?: string): StatusOption => {
-    if (!v) return STATUSES[0];
+    if (!v || v === 'new') return STATUSES[0];
     const found = allStatuses.find(s => s.value === v);
     if (found) return found;
     return {
@@ -658,6 +661,66 @@ export default function ContactsPage() {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
 
+  // ── Unit-Scoped CSV Import state ────────────────────
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  // Auto-detect if user is currently filtering by a single unit
+  const singleSelectedUnitId = useMemo(() => {
+    if (filterOrgIds.size === 1) {
+      const id = Array.from(filterOrgIds)[0];
+      const org = organizations.find(o => o.id === id);
+      if (org && org.type === 'unit') return id;
+    }
+    return undefined;
+  }, [filterOrgIds, organizations]);
+
+  const handleImportSuccess = (newContacts: any[], unitId: string) => {
+    setContacts(prev => [...newContacts, ...prev]);
+    if (filterOrgIds.size > 0 && !filterOrgIds.has(unitId)) {
+      setFilterOrgIds(new Set([unitId]));
+    }
+  };
+
+  // ── Users & Contacts Stats Summary ─────────────────
+  const [registeredUsersCount, setRegisteredUsersCount] = useState<number>(0);
+  const [registeredUsersList, setRegisteredUsersList] = useState<{ uid: string; name: string; email: string }[]>([]);
+  const [statsModalOpen, setStatsModalOpen] = useState(false);
+
+  const shohojogiCount = useMemo(() => {
+    return contacts.filter(c => (c.category || 'shohojogi') === 'shohojogi').length;
+  }, [contacts]);
+
+  const kormiCount = useMemo(() => {
+    return contacts.filter(c => c.category === 'kormi').length;
+  }, [contacts]);
+
+  const isActivelyFiltered = Boolean(
+    searchQuery.trim() ||
+    filterStatuses.size > 0 ||
+    filterOrgIds.size > 0 ||
+    filterCategory !== 'all'
+  );
+
+  const resetAllFilters = () => {
+    setSearchQuery('');
+    setFilterStatuses(new Set());
+    setFilterOrgIds(new Set());
+    setFilterCategory('all');
+    setExpandedFilter(null);
+    setFilterOpen(false);
+  };
+
+  // Pre-filter by orgId / unitId from query params if passed
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const orgParam = params.get('orgId') || params.get('unitId');
+      if (orgParam) {
+        setFilterOrgIds(new Set([orgParam]));
+      }
+    }
+  }, []);
+
   // Close filter & more dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -698,7 +761,22 @@ export default function ContactsPage() {
   }, [filterOpen, moreOpen, addNumberDropdownOpen, addSecPhoneDropdownOpen, addWaDropdownOpen, editNumberDropdownOpen, editSecPhoneDropdownOpen, editWaDropdownOpen]);
 
   const toggleStatus = (v: string) =>
-    setFilterStatuses(prev => { const s = new Set(prev); s.has(v) ? s.delete(v) : s.add(v); return s; });
+    setFilterStatuses(prev => {
+      const s = new Set(prev);
+      if (v === '' || v === 'set_status' || v === 'new') {
+        const hasUnset = s.has('') || s.has('set_status') || s.has('new');
+        if (hasUnset) {
+          s.delete('');
+          s.delete('set_status');
+          s.delete('new');
+        } else {
+          s.add('');
+        }
+      } else {
+        s.has(v) ? s.delete(v) : s.add(v);
+      }
+      return s;
+    });
   const toggleOrg = (id: string) =>
     setFilterOrgIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
   const activeFilterCount = filterStatuses.size + filterOrgIds.size + (filterCategory !== 'shohojogi' ? 1 : 0);
@@ -1025,6 +1103,11 @@ export default function ContactsPage() {
       if (cachedProfile?.primaryOrgId) {
         setUserPrimaryOrgId(cachedProfile.primaryOrgId);
       }
+      const cachedUsers = await getMetaItem<any[]>('registered_users');
+      if (cachedUsers && Array.isArray(cachedUsers)) {
+        setRegisteredUsersCount(cachedUsers.length);
+        setRegisteredUsersList(cachedUsers);
+      }
 
       if (cachedOrgs.length > 0 || cachedContacts.length > 0) {
         setAllOrgs(cachedOrgs);
@@ -1101,6 +1184,23 @@ export default function ContactsPage() {
         setContacts(prev => prev.filter(c => c.id?.startsWith('offline_')));
       }
 
+      // Fetch registered app users count
+      try {
+        const uSnap = await get(ref(database, 'users'));
+        if (uSnap.exists()) {
+          const uList = Object.entries(uSnap.val()).map(([uid, u]: any) => ({
+            uid,
+            email: u.email || '',
+            name: u.name || u.profile?.displayName || '',
+          })).filter(u => u.email);
+          setRegisteredUsersCount(uList.length);
+          setRegisteredUsersList(uList);
+          await setMetaItem('registered_users', uList);
+        }
+      } catch (err) {
+        console.warn('[Contacts] Users fetch non-critical:', err);
+      }
+
       await reloadActivitySummary();
     } catch (e) {
       console.warn('[Contacts] Cloud fetch failed, relying on local cache:', e);
@@ -1163,7 +1263,7 @@ export default function ContactsPage() {
   const makeMobileHandlers = (setter: (v: string) => void, allowEmpty = false) => ({
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = e.target.value;
-      if (allowEmpty && (val === '' || val === '0')) {
+      if (val === '' || (allowEmpty && val === '0')) {
         setter('');
         return;
       }
@@ -1174,12 +1274,7 @@ export default function ContactsPage() {
       e.target.setSelectionRange(len, len);
     },
     onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (allowEmpty) return;
-      const selStart = e.currentTarget.selectionStart ?? 0;
-      if ((e.key === 'Backspace' && selStart <= PREFIX.length) ||
-          (e.key === 'Delete'    && selStart <  PREFIX.length)) {
-        e.preventDefault();
-      }
+      // Allow unrestricted editing and backspacing
     },
   });
 
@@ -1191,25 +1286,27 @@ export default function ContactsPage() {
   const editWhatsAppHandlers      = makeMobileHandlers(v => setEditForm(f => ({ ...f, whatsappNumber: v })), true);
 
   // ── Add person ─────────────────────────────────────
-  const mobileDigits = form.mobile.slice(PREFIX.length).replace(/\D/g, '');
-  const mobileComplete = mobileDigits.length === 9;
-  const waDigits = (form.whatsappNumber || '').replace(/\D/g, '');
-  const isWhatsAppValid = !form.whatsappNumber || waDigits.length === 11;
-  const secDigits = (form.secondaryMobile || '').replace(/\D/g, '');
-  const isSecondaryValid = !form.secondaryMobile || secDigits.length === 11;
-  const isFormValid = form.name.trim() && mobileComplete && isWhatsAppValid && isSecondaryValid && form.organizationId;
+  const formRawDigits = form.mobile.replace(/\D/g, '');
+  const isFormMobileStandard = formRawDigits.length === 11;
+  const isFormMobileShort = formRawDigits.length > 0 && formRawDigits.length < 11;
+  const isFormMobileMissing = formRawDigits.length === 0 || formRawDigits.length <= 2; // empty or only '01'
+
+  // Non-blocking: allow save as long as Name & Organization are selected
+  const isFormValid = Boolean(form.name.trim() && form.organizationId);
 
   const handleAddPerson = async () => {
     if (!user || !isFormValid || saving) return;
     setSaving(true);
     try {
       const newId = generateOfflineId('contact');
+      // If mobile is missing, assign placeholder 01111111111. If short, keep as is!
+      const finalMobile = isFormMobileMissing ? '01111111111' : form.mobile.trim();
       const contactData = {
         name: form.name.trim(),
         nameBn: form.nameBn?.trim() || null,
-        mobile: form.mobile.trim(),
-        secondaryMobile: form.secondaryMobile?.trim() && form.secondaryMobile.replace(/\D/g, '').length === 11 ? form.secondaryMobile.trim() : null,
-        whatsappNumber: form.whatsappNumber?.trim() && form.whatsappNumber.replace(/\D/g, '').length === 11 ? form.whatsappNumber.trim() : null,
+        mobile: finalMobile,
+        secondaryMobile: form.secondaryMobile?.trim() || null,
+        whatsappNumber: form.whatsappNumber?.trim() || null,
         numberType: form.numberType || 'both',
         category: form.category || 'shohojogi',
         note: form.note.trim() || null,
@@ -1283,24 +1380,26 @@ export default function ContactsPage() {
     setEditWaDropdownOpen(false);
   };
 
-  const editMobileDigits = editForm.mobile.slice(PREFIX.length).replace(/\D/g, '');
-  const editMobileComplete = editMobileDigits.length === 9;
-  const editWaDigits = (editForm.whatsappNumber || '').replace(/\D/g, '');
-  const isEditWhatsAppValid = !editForm.whatsappNumber || editWaDigits.length === 11;
-  const editSecDigits = (editForm.secondaryMobile || '').replace(/\D/g, '');
-  const isEditSecondaryValid = !editForm.secondaryMobile || editSecDigits.length === 11;
-  const isEditValid = editForm.name.trim() && editMobileComplete && isEditWhatsAppValid && isEditSecondaryValid && editForm.organizationId;
+  const editRawDigits = editForm.mobile.replace(/\D/g, '');
+  const isEditMobileStandard = editRawDigits.length === 11;
+  const isEditMobileShort = editRawDigits.length > 0 && editRawDigits.length < 11;
+  const isEditMobileMissing = editRawDigits.length === 0 || editRawDigits.length <= 2;
+
+  // Non-blocking: allow save as long as Name & Organization are selected
+  const isEditValid = Boolean(editForm.name.trim() && editForm.organizationId);
 
   const handleEditSave = async () => {
     if (!editContact || !isEditValid || editSaving) return;
     setEditSaving(true);
     try {
+      // If mobile is missing, assign placeholder 01111111111. If short, keep as is!
+      const finalEditMobile = isEditMobileMissing ? '01111111111' : editForm.mobile.trim();
       const updated = {
         name: editForm.name.trim(),
         nameBn: editForm.nameBn?.trim() || null,
-        mobile: editForm.mobile.trim(),
-        secondaryMobile: editForm.secondaryMobile?.trim() && editForm.secondaryMobile.replace(/\D/g, '').length === 11 ? editForm.secondaryMobile.trim() : null,
-        whatsappNumber: editForm.whatsappNumber?.trim() && editForm.whatsappNumber.replace(/\D/g, '').length === 11 ? editForm.whatsappNumber.trim() : null,
+        mobile: finalEditMobile,
+        secondaryMobile: editForm.secondaryMobile?.trim() || null,
+        whatsappNumber: editForm.whatsappNumber?.trim() || null,
         numberType: editForm.numberType || 'both',
         category: editForm.category || 'shohojogi',
         note: editForm.note.trim() || null,
@@ -1547,7 +1646,23 @@ export default function ContactsPage() {
       c.address?.toLowerCase().includes(q) ||
       c.email?.toLowerCase().includes(q) ||
       c.note?.toLowerCase().includes(q);
-    const matchStatus = filterStatuses.size === 0 || filterStatuses.has(c.status ?? '');
+    // Filter by Disposition/Status:
+    // If 'new', '', or 'set_status' is selected, match all non-status contacts!
+    const matchStatus = (() => {
+      if (filterStatuses.size === 0) return true;
+      const rawStatus = (c.status ?? '').trim().toLowerCase();
+      const isContactNonStatus = !rawStatus || rawStatus === 'new' || rawStatus === 'set_status';
+      const wantsNonStatus =
+        filterStatuses.has('new') ||
+        filterStatuses.has('') ||
+        filterStatuses.has('set_status') ||
+        filterStatuses.has('no_status');
+
+      if (isContactNonStatus) {
+        return wantsNonStatus;
+      }
+      return filterStatuses.has(c.status ?? '');
+    })();
     const matchOrg    = filterOrgIds.size   === 0 || filterOrgIds.has(c.organizationId);
     const contactCat  = c.category || 'shohojogi';
     const matchCat    = filterCategory === 'all' || contactCat === filterCategory;
@@ -1790,6 +1905,24 @@ export default function ContactsPage() {
                 {/* Three dots dropdown menu */}
                 {moreOpen && (
                   <div className="absolute right-0 top-full mt-2 z-50 w-56 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden py-1.5 backdrop-blur-xl">
+                    {/* View User & Contact Stats */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMoreOpen(false);
+                        setStatsModalOpen(true);
+                      }}
+                      className="w-full flex items-center justify-between px-3.5 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors text-left cursor-pointer border-b border-white/5 pb-2.5 mb-1"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <BarChart3 className="w-4 h-4 text-purple-400" />
+                        <span>{language === 'bn' ? 'ইউজার ও ব্যক্তি সংখ্যা' : 'User & Contact Counts'}</span>
+                      </div>
+                      <span className="px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-bold text-[10px]">
+                        {contacts.length}
+                      </span>
+                    </button>
+
                     {/* Add person quick action */}
                     <button
                       type="button"
@@ -1879,6 +2012,19 @@ export default function ContactsPage() {
                     >
                       <CheckSquare className="w-4 h-4 text-cyan-400" />
                       <span>{isAllSelected ? 'Deselect all' : `Select all visible (${filtered.length})`}</span>
+                    </button>
+
+                    {/* Import contacts to Unit (CSV) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMoreOpen(false);
+                        setIsImportModalOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors text-left cursor-pointer"
+                    >
+                      <UploadCloud className="w-4 h-4 text-emerald-400" />
+                      <span>Import contacts (CSV)</span>
                     </button>
 
                     {/* Export CSV */}
@@ -2085,10 +2231,15 @@ export default function ContactsPage() {
                           (() => {
                             const val = Array.from(filterStatuses)[0];
                             const s = allStatuses.find(st => st.value === val);
+                            const isUnset = val === '' || val === 'set_status' || val === 'new';
+                            const label = isUnset
+                              ? (language === 'bn' ? 'স্ট্যাটাস দেওয়া হয়নি' : 'Set status…')
+                              : (s?.label ?? val);
+                            const dot = isUnset ? '#475569' : (s?.dot ?? '#64748b');
                             return (
                               <span className="flex items-center gap-1.5 truncate">
-                                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s?.dot ?? '#3b82f6' }} />
-                                <span className="truncate text-blue-300 font-semibold">{s?.label ?? val}</span>
+                                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: dot }} />
+                                <span className="truncate text-blue-300 font-semibold">{label}</span>
                               </span>
                             );
                           })()
@@ -2117,11 +2268,17 @@ export default function ContactsPage() {
                           {filterStatuses.size === 0 && <Check className="w-3.5 h-3.5 text-blue-400" />}
                         </button>
                         <div className="my-1 border-t border-white/5" />
-                        {allStatuses.filter(s => s.value !== '').map(s => {
-                          const active = filterStatuses.has(s.value);
+                        {allStatuses.map(s => {
+                          const isUnset = s.value === '';
+                          const label = isUnset
+                            ? (language === 'bn' ? 'স্ট্যাটাস দেওয়া হয়নি (Set status…)' : 'Set status… (No status)')
+                            : s.label;
+                          const active = isUnset
+                            ? (filterStatuses.has('') || filterStatuses.has('set_status') || filterStatuses.has('new'))
+                            : filterStatuses.has(s.value);
                           return (
                             <button
-                              key={s.value}
+                              key={s.value || 'set_status_option'}
                               type="button"
                               onClick={() => toggleStatus(s.value)}
                               className={`w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors text-left cursor-pointer ${
@@ -2132,7 +2289,7 @@ export default function ContactsPage() {
                             >
                               <span className="flex items-center gap-2 truncate">
                                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.dot }} />
-                                <span className="truncate">{s.label}</span>
+                                <span className="truncate">{label}</span>
                               </span>
                               {active && <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
                             </button>
@@ -2243,6 +2400,33 @@ export default function ContactsPage() {
               </div>
             )}
           </div>
+
+          {/* ── Quick Stats Count Pill ── */}
+          {!loading && contacts.length > 0 && (
+            <div className="flex items-center px-1 pt-0.5">
+              <button
+                type="button"
+                onClick={() => setStatsModalOpen(true)}
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-white/10 hover:border-blue-500/40 hover:bg-slate-800 text-slate-200 transition-all shadow-sm cursor-pointer group"
+                title={language === 'bn' ? 'বিস্তারিত পরিসংখ্যান দেখতে ক্লিক করুন' : 'Click to view breakdown statistics'}
+              >
+                <Users className="w-4 h-4 text-slate-300 group-hover:text-blue-400 transition-colors" />
+                <span className="font-bold text-white text-xs">
+                  {isActivelyFiltered && filtered.length !== contacts.length ? (
+                    <span>
+                      {filtered.length} <span className="text-slate-400 font-normal">/ {contacts.length}</span>
+                    </span>
+                  ) : (
+                    <span>{contacts.length}</span>
+                  )}
+                </span>
+                <span className="text-slate-400 text-xs">
+                  {language === 'bn' ? 'ব্যক্তি' : (contacts.length === 1 ? 'person' : 'people')}
+                </span>
+                <BarChart3 className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-400 transition-colors" />
+              </button>
+            </div>
+          )}
         </div>
 
         {loading ? (
@@ -2255,6 +2439,26 @@ export default function ContactsPage() {
             <p className="text-slate-400 text-sm">
               {contacts.length === 0 ? 'No people added yet.' : 'No results match your filter.'}
             </p>
+            {contacts.length === 0 && (
+              <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setFormOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-all shadow-md shadow-blue-600/20 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add First Person</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-emerald-300 hover:text-white bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-xl transition-all cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Import CSV to Unit</span>
+                </button>
+              </div>
+            )}
             {contacts.length > 0 && (searchQuery || activeFilterCount > 0 || filterCategory !== 'all') && (
               <div className="pt-1">
                 <button
@@ -2662,21 +2866,21 @@ export default function ContactsPage() {
 
                     {/* Location, or fallback to phone number if location is not set */}
                     {c.location ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-purple-300/90 truncate max-w-[180px]">
-                        <MapPin className="w-3 h-3 text-purple-400 shrink-0" />
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-700 dark:text-purple-300 truncate max-w-[180px]">
+                        <MapPin className="w-3 h-3 text-purple-600 dark:text-purple-400 shrink-0" />
                         <span className="truncate">{c.location}</span>
                       </span>
                     ) : c.mobile ? (
                       <span
-                        className="inline-flex items-center gap-1 text-[11px] font-mono text-slate-400 truncate max-w-[180px]"
+                        className="inline-flex items-center gap-1 text-[11px] font-mono text-slate-600 dark:text-slate-400 truncate max-w-[180px]"
                         title={c.numberType === 'phone' ? 'Phone only' : c.numberType === 'whatsapp' ? 'WhatsApp only' : 'Phone & WhatsApp'}
                       >
                         {c.numberType === 'whatsapp' ? (
-                          <FaWhatsapp className="w-3 h-3 text-emerald-400 shrink-0" />
+                          <FaWhatsapp className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
                         ) : c.numberType === 'phone' ? (
-                          <Phone className="w-3 h-3 text-blue-400 shrink-0" />
+                          <Phone className="w-3 h-3 text-blue-600 dark:text-blue-400 shrink-0" />
                         ) : (
-                          <Phone className="w-3 h-3 text-slate-500 shrink-0" />
+                          <Phone className="w-3 h-3 text-slate-600 dark:text-slate-500 shrink-0" />
                         )}
                         <span className="truncate">{c.mobile}</span>
                       </span>
@@ -2929,10 +3133,10 @@ export default function ContactsPage() {
                             </span>
                             {c.location && (
                               <span
-                                className="inline-flex items-center gap-1 text-[11px] text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/20 truncate max-w-full"
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/20 truncate max-w-full"
                                 title={c.location}
                               >
-                                <MapPin className="w-2.5 h-2.5 text-purple-400 shrink-0" />
+                                <MapPin className="w-2.5 h-2.5 text-purple-600 dark:text-purple-400 shrink-0" />
                                 <span className="truncate">{c.location}</span>
                               </span>
                             )}
@@ -3354,9 +3558,9 @@ export default function ContactsPage() {
 
               {/* Status Dropdown to the right of the label with Select or Create */}
               <StatusSelectOrCreate
-                value={selectedContact.status ?? 'new'}
+                value={selectedContact.status ?? ''}
                 onChange={val => handleStatusChange(selectedContact, val, { stopPropagation: () => {} })}
-                statuses={allStatuses.filter(s => s.value !== '')}
+                statuses={allStatuses}
                 onCreateStatus={handleCreateStatus}
                 pillClassName="px-3 py-1.5 rounded-xl border text-xs font-semibold shadow-sm"
                 dotClassName="w-2 h-2"
@@ -3643,6 +3847,20 @@ export default function ContactsPage() {
                       </div>
                     )}
                   </div>
+
+                  {/* Notice for phone number */}
+                  {isEditMobileShort && (
+                    <p className="text-[11px] text-amber-400 mt-1.5 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span>Notice: Number has {editRawDigits.length} digits (less than 11). Allowed to save as is.</span>
+                    </p>
+                  )}
+                  {isEditMobileMissing && (
+                    <p className="text-[11px] text-blue-400 mt-1.5 flex items-center gap-1.5">
+                      <Info className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                      <span>Notice: No number entered. Default placeholder 01111111111 will be assigned.</span>
+                    </p>
+                  )}
                 </div>
 
                 {/* Additional Phone Number (if added) */}
@@ -4145,6 +4363,20 @@ export default function ContactsPage() {
                     </div>
                   </div>
 
+                  {/* Notice for phone number */}
+                  {isFormMobileShort && (
+                    <p className="text-[11px] text-amber-400 mt-1.5 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span>Notice: Number has {formRawDigits.length} digits (less than 11). Allowed to save as is.</span>
+                    </p>
+                  )}
+                  {isFormMobileMissing && (
+                    <p className="text-[11px] text-blue-400 mt-1.5 flex items-center gap-1.5">
+                      <Info className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                      <span>Notice: No number entered. Default placeholder 01111111111 will be assigned.</span>
+                    </p>
+                  )}
+
                   {/* Additional Phone Number (if added) */}
                   {Boolean(form.secondaryMobile) && (
                     <div className="mt-2 flex items-stretch bg-slate-800 border border-white/10 rounded-xl focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-all">
@@ -4524,6 +4756,214 @@ export default function ContactsPage() {
                     <span>Move {selectedIds.size} Contacts</span>
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unit-Scoped Contact CSV Import Modal */}
+      <ImportContactsModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        preselectedUnitId={singleSelectedUnitId}
+        organizations={organizations}
+        onSuccess={handleImportSuccess}
+      />
+
+      {/* ── Users & Contacts Stats Overview Modal ── */}
+      {statsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setStatsModalOpen(false)}>
+          <div
+            className="w-full max-w-lg bg-slate-900 border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] relative"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Glow accent */}
+            <div className="absolute -top-24 -right-24 w-60 h-60 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -left-24 w-60 h-60 bg-purple-500/15 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-white/10 bg-slate-950/40 relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
+                  <BarChart3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-base">
+                    {language === 'bn' ? 'ইউজার ও ব্যক্তি পরিসংখ্যান' : 'Users & Contacts Overview'}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {language === 'bn' ? 'সংগঠনের ব্যক্তি ও সিস্টেম সদস্যদের সংখ্যা' : 'Summary of people, categories, and system members'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStatsModalOpen(false)}
+                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content Body */}
+            <div className="p-5 overflow-y-auto space-y-5 relative z-10">
+              {/* Primary Count Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/20">
+                  <span className="text-[10px] font-semibold text-blue-400 uppercase tracking-wider block">
+                    {language === 'bn' ? 'মোট ব্যক্তি' : 'Total People'}
+                  </span>
+                  <p className="text-2xl font-black text-white mt-1">{contacts.length}</p>
+                  <span className="text-[10px] text-slate-400">
+                    {language === 'bn' ? 'তালিকাভুক্ত' : 'Contacts'}
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-800/80 border border-white/10">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+                    {language === 'bn' ? 'সহযোগী' : 'Shohojogi'}
+                  </span>
+                  <p className="text-2xl font-black text-blue-400 mt-1">{shohojogiCount}</p>
+                  <span className="text-[10px] text-slate-400">
+                    {contacts.length > 0 ? `${Math.round((shohojogiCount / contacts.length) * 100)}%` : '0%'}
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+                  <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider block">
+                    {language === 'bn' ? 'কর্মী' : 'Kormi'}
+                  </span>
+                  <p className="text-2xl font-black text-emerald-400 mt-1">{kormiCount}</p>
+                  <span className="text-[10px] text-slate-400">
+                    {contacts.length > 0 ? `${Math.round((kormiCount / contacts.length) * 100)}%` : '0%'}
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/20">
+                  <span className="text-[10px] font-semibold text-purple-400 uppercase tracking-wider block">
+                    {language === 'bn' ? 'অ্যাপ ইউজার' : 'App Users'}
+                  </span>
+                  <p className="text-2xl font-black text-purple-400 mt-1">{registeredUsersCount}</p>
+                  <span className="text-[10px] text-slate-400">
+                    {language === 'bn' ? 'নিবন্ধিত আইডি' : 'System Logins'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Unit-wise Contacts Breakdown */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-blue-400" />
+                  <span>{language === 'bn' ? 'ইউনিট অনুযায়ী ব্যক্তি সংখ্যা' : 'People by Unit'}</span>
+                </h4>
+                <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+                  {organizations.map(org => {
+                    const count = contacts.filter(c => c.organizationId === org.id).length;
+                    return (
+                      <div
+                        key={org.id}
+                        className="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/60 border border-white/5 hover:border-white/10 transition-colors"
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="text-xs font-medium text-slate-200 truncate">{org.name}</span>
+                          <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-white/5 text-slate-400 font-bold">
+                            {org.type === 'ward' ? 'Ward' : 'Unit'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded-lg bg-blue-500/15 text-blue-300 font-bold text-xs">
+                            {count}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilterOrgIds(new Set([org.id]));
+                              setStatsModalOpen(false);
+                            }}
+                            className="text-[10px] text-blue-400 hover:text-blue-300 underline font-medium cursor-pointer"
+                          >
+                            {language === 'bn' ? 'ফিল্টার' : 'Filter'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Disposition Breakdown */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>{language === 'bn' ? 'কল স্ট্যাটাস অনুযায়ী সংখ্যা' : 'Contacts by Disposition'}</span>
+                </h4>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {allStatuses.map(s => {
+                    const isUnset = s.value === '';
+                    // For unset, count non-status items
+                    const count = isUnset
+                      ? contacts.filter(c => !c.status || c.status === '' || c.status === 'new').length
+                      : contacts.filter(c => (c.status ?? '') === s.value).length;
+                    if (count === 0) return null;
+                    const label = isUnset ? (language === 'bn' ? 'স্ট্যাটাস দেওয়া হয়নি' : 'Set status…') : s.label;
+                    return (
+                      <div
+                        key={s.value || 'no_status'}
+                        onClick={() => {
+                          setFilterStatuses(new Set([s.value]));
+                          setStatsModalOpen(false);
+                        }}
+                        className="flex items-center justify-between p-2 rounded-xl bg-slate-800/40 hover:bg-slate-800/80 hover:border-blue-500/30 border border-white/5 text-xs cursor-pointer transition-all"
+                        title="Click to filter"
+                      >
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.dot }} />
+                          <span className="truncate text-slate-300 text-[11px]">{label}</span>
+                        </div>
+                        <span className="font-bold text-white text-xs">{count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Registered App Users list */}
+              {registeredUsersList.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-white/10">
+                  <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-purple-400" />
+                    <span>{language === 'bn' ? 'সিস্টেম ইউজার তালিকা' : 'Registered App Users'} ({registeredUsersList.length})</span>
+                  </h4>
+                  <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
+                    {registeredUsersList.map(u => (
+                      <div
+                        key={u.uid}
+                        className="flex items-center justify-between p-2 rounded-xl bg-slate-800/40 border border-white/5 text-xs"
+                      >
+                        <div className="truncate">
+                          <span className="font-medium text-slate-200 block truncate">{u.name || 'User'}</span>
+                          <span className="text-[10px] text-slate-400 font-mono block truncate">{u.email}</span>
+                        </div>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold uppercase shrink-0">
+                          Member
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-white/10 bg-slate-950/40 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setStatsModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-colors cursor-pointer"
+              >
+                {language === 'bn' ? 'বন্ধ করুন' : 'Close'}
               </button>
             </div>
           </div>

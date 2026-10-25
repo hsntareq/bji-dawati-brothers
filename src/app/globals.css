@@ -474,8 +474,12 @@ nextjs-portal,
   border-color: rgba(5, 150, 105, 0.22) !important;
 }
 
+.bji-light .text-purple-800 { color: #581c87 !important; }
+.bji-light .text-purple-700 { color: #6b21a8 !important; }
+.bji-light .text-purple-600 { color: #7c3aed !important; }
 .bji-light .text-purple-400 { color: #7c3aed !important; }
-.bji-light .text-purple-300 { color: #6d28d9 !important; }
+.bji-light .text-purple-300,
+.bji-light .text-purple-300\/90 { color: #6b21a8 !important; }
 .bji-light .bg-purple-500\/10 {
   background-color: rgba(124, 58, 237, 0.08) !important;
 }

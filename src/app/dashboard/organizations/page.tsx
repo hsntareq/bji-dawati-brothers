@@ -8,7 +8,10 @@ import {
   Building2, Plus, X, Loader2, ChevronDown, ChevronRight,
   MapPin, Users, Shield, GitBranch, Pencil, Check, Trash2,
   UserPlus, Settings, Save, AlertCircle, Crown, UserCheck, Phone,
+  FileSpreadsheet, UploadCloud,
 } from 'lucide-react';
+import Link from 'next/link';
+import ImportContactsModal from '@/components/ImportContactsModal';
 import {
   getAllFromStore,
   putAllInStore,
@@ -61,6 +64,15 @@ export default function OrganizationsPage() {
   const [newMemberEmail,  setNewMemberEmail]  = useState('');
   const [memberLoading,   setMemberLoading]   = useState(false);
   const [feedback,        setFeedback]        = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  const handleImportSuccess = (importedContacts: any[], unitId: string) => {
+    setContactCounts(prev => ({
+      ...prev,
+      [unitId]: (prev[unitId] ?? 0) + importedContacts.length,
+    }));
+    showFeedback(`Successfully imported ${importedContacts.length} contacts to unit!`, 'success');
+  };
 
   // Ward Admin Settings: Locations
   const [newLocationInput, setNewLocationInput] = useState('');
@@ -924,11 +936,23 @@ export default function OrganizationsPage() {
                   {(selectedOrg.allowedEmails?.length ?? 0) + (selectedOrg.creatorEmail ? 1 : 0)}
                 </p>
               </div>
-              <div className="bg-slate-800/50 rounded-xl p-3 border border-white/5 text-center">
-                <p className="text-[10px] text-slate-500 uppercase font-semibold">Contacts</p>
-                <p className="text-lg font-bold text-white mt-0.5">
-                  {contactCounts[selectedOrg.id] ?? 0}
-                </p>
+              <div className="bg-slate-800/50 rounded-xl p-3 border border-white/5 text-center flex flex-col justify-between">
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase font-semibold">Contacts</p>
+                  <p className="text-lg font-bold text-white mt-0.5">
+                    {contactCounts[selectedOrg.id] ?? 0}
+                  </p>
+                </div>
+                {selectedOrg.type === 'unit' && (
+                  <button
+                    type="button"
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="mt-1 text-[10px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center justify-center gap-1 hover:underline cursor-pointer"
+                  >
+                    <FileSpreadsheet className="w-3 h-3" />
+                    <span>+ Import</span>
+                  </button>
+                )}
               </div>
               <div className="bg-slate-800/50 rounded-xl p-3 border border-white/5 text-center">
                 <p className="text-[10px] text-slate-500 uppercase font-semibold">
@@ -1075,6 +1099,60 @@ export default function OrganizationsPage() {
                   )}
                 </div>
               </div>
+
+              {/* ── Section: Unit Contacts & CSV Import ──────── */}
+              {selectedOrg.type === 'unit' && (
+                <div className="space-y-4 bg-slate-950/40 border border-emerald-500/20 rounded-2xl p-5 shadow-lg shadow-emerald-950/10">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                        <FileSpreadsheet className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                          Unit Contacts & Import
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">
+                            Grassroots
+                          </span>
+                        </h4>
+                        <p className="text-[11px] text-slate-400">
+                          Contacts belong directly to this unit. Individuals imported here are scoped only to this unit.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-800/60 rounded-xl border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold text-white">
+                        {contactCounts[selectedOrg.id] ?? 0} Contacts in {selectedOrg.name}
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Bulk upload contacts or view current contacts assigned to this unit.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                      <Link
+                        href={`/dashboard/contacts?orgId=${selectedOrg.id}`}
+                        className="flex-1 sm:flex-initial px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-white/10 transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <Users className="w-3.5 h-3.5 text-blue-400" />
+                        <span>View Contacts</span>
+                      </Link>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsImportModalOpen(true)}
+                        className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-all shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                      >
+                        <UploadCloud className="w-3.5 h-3.5" />
+                        <span>Import CSV</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* ── Section: Ward Admin Settings & Locations ────── */}
               {selectedOrg.type === 'ward' ? (
@@ -1475,6 +1553,15 @@ export default function OrganizationsPage() {
           </div>
         </div>
       )}
+
+      {/* Unit-Scoped Contact CSV Import Modal */}
+      <ImportContactsModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        preselectedUnitId={selectedOrg?.type === 'unit' ? selectedOrg.id : undefined}
+        organizations={allOrgsRaw.length > 0 ? allOrgsRaw : organizations}
+        onSuccess={handleImportSuccess}
+      />
     </div>
   );
 }
