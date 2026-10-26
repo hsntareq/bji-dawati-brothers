@@ -189,8 +189,44 @@ export default function DashboardPage() {
   };
 
   // ── Hierarchy classification ─────────────────────────
-  const wards = useMemo(() => organizations.filter(o => o.type === 'ward'), [organizations]);
-  const childUnits = useMemo(() => organizations.filter(o => o.type === 'unit'), [organizations]);
+  const { wardGroups, standaloneUnits, wards, childUnits } = useMemo(() => {
+    const referencedParentIds = new Set<string>();
+    organizations.forEach(o => {
+      if (o.parentOrgId) referencedParentIds.add(o.parentOrgId);
+    });
+
+    const isParentWard = (o: any) => {
+      if (o.type === 'ward') return true;
+      if (referencedParentIds.has(o.id)) return true;
+      const lower = (o.name || '').toLowerCase();
+      if (lower.includes('ward') || lower.includes('ওয়ার্ড')) return true;
+      return false;
+    };
+
+    const wardsList = organizations.filter(isParentWard);
+    const wardMap = new Map<string, { ward: any; children: any[] }>(
+      wardsList.map(w => [w.id, { ward: w, children: [] }])
+    );
+    const standalone: any[] = [];
+    const childrenList: any[] = [];
+
+    organizations.forEach(o => {
+      if (wardMap.has(o.id)) return;
+      if (o.parentOrgId && wardMap.has(o.parentOrgId)) {
+        wardMap.get(o.parentOrgId)!.children.push(o);
+        childrenList.push(o);
+      } else {
+        standalone.push(o);
+      }
+    });
+
+    return {
+      wardGroups: Array.from(wardMap.values()),
+      standaloneUnits: standalone,
+      wards: wardsList,
+      childUnits: childrenList,
+    };
+  }, [organizations]);
   const isParentLeader = wards.length > 0 || childUnits.length > 1;
 
   // ── Filter Data based on Scope (All, Specific Ward, or Unit) ──
@@ -201,13 +237,14 @@ export default function DashboardPage() {
     const targetOrg = organizations.find(o => o.id === selectedScope);
     if (!targetOrg) return organizations.map(o => o.id);
 
-    if (targetOrg.type === 'ward') {
+    const isWard = targetOrg.type === 'ward' || (targetOrg.name || '').toLowerCase().includes('ward') || wards.some(w => w.id === targetOrg.id);
+    if (isWard) {
       // Include the ward and all its child units
       const children = childUnits.filter(u => u.parentOrgId === targetOrg.id).map(u => u.id);
       return [targetOrg.id, ...children];
     }
     return [targetOrg.id];
-  }, [selectedScope, organizations, childUnits]);
+  }, [selectedScope, organizations, childUnits, wards]);
 
   const scopedContacts = useMemo(() => {
     return contacts.filter(c => scopedOrgIds.includes(c.organizationId));
@@ -387,19 +424,30 @@ export default function DashboardPage() {
                 onChange={e => setSelectedScope(e.target.value)}
                 className="bg-transparent text-white font-medium focus:outline-none cursor-pointer text-xs"
               >
-                <option value="all" className="bg-slate-900 text-white">
+                <option value="all" className="bg-slate-900 text-white font-medium">
                   All Organizations ({organizations.length})
                 </option>
-                {wards.map(w => (
-                  <option key={w.id} value={w.id} className="bg-slate-900 text-purple-300 font-semibold">
-                    👑 Ward: {w.name}
-                  </option>
+                {wardGroups.map(({ ward, children }) => (
+                  <optgroup key={ward.id} label={`👑 ${ward.name} (Parent Ward)`} className="bg-slate-900 text-purple-300 font-semibold">
+                    <option value={ward.id} className="bg-slate-900 text-white font-medium">
+                      🏛️ {ward.name} (Entire Ward)
+                    </option>
+                    {children.map(child => (
+                      <option key={child.id} value={child.id} className="bg-slate-900 text-slate-200">
+                        &nbsp;&nbsp;↳ {child.name} (Unit)
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
-                {childUnits.map(u => (
-                  <option key={u.id} value={u.id} className="bg-slate-900 text-blue-300">
-                    ↳ Unit: {u.name}
-                  </option>
-                ))}
+                {standaloneUnits.length > 0 && (
+                  <optgroup label="Standalone Units" className="bg-slate-900 text-slate-400">
+                    {standaloneUnits.map(unit => (
+                      <option key={unit.id} value={unit.id} className="bg-slate-900 text-white">
+                        🏢 {unit.name} (Unit)
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </div>
           )}

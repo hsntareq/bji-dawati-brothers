@@ -10,6 +10,7 @@ import {
   Plus, BookOpen, BookMarked, Library, Check, Trash2 as Delete, Send, UserPlus,
   MoreVertical, Download, RefreshCw, RotateCcw, CheckSquare, LayoutList,
   FileSpreadsheet, UploadCloud, AlertTriangle, Info, BarChart3, ShieldCheck,
+  Shield, CornerDownRight,
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useLanguage } from '@/context/LanguageContext';
@@ -433,6 +434,45 @@ export default function ContactsPage() {
   const [allOrgs, setAllOrgs] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // ── Hierarchical Parent Ward & Child Units Grouping ──
+  const { wardGroups, standaloneUnits } = useMemo(() => {
+    // 1. Identify which org IDs are pointed to as parentOrgId by any other organization
+    const referencedParentIds = new Set<string>();
+    organizations.forEach(o => {
+      if (o.parentOrgId) referencedParentIds.add(o.parentOrgId);
+    });
+
+    const isParentWard = (o: any) => {
+      if (o.type === 'ward') return true;
+      if (referencedParentIds.has(o.id)) return true;
+      const lower = (o.name || '').toLowerCase();
+      if (lower.includes('ward') || lower.includes('ওয়ার্ড')) return true;
+      return false;
+    };
+
+    const wards = organizations.filter(isParentWard);
+    const wardMap = new Map<string, { ward: any; children: any[] }>(
+      wards.map(w => [w.id, { ward: w, children: [] }])
+    );
+    const standalone: any[] = [];
+
+    organizations.forEach(o => {
+      if (wardMap.has(o.id)) {
+        return; // Already registered as a parent ward
+      }
+      if (o.parentOrgId && wardMap.has(o.parentOrgId)) {
+        wardMap.get(o.parentOrgId)!.children.push(o);
+      } else {
+        standalone.push(o);
+      }
+    });
+
+    return {
+      wardGroups: Array.from(wardMap.values()),
+      standaloneUnits: standalone,
+    };
+  }, [organizations]);
 
   // ── Custom Statuses (Creatable Dispositions) ────────
   const [customStatuses, setCustomStatuses] = useState<StatusOption[]>([]);
@@ -1663,7 +1703,15 @@ export default function ContactsPage() {
       }
       return filterStatuses.has(c.status ?? '');
     })();
-    const matchOrg    = filterOrgIds.size   === 0 || filterOrgIds.has(c.organizationId);
+    const matchOrg = (() => {
+      if (filterOrgIds.size === 0) return true;
+      if (filterOrgIds.has(c.organizationId)) return true;
+      const cOrg = organizations.find(o => o.id === c.organizationId);
+      if (cOrg?.parentOrgId && filterOrgIds.has(cOrg.parentOrgId)) {
+        return true;
+      }
+      return false;
+    })();
     const contactCat  = c.category || 'shohojogi';
     const matchCat    = filterCategory === 'all' || contactCat === filterCategory;
     return matchSearch && matchStatus && matchOrg && matchCat;
@@ -2317,14 +2365,29 @@ export default function ContactsPage() {
                           (() => {
                             const orgId = Array.from(filterOrgIds)[0];
                             const org = organizations.find(o => o.id === orgId);
+                            const isWard = org?.type === 'ward' || (org?.name || '').toLowerCase().includes('ward');
                             return (
-                              <span className="truncate text-blue-300 font-semibold">
-                                {org?.name ?? '1 selected'}
+                              <span className="flex items-center gap-1.5 truncate">
+                                {isWard ? (
+                                  <Shield className="w-3 h-3 text-purple-600 dark:text-purple-400 shrink-0" />
+                                ) : (
+                                  <Building2 className="w-3 h-3 text-blue-600 dark:text-blue-400 shrink-0" />
+                                )}
+                                <span className="truncate text-blue-600 dark:text-blue-300 font-semibold">
+                                  {org?.name ?? '1 selected'}
+                                </span>
+                                <span className={`text-[9px] uppercase font-bold px-1 py-0.2 rounded shrink-0 ${
+                                  isWard
+                                    ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30'
+                                    : 'bg-blue-100 dark:bg-blue-500/20 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30'
+                                }`}>
+                                  {isWard ? 'Ward' : 'Unit'}
+                                </span>
                               </span>
                             );
                           })()
                         ) : (
-                          <span className="text-blue-400 font-semibold truncate">
+                          <span className="text-blue-600 dark:text-blue-400 font-semibold truncate">
                             {filterOrgIds.size} Organizations
                           </span>
                         )}
@@ -2333,44 +2396,131 @@ export default function ContactsPage() {
                     </div>
 
                     {expandedFilter === 'organization' && (
-                      <div className="mt-2 pt-2 border-t border-white/5 space-y-0.5 max-h-48 overflow-y-auto">
+                      <div className="mt-2 pt-2 border-t border-white/5 space-y-1 max-h-56 overflow-y-auto pr-0.5">
                         <button
                           type="button"
                           onClick={() => setFilterOrgIds(new Set())}
-                          className={`w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors text-left cursor-pointer ${
+                          className={`w-full flex items-center justify-between px-2.5 py-2 text-xs font-semibold rounded-lg transition-colors text-left cursor-pointer ${
                             filterOrgIds.size === 0
-                              ? 'text-blue-400 bg-blue-500/10 font-semibold'
-                              : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                              ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 font-bold'
+                              : 'hover:bg-slate-100 dark:hover:bg-white/5'
                           }`}
                         >
                           <span className="flex items-center gap-2">
-                            <Building2 className="w-3.5 h-3.5 text-blue-400" />
-                            <span>All Organizations</span>
+                            <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            <span className="font-bold text-slate-900 dark:text-white" style={{ color: filterOrgIds.size === 0 ? undefined : 'var(--bji-text-1)' }}>
+                              All Organizations
+                            </span>
                           </span>
-                          {filterOrgIds.size === 0 && <Check className="w-3.5 h-3.5 text-blue-400" />}
+                          {filterOrgIds.size === 0 && <Check className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
                         </button>
-                        <div className="my-1 border-t border-white/5" />
-                        {organizations.map(o => {
-                          const active = filterOrgIds.has(o.id);
+
+                        <div className="my-1 border-t border-white/10" />
+
+                        {/* Hierarchical Parent Wards and their Child Units */}
+                        {wardGroups.map(({ ward, children }) => {
+                          const isWardActive = filterOrgIds.has(ward.id);
                           return (
-                            <button
-                              key={o.id}
-                              type="button"
-                              onClick={() => toggleOrg(o.id)}
-                              className={`w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors text-left cursor-pointer ${
-                                active
-                                  ? 'text-white bg-blue-500/15 font-semibold'
-                                  : 'text-slate-300 hover:bg-white/5 hover:text-white'
-                              }`}
-                            >
-                              <span className="flex items-center gap-2 truncate">
-                                <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                <span className="truncate">{o.name}</span>
-                              </span>
-                              {active && <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
-                            </button>
+                            <div key={ward.id} className="space-y-0.5">
+                              {/* Parent Ward Item */}
+                              <button
+                                type="button"
+                                onClick={() => toggleOrg(ward.id)}
+                                className={`w-full flex items-center justify-between px-2.5 py-2 text-xs font-bold rounded-lg transition-all text-left cursor-pointer border ${
+                                  isWardActive
+                                    ? 'bg-purple-100 dark:bg-purple-500/25 border-purple-300 dark:border-purple-500/40 shadow-sm'
+                                    : 'hover:bg-slate-100 dark:hover:bg-white/5 border-transparent'
+                                }`}
+                              >
+                                <span className="flex items-center gap-2 truncate">
+                                  <Shield className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                                  <span className="truncate font-bold text-slate-900 dark:text-white" style={{ color: 'var(--bji-text-1)' }}>
+                                    {ward.name}
+                                  </span>
+                                </span>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <span className="text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-500/25 text-purple-900 dark:text-purple-300 border border-purple-300 dark:border-purple-500/40">
+                                    Parent Ward
+                                  </span>
+                                  {isWardActive && <Check className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />}
+                                </div>
+                              </button>
+
+                              {/* Nested Child Units */}
+                              {children.length > 0 && (
+                                <div className="pl-3.5 space-y-0.5 border-l-2 border-purple-400 dark:border-purple-500/35 ml-3.5 my-0.5">
+                                  {children.map(child => {
+                                    const isChildActive = filterOrgIds.has(child.id);
+                                    return (
+                                      <button
+                                        key={child.id}
+                                        type="button"
+                                        onClick={() => toggleOrg(child.id)}
+                                        className={`w-full flex items-center justify-between px-2 py-1.5 text-xs rounded-lg transition-colors text-left cursor-pointer ${
+                                          isChildActive
+                                            ? 'bg-blue-100 dark:bg-blue-500/20 font-semibold'
+                                            : 'hover:bg-slate-100 dark:hover:bg-white/5'
+                                        }`}
+                                      >
+                                        <span className="flex items-center gap-1.5 truncate">
+                                          <CornerDownRight className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
+                                          <span className="truncate font-semibold text-slate-800 dark:text-slate-100" style={{ color: 'var(--bji-text-1)' }}>
+                                            {child.name}
+                                          </span>
+                                        </span>
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                          <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-500/15 text-blue-900 dark:text-blue-300 border border-blue-300 dark:border-blue-500/30">
+                                            Child Unit
+                                          </span>
+                                          {isChildActive && <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />}
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           );
                         })}
+
+                        {/* Standalone Units (if any) */}
+                        {standaloneUnits.length > 0 && (
+                          <div className="space-y-0.5 pt-1">
+                            {wardGroups.length > 0 && (
+                              <div className="px-2 pt-1 pb-0.5 text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--bji-text-3)' }}>
+                                Standalone Units
+                              </div>
+                            )}
+                            {standaloneUnits.map(unit => {
+                              const isActive = filterOrgIds.has(unit.id);
+                              return (
+                                <button
+                                  key={unit.id}
+                                  type="button"
+                                  onClick={() => toggleOrg(unit.id)}
+                                  className={`w-full flex items-center justify-between px-2.5 py-1.5 text-xs rounded-lg transition-colors text-left cursor-pointer ${
+                                    isActive
+                                      ? 'bg-blue-100 dark:bg-blue-500/15 font-semibold'
+                                      : 'hover:bg-slate-100 dark:hover:bg-white/5'
+                                  }`}
+                                >
+                                  <span className="flex items-center gap-2 truncate">
+                                    <Building2 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
+                                    <span className="truncate font-semibold text-slate-800 dark:text-slate-100" style={{ color: 'var(--bji-text-1)' }}>
+                                      {unit.name}
+                                    </span>
+                                  </span>
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700/60 text-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-600/30">
+                                      Unit
+                                    </span>
+                                    {isActive && <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -2797,11 +2947,34 @@ export default function ContactsPage() {
                         </button>
                       </div>
 
-                      {/* Org info - clean, spacious */}
-                      <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-400">
-                        <Building2 className="w-3 h-3 text-slate-500 shrink-0" />
-                        <span className="text-slate-300 truncate font-medium">{orgName(c.organizationId)}</span>
-                      </div>
+                      {/* Org info - Parent & Child Identification */}
+                      {(() => {
+                        const org = organizations.find(o => o.id === c.organizationId);
+                        const parentWard = org?.parentOrgId ? (organizations.find(o => o.id === org.parentOrgId) || allOrgs.find(o => o.id === org.parentOrgId)) : null;
+                        const isWard = org?.type === 'ward' || (!parentWard && (org?.name || '').toLowerCase().includes('ward'));
+                        return (
+                          <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-400 flex-wrap">
+                            {isWard ? (
+                              <Shield className="w-3 h-3 text-purple-600 dark:text-purple-400 shrink-0" />
+                            ) : (
+                              <Building2 className="w-3 h-3 text-blue-600 dark:text-blue-400 shrink-0" />
+                            )}
+                            <span className="text-slate-700 dark:text-slate-200 truncate font-medium">{org?.name || '—'}</span>
+                            <span className={`text-[9px] uppercase px-1.5 py-0.2 rounded font-bold shrink-0 ${
+                              isWard
+                                ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30'
+                                : 'bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-500/20'
+                            }`}>
+                              {isWard ? 'Ward' : 'Unit'}
+                            </span>
+                            {parentWard && (
+                              <span className="text-[10px] text-purple-700 dark:text-purple-400 font-semibold" title={`Child of ${parentWard.name}`}>
+                                ↳ {parentWard.name}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Quick Action Buttons (Call & WhatsApp) */}
@@ -3124,13 +3297,42 @@ export default function ContactsPage() {
                         {/* Org & Location Column */}
                         <td className="px-4 py-3.5 align-middle">
                           <div className="flex flex-col gap-1 items-start min-w-0 max-w-full">
-                            <span
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 hover:bg-blue-500/15 text-blue-300 border border-blue-500/20 rounded-lg text-xs font-medium truncate max-w-full transition-colors"
-                              title={orgName(c.organizationId)}
-                            >
-                              <Building2 className="w-3 h-3 text-blue-400 shrink-0" />
-                              <span className="truncate">{orgName(c.organizationId)}</span>
-                            </span>
+                            {(() => {
+                              const org = organizations.find(o => o.id === c.organizationId);
+                              const parentWard = org?.parentOrgId ? (organizations.find(o => o.id === org.parentOrgId) || allOrgs.find(o => o.id === org.parentOrgId)) : null;
+                              const isWard = org?.type === 'ward' || (!parentWard && (org?.name || '').toLowerCase().includes('ward'));
+                              return (
+                                <div className="flex flex-col gap-0.5 items-start max-w-full">
+                                  <span
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium truncate max-w-full transition-colors border ${
+                                      isWard
+                                        ? 'bg-purple-100 dark:bg-purple-500/10 hover:bg-purple-200 dark:hover:bg-purple-500/20 text-purple-900 dark:text-purple-300 border-purple-300 dark:border-purple-500/20'
+                                        : 'bg-blue-100 dark:bg-blue-500/10 hover:bg-blue-200 dark:hover:bg-blue-500/15 text-blue-900 dark:text-blue-300 border-blue-300 dark:border-blue-500/20'
+                                    }`}
+                                    title={org?.name || '—'}
+                                  >
+                                    {isWard ? (
+                                      <Shield className="w-3 h-3 text-purple-600 dark:text-purple-400 shrink-0" />
+                                    ) : (
+                                      <Building2 className="w-3 h-3 text-blue-600 dark:text-blue-400 shrink-0" />
+                                    )}
+                                    <span className="truncate">{org?.name || '—'}</span>
+                                    <span className={`text-[9px] uppercase px-1 py-0.2 rounded font-bold shrink-0 ${
+                                      isWard
+                                        ? 'bg-purple-200 dark:bg-purple-500/25 text-purple-900 dark:text-purple-200'
+                                        : 'bg-blue-200 dark:bg-blue-500/20 text-blue-900 dark:text-blue-200'
+                                    }`}>
+                                      {isWard ? 'Ward' : 'Unit'}
+                                    </span>
+                                  </span>
+                                  {parentWard && (
+                                    <span className="inline-flex items-center gap-1 text-[10px] text-purple-700 dark:text-purple-400 font-semibold pl-1" title={`Child of ${parentWard.name}`}>
+                                      <span>↳ Ward: {parentWard.name}</span>
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
                             {c.location && (
                               <span
                                 className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/20 truncate max-w-full"
@@ -3498,13 +3700,40 @@ export default function ContactsPage() {
                       </span>
                     </span>
 
-                    <span
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800/80 text-slate-300 border border-white/10 shadow-sm max-w-[220px]"
-                      title={orgName(selectedContact.organizationId)}
-                    >
-                      <Building2 className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                      <span className="truncate">{orgName(selectedContact.organizationId)}</span>
-                    </span>
+                    {(() => {
+                      const org = organizations.find(o => o.id === selectedContact.organizationId);
+                      const parentWard = org?.parentOrgId ? (organizations.find(o => o.id === org.parentOrgId) || allOrgs.find(o => o.id === org.parentOrgId)) : null;
+                      const isWard = org?.type === 'ward' || (!parentWard && (org?.name || '').toLowerCase().includes('ward'));
+                      return (
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border shadow-sm max-w-[280px] ${
+                            isWard
+                              ? 'bg-purple-100 dark:bg-purple-500/15 text-purple-900 dark:text-purple-300 border-purple-300 dark:border-purple-500/30'
+                              : 'bg-blue-100 dark:bg-blue-500/15 text-blue-900 dark:text-blue-300 border-blue-300 dark:border-blue-500/25'
+                          }`}
+                          title={org?.name || '—'}
+                        >
+                          {isWard ? (
+                            <Shield className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
+                          ) : (
+                            <Building2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                          )}
+                          <span className="truncate">{org?.name || '—'}</span>
+                          <span className={`text-[9px] uppercase font-bold px-1 py-0.2 rounded shrink-0 ${
+                            isWard
+                              ? 'bg-purple-200 dark:bg-purple-500/30 text-purple-900 dark:text-purple-200'
+                              : 'bg-blue-200 dark:bg-blue-500/20 text-blue-900 dark:text-blue-200'
+                          }`}>
+                            {isWard ? 'Ward' : 'Unit'}
+                          </span>
+                          {parentWard && (
+                            <span className="text-[10px] text-purple-700 dark:text-purple-400 font-semibold truncate">
+                              (↳ {parentWard.name})
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -3585,8 +3814,16 @@ export default function ContactsPage() {
                     ...(selectedContact.whatsappNumber ? [{ icon: FaWhatsapp, label: 'WhatsApp Number', value: selectedContact.whatsappNumber }] : []),
                     { icon: Mail,      label: 'Email',        value: selectedContact.email },
                     { icon: MapPin,    label: 'Location',     value: selectedContact.location },
-                    { icon: MapPin,    label: 'Address',      value: selectedContact.address },
-                    { icon: Building2, label: 'Organization', value: orgName(selectedContact.organizationId) },
+                    {
+                      icon: Building2,
+                      label: 'Organization',
+                      value: (() => {
+                        const org = organizations.find(o => o.id === selectedContact.organizationId);
+                        const parentWard = org?.parentOrgId ? (organizations.find(o => o.id === org.parentOrgId) || allOrgs.find(o => o.id === org.parentOrgId)) : null;
+                        if (!org) return '—';
+                        return parentWard ? `${org.name} (Child Unit of ${parentWard.name})` : org.name;
+                      })(),
+                    },
                     { icon: Users,     label: 'Note',         value: selectedContact.note },
                     { icon: Calendar,  label: 'Added',        value: fmtDate(selectedContact.createdAt) },
                   ] as { icon: any; label: string; value: any }[]).filter(r => r.value).map(({ icon: Icon, label, value }) => (
@@ -4004,7 +4241,25 @@ export default function ContactsPage() {
                   className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white appearance-none focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all cursor-pointer"
                 >
                   <option value="" disabled>Select organization</option>
-                  {organizations.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                  {wardGroups.map(({ ward, children }) => (
+                    <optgroup key={ward.id} label={`👑 ${ward.name} (Parent Ward)`} className="bg-slate-900 text-purple-300 font-semibold">
+                      <option value={ward.id} className="bg-slate-900 text-white font-medium">🏛️ {ward.name} (Ward)</option>
+                      {children.map(child => (
+                        <option key={child.id} value={child.id} className="bg-slate-900 text-slate-200">
+                          &nbsp;&nbsp;↳ {child.name} (Unit)
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                  {standaloneUnits.length > 0 && (
+                    <optgroup label="Standalone Units" className="bg-slate-900 text-slate-400">
+                      {standaloneUnits.map(unit => (
+                        <option key={unit.id} value={unit.id} className="bg-slate-900 text-white">
+                          🏢 {unit.name} (Unit)
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               </div>
               <div>
@@ -4523,9 +4778,25 @@ export default function ContactsPage() {
                     className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
                   >
                     <option value="" disabled>Select organization</option>
-                    {organizations.map(o => (
-                      <option key={o.id} value={o.id}>{o.name}</option>
+                    {wardGroups.map(({ ward, children }) => (
+                      <optgroup key={ward.id} label={`👑 ${ward.name} (Parent Ward)`} className="bg-slate-900 text-purple-300 font-semibold">
+                        <option value={ward.id} className="bg-slate-900 text-white font-medium">🏛️ {ward.name} (Ward)</option>
+                        {children.map(child => (
+                          <option key={child.id} value={child.id} className="bg-slate-900 text-slate-200">
+                            &nbsp;&nbsp;↳ {child.name} (Unit)
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
+                    {standaloneUnits.length > 0 && (
+                      <optgroup label="Standalone Units" className="bg-slate-900 text-slate-400">
+                        {standaloneUnits.map(unit => (
+                          <option key={unit.id} value={unit.id} className="bg-slate-900 text-white">
+                            🏢 {unit.name} (Unit)
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
                 </div>
 
@@ -4704,30 +4975,104 @@ export default function ContactsPage() {
               <label className="block text-xs font-medium text-slate-300">
                 Select Destination Organization
               </label>
-              <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
-                {organizations.map(org => {
-                  const isSelected = targetBulkOrgId === org.id;
+              <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                {wardGroups.map(({ ward, children }) => {
+                  const isWardSelected = targetBulkOrgId === ward.id;
                   return (
-                    <button
-                      type="button"
-                      key={org.id}
-                      onClick={() => setTargetBulkOrgId(org.id)}
-                      className={`w-full flex items-center justify-between p-3 rounded-xl border text-xs font-medium transition-all text-left cursor-pointer ${
-                        isSelected
-                          ? 'border-blue-500 bg-blue-500/15 text-white'
-                          : 'border-white/5 bg-slate-800/60 hover:bg-slate-800 text-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 truncate">
-                        <Building2 className={`w-4 h-4 ${isSelected ? 'text-blue-400' : 'text-slate-500'}`} />
-                        <span className="truncate">{org.name}</span>
-                      </div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
-                        {org.type === 'ward' ? 'Ward' : 'Unit'}
-                      </span>
-                    </button>
+                    <div key={ward.id} className="space-y-1">
+                      {/* Parent Ward */}
+                      <button
+                        type="button"
+                        onClick={() => setTargetBulkOrgId(ward.id)}
+                        className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold transition-all text-left cursor-pointer ${
+                          isWardSelected
+                            ? 'border-purple-500 bg-purple-500/20 text-white shadow-sm'
+                            : 'border-white/5 bg-slate-800/80 hover:bg-slate-800 text-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <Shield className="w-4 h-4 text-purple-400 shrink-0" />
+                          <span className="truncate font-semibold text-slate-800 dark:text-white" style={{ color: 'var(--bji-text-1)' }}>{ward.name}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[9px] uppercase font-bold text-purple-300 bg-purple-500/20 border border-purple-500/30 px-1.5 py-0.5 rounded">
+                            Parent Ward
+                          </span>
+                          {isWardSelected && <Check className="w-4 h-4 text-purple-400" />}
+                        </div>
+                      </button>
+
+                      {/* Nested Child Units */}
+                      {children.length > 0 && (
+                        <div className="pl-3 space-y-1 border-l-2 border-purple-500/20 ml-3.5 my-1">
+                          {children.map(child => {
+                            const isChildSelected = targetBulkOrgId === child.id;
+                            return (
+                              <button
+                                key={child.id}
+                                type="button"
+                                onClick={() => setTargetBulkOrgId(child.id)}
+                                className={`w-full flex items-center justify-between p-2 rounded-xl border text-xs font-medium transition-all text-left cursor-pointer ${
+                                  isChildSelected
+                                    ? 'border-blue-500 bg-blue-500/20 text-white shadow-sm'
+                                    : 'border-white/5 bg-slate-800/50 hover:bg-slate-800 text-slate-300'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 truncate">
+                                  <CornerDownRight className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                                  <span className="truncate text-slate-800 dark:text-slate-100" style={{ color: 'var(--bji-text-1)' }}>{child.name}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <span className="text-[9px] uppercase font-semibold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded">
+                                    Child Unit
+                                  </span>
+                                  {isChildSelected && <Check className="w-4 h-4 text-blue-400" />}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
+
+                {/* Standalone Units */}
+                {standaloneUnits.length > 0 && (
+                  <div className="space-y-1 pt-1">
+                    {wardGroups.length > 0 && (
+                      <div className="px-1 text-[10px] uppercase font-bold text-slate-500 tracking-wider">
+                        Standalone Units
+                      </div>
+                    )}
+                    {standaloneUnits.map(unit => {
+                      const isUnitSelected = targetBulkOrgId === unit.id;
+                      return (
+                        <button
+                          key={unit.id}
+                          type="button"
+                          onClick={() => setTargetBulkOrgId(unit.id)}
+                          className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-medium transition-all text-left cursor-pointer ${
+                            isUnitSelected
+                              ? 'border-blue-500 bg-blue-500/20 text-white'
+                              : 'border-white/5 bg-slate-800/60 hover:bg-slate-800 text-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <Building2 className={`w-4 h-4 ${isUnitSelected ? 'text-blue-400' : 'text-slate-500'}`} />
+                            <span className="truncate text-slate-800 dark:text-slate-100" style={{ color: 'var(--bji-text-1)' }}>{unit.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[9px] uppercase font-bold text-slate-400 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
+                              Unit
+                            </span>
+                            {isUnitSelected && <Check className="w-4 h-4 text-blue-400" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -4857,39 +5202,124 @@ export default function ContactsPage() {
                   <Building2 className="w-3.5 h-3.5 text-blue-400" />
                   <span>{language === 'bn' ? 'ইউনিট অনুযায়ী ব্যক্তি সংখ্যা' : 'People by Unit'}</span>
                 </h4>
-                <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
-                  {organizations.map(org => {
-                    const count = contacts.filter(c => c.organizationId === org.id).length;
+                <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+                  {wardGroups.map(({ ward, children }) => {
+                    const wardDirectCount = contacts.filter(c => c.organizationId === ward.id).length;
+                    const childIds = new Set(children.map(c => c.id));
+                    const childCount = contacts.filter(c => childIds.has(c.organizationId)).length;
+                    const totalWardContacts = wardDirectCount + childCount;
+
                     return (
-                      <div
-                        key={org.id}
-                        className="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/60 border border-white/5 hover:border-white/10 transition-colors"
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="text-xs font-medium text-slate-200 truncate">{org.name}</span>
-                          <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-white/5 text-slate-400 font-bold">
-                            {org.type === 'ward' ? 'Ward' : 'Unit'}
-                          </span>
+                      <div key={ward.id} className="p-2.5 rounded-xl bg-slate-800/80 border border-purple-500/20 space-y-2">
+                        {/* Parent Ward Summary */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 truncate">
+                            <Shield className="w-4 h-4 text-purple-400 shrink-0" />
+                            <span className="text-xs font-bold truncate" style={{ color: 'var(--bji-text-1)' }}>{ward.name}</span>
+                            <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
+                              Parent Ward
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded-lg bg-purple-500/20 text-purple-200 font-extrabold text-xs" title="Total contacts in ward and all its units">
+                              {totalWardContacts}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFilterOrgIds(new Set([ward.id]));
+                                setStatsModalOpen(false);
+                              }}
+                              className="text-[10px] text-purple-300 hover:text-purple-200 underline font-medium cursor-pointer"
+                            >
+                              {language === 'bn' ? 'ফিল্টার' : 'Filter'}
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded-lg bg-blue-500/15 text-blue-300 font-bold text-xs">
-                            {count}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setFilterOrgIds(new Set([org.id]));
-                              setStatsModalOpen(false);
-                            }}
-                            className="text-[10px] text-blue-400 hover:text-blue-300 underline font-medium cursor-pointer"
-                          >
-                            {language === 'bn' ? 'ফিল্টার' : 'Filter'}
-                          </button>
-                        </div>
+
+                        {/* Child Units Breakdown */}
+                        {children.length > 0 && (
+                          <div className="pl-3 space-y-1 border-l-2 border-purple-500/20 ml-2 pt-0.5">
+                            {children.map(child => {
+                              const count = contacts.filter(c => c.organizationId === child.id).length;
+                              return (
+                                <div
+                                  key={child.id}
+                                  className="flex items-center justify-between py-1 px-2 rounded-lg bg-slate-900/60 hover:bg-slate-900 text-xs"
+                                >
+                                  <div className="flex items-center gap-1.5 truncate">
+                                    <CornerDownRight className="w-3 h-3 text-purple-400 shrink-0" />
+                                    <span className="truncate font-medium" style={{ color: 'var(--bji-text-1)' }}>{child.name}</span>
+                                    <span className="text-[8px] uppercase px-1 py-0.2 rounded bg-blue-500/10 text-blue-400 font-semibold border border-blue-500/20">
+                                      Unit
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="px-1.5 py-0.2 rounded bg-blue-500/15 text-blue-300 font-bold text-xs">
+                                      {count}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setFilterOrgIds(new Set([child.id]));
+                                        setStatsModalOpen(false);
+                                      }}
+                                      className="text-[10px] text-blue-400 hover:text-blue-300 underline font-medium cursor-pointer"
+                                    >
+                                      {language === 'bn' ? 'ফিল্টার' : 'Filter'}
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
+
+                  {/* Standalone Units */}
+                  {standaloneUnits.length > 0 && (
+                    <div className="space-y-1 pt-1">
+                      {wardGroups.length > 0 && (
+                        <div className="px-1 text-[10px] uppercase font-bold text-slate-500 tracking-wider">
+                          Standalone Units
+                        </div>
+                      )}
+                      {standaloneUnits.map(unit => {
+                        const count = contacts.filter(c => c.organizationId === unit.id).length;
+                        return (
+                          <div
+                            key={unit.id}
+                            className="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/60 border border-white/5 hover:border-white/10 transition-colors"
+                          >
+                            <div className="flex items-center gap-2 truncate">
+                              <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span className="text-xs font-medium truncate" style={{ color: 'var(--bji-text-1)' }}>{unit.name}</span>
+                              <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-white/5 text-slate-400 font-bold">
+                                Unit
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded-lg bg-blue-500/15 text-blue-300 font-bold text-xs">
+                                {count}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFilterOrgIds(new Set([unit.id]));
+                                  setStatsModalOpen(false);
+                                }}
+                                className="text-[10px] text-blue-400 hover:text-blue-300 underline font-medium cursor-pointer"
+                              >
+                                {language === 'bn' ? 'ফিল্টার' : 'Filter'}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 

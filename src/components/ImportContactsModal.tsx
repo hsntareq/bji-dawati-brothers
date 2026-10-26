@@ -164,6 +164,29 @@ export default function ImportContactsModal({
     return map;
   }, [organizations]);
 
+  // Group available units by parent ward
+  const { wardUnitGroups, standaloneImportUnits } = useMemo(() => {
+    const parentMap = new Map<string, { ward: any; units: any[] }>();
+    const standalone: any[] = [];
+
+    availableUnits.forEach(u => {
+      const parentWard = u.parentOrgId ? orgMap.get(u.parentOrgId) : null;
+      if (parentWard) {
+        if (!parentMap.has(parentWard.id)) {
+          parentMap.set(parentWard.id, { ward: parentWard, units: [] });
+        }
+        parentMap.get(parentWard.id)!.units.push(u);
+      } else {
+        standalone.push(u);
+      }
+    });
+
+    return {
+      wardUnitGroups: Array.from(parentMap.values()),
+      standaloneImportUnits: standalone,
+    };
+  }, [availableUnits, orgMap]);
+
   // Initialize or update target unit when modal opens or preselectedUnitId changes
   useEffect(() => {
     if (isOpen) {
@@ -623,14 +646,24 @@ export default function ImportContactsModal({
                     onChange={e => setTargetUnitId(e.target.value)}
                     className="w-full bg-slate-800 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer pr-10"
                   >
-                    {availableUnits.map(unit => {
-                      const parentWard = unit.parentOrgId ? orgMap.get(unit.parentOrgId) : null;
-                      return (
-                        <option key={unit.id} value={unit.id} className="bg-slate-900 text-white">
-                          {unit.name} {parentWard ? `(Parent: ${parentWard.name})` : '(Standalone Unit)'}
-                        </option>
-                      );
-                    })}
+                    {wardUnitGroups.map(({ ward, units }) => (
+                      <optgroup key={ward.id} label={`👑 ${ward.name} (Parent Ward)`} className="bg-slate-900 text-purple-300 font-semibold">
+                        {units.map(unit => (
+                          <option key={unit.id} value={unit.id} className="bg-slate-900 text-white font-normal">
+                            ↳ {unit.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                    {standaloneImportUnits.length > 0 && (
+                      <optgroup label="Standalone Units" className="bg-slate-900 text-slate-400">
+                        {standaloneImportUnits.map(unit => (
+                          <option key={unit.id} value={unit.id} className="bg-slate-900 text-white">
+                            🏢 {unit.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>

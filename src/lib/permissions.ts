@@ -1,4 +1,3 @@
-import { isSuperAdmin } from './superadmin';
 
 export interface UserAuthContext {
   uid: string;
@@ -35,60 +34,59 @@ const emailInList = (list?: string[] | null, targetEmail?: string | null): boole
 };
 
 /**
- * Checks if a user is the owner/creator of a specific ward.
+/**
+ * Checks if a user is the owner/creator or assigned member of a specific ward.
  */
 export const isWardOwner = (user: UserAuthContext | null | undefined, ward: OrgItem): boolean => {
   if (!user || ward.type !== 'ward') return false;
-  if (isSuperAdmin(user.email)) return true;
   return (
     ward.createdBy === user.uid ||
-    emailEquals(ward.creatorEmail, user.email)
+    emailEquals(ward.creatorEmail, user.email) ||
+    emailInList(ward.allowedEmails, user.email)
   );
 };
 
 /**
- * Determines all organizations accessible to a user based on strict role & scoping rules:
- * - SuperAdmin: All organizations
- * - Ward Owner: The ward they own AND all child units of that ward ("ward owner can see their and their children's persons")
- * - Ward Member (in allowedEmails of a ward, but not owner): Only that ward itself ("ward can only see their own persons"), NOT the child units
- * - Unit Owner / Member: Only their specific unit
- * - General/Other Orgs: If created by user or in allowedEmails
+ * Determines all organizations accessible to a user:
+ * Shows ONLY own and child organizations everywhere.
+ * - Own organization: Created by user, creator email matches, or user is in allowedEmails.
+ * - Child organization: Has parentOrgId matching one of the user's own organizations (e.g. units of an owned ward).
  */
 export const getAccessibleOrganizations = (
   user: UserAuthContext | null | undefined,
   allOrgs: OrgItem[]
 ): OrgItem[] => {
   if (!user) return [];
-  if (isSuperAdmin(user.email)) return allOrgs;
 
-  // Identify all wards owned by the user
-  const ownedWardIds = new Set(
-    allOrgs
-      .filter(o => o.type === 'ward' && isWardOwner(user, o))
-      .map(o => o.id)
-  );
+  // 1. Collect all organizations directly owned by or assigned to the user ("own organizations")
+  const ownOrgIds = new Set<string>();
 
-  return allOrgs.filter(o => {
-    // 1. Direct creator/owner of this organization
-    if (o.createdBy === user.uid || emailEquals(o.creatorEmail, user.email)) {
-      return true;
+  allOrgs.forEach(o => {
+    const isDirectOwnerOrMember =
+      o.createdBy === user.uid ||
+      emailEquals(o.creatorEmail, user.email) ||
+      emailInList(o.allowedEmails, user.email);
+
+    if (isDirectOwnerOrMember) {
+      ownOrgIds.add(o.id);
     }
-
-    // 2. Child unit of a ward owned by the user
-    // "ward owner can see their and their children's persons"
-    if (o.type === 'unit' && o.parentOrgId && ownedWardIds.has(o.parentOrgId)) {
-      return true;
-    }
-
-    // 3. User is directly in allowedEmails of this organization (ward member or unit member)
-    // Note: a ward member gets access to the ward itself ("ward can only see their own persons"),
-    // but not child units unless they are the ward owner or explicitly in the child unit's allowedEmails.
-    if (emailInList(o.allowedEmails, user.email)) {
-      return true;
-    }
-
-    return false;
   });
+
+  // 2. Expand to include child organizations (e.g. units under an owned/assigned ward)
+  const accessibleOrgIds = new Set<string>(ownOrgIds);
+  let addedNew = true;
+  while (addedNew) {
+    addedNew = false;
+    allOrgs.forEach(o => {
+      if (!accessibleOrgIds.has(o.id) && o.parentOrgId && accessibleOrgIds.has(o.parentOrgId)) {
+        accessibleOrgIds.add(o.id);
+        addedNew = true;
+      }
+    });
+  }
+
+  // 3. Return only own and child organizations
+  return allOrgs.filter(o => accessibleOrgIds.has(o.id));
 };
 
 /**
@@ -103,8 +101,7 @@ export const getAccessibleOrgIds = (
 
 /**
  * Determines if a specific contact is accessible to the user:
- * - SuperAdmin: Access to all contacts
- * - Contact with organizationId: Must belong to one of the user's accessible organizations
+ * - Contact with organizationId: Must belong to one of the user's accessible organizations (own or child)
  * - Contact without organizationId: Accessible only to its creator (prevents foreign leaks)
  */
 export const isContactAccessible = (
@@ -113,7 +110,6 @@ export const isContactAccessible = (
   accessibleOrgIds: Set<string>
 ): boolean => {
   if (!user) return false;
-  if (isSuperAdmin(user.email)) return true;
 
   if (contact.organizationId) {
     return accessibleOrgIds.has(contact.organizationId);
@@ -132,6 +128,5 @@ export const filterAccessibleContacts = (
   accessibleOrgIds: Set<string>
 ): ContactItem[] => {
   if (!user) return [];
-  if (isSuperAdmin(user.email)) return contacts;
   return contacts.filter(c => isContactAccessible(c, user, accessibleOrgIds));
 };

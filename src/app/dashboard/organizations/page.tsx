@@ -559,10 +559,17 @@ export default function OrganizationsPage() {
 
 
   // Hierarchy grouping
-  const wardOrgs = organizations.filter(o => o.type === 'ward');
-  const unitOrgs = organizations.filter(o => o.type === 'unit');
+  const isWard = (o: any) => {
+    if (o.type === 'ward') return true;
+    if (organizations.some(child => child.parentOrgId === o.id)) return true;
+    const lower = (o.name || '').toLowerCase();
+    if (lower.includes('ward') || lower.includes('ওয়ার্ড')) return true;
+    return false;
+  };
+  const wardOrgs = organizations.filter(isWard);
+  const unitOrgs = organizations.filter(o => !isWard(o));
   const orphanUnits = unitOrgs.filter(u => !u.parentOrgId || !organizations.find(w => w.id === u.parentOrgId));
-  const otherOrgs = organizations.filter(o => o.type === 'other' || !o.type);
+  const otherOrgs = organizations.filter(o => o.type === 'other' || (!o.type && !o.parentOrgId && !isWard(o)));
 
   const childrenOf = (wardId: string) => unitOrgs.filter(u => u.parentOrgId === wardId);
 
@@ -1559,7 +1566,7 @@ export default function OrganizationsPage() {
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         preselectedUnitId={selectedOrg?.type === 'unit' ? selectedOrg.id : undefined}
-        organizations={allOrgsRaw.length > 0 ? allOrgsRaw : organizations}
+        organizations={organizations}
         onSuccess={handleImportSuccess}
       />
     </div>
