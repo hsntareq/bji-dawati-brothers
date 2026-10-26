@@ -16,6 +16,7 @@ import {
   filterAccessibleContacts,
 } from '@/lib/permissions';
 import Link from 'next/link';
+import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss';
 import {
   Building2, Users, Target, TrendingUp, Award,
   Sparkles, Calendar, ChevronRight, ArrowUpRight,
@@ -72,6 +73,11 @@ export default function DashboardPage() {
   const [targetForm,      setTargetForm]      = useState(defaultTargets);
   const [targetSaving,    setTargetSaving]    = useState(false);
   const [targetFeedback,  setTargetFeedback]  = useState(false);
+
+  // ── Swipe to Dismiss Target Modal (Slide right to close) ──
+  const targetModalSwipeRef = useSwipeToDismiss({
+    onClose: () => setTargetModalOpen(false),
+  });
 
   const currentMonthKey = new Date().toISOString().slice(0, 7); // e.g. "2026-10"
   const currentMonthLabel = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -954,7 +960,12 @@ export default function DashboardPage() {
             onClick={() => setTargetModalOpen(false)}
           />
 
-          <div className="relative w-full max-w-md bg-slate-900 border border-white/10 rounded-3xl p-6 shadow-2xl z-10 space-y-5 animate-slide-in-right">
+          <div
+            ref={targetModalSwipeRef}
+            className="relative w-full max-w-md bg-slate-900 border border-white/10 rounded-3xl p-6 shadow-2xl z-10 space-y-5 animate-slide-in-right"
+          >
+            {/* Mobile swipe grab bar */}
+            <div className="w-10 h-1 bg-white/20 hover:bg-white/40 rounded-full mx-auto -mt-2 -mb-2 sm:hidden transition-colors cursor-grab" />
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-2xl bg-amber-500/15 flex items-center justify-center text-amber-400">

@@ -15,6 +15,7 @@ import {
 import { FaWhatsapp } from 'react-icons/fa';
 import { useLanguage } from '@/context/LanguageContext';
 import ImportContactsModal from '@/components/ImportContactsModal';
+import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss';
 
 import {
   getAllFromStore,
@@ -843,6 +844,23 @@ export default function ContactsPage() {
   const [targetBulkOrgId, setTargetBulkOrgId] = useState('');
   const [bulkUpdatingOrg, setBulkUpdatingOrg] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  // ── Swipe to Dismiss Handlers (Slide right to close) ──
+  const contactDetailSwipeRef = useSwipeToDismiss({
+    onClose: () => setSelectedContact(null),
+  });
+  const editContactSwipeRef = useSwipeToDismiss<HTMLFormElement>({
+    onClose: () => setEditContact(null),
+  });
+  const addPersonSwipeRef = useSwipeToDismiss<HTMLFormElement>({
+    onClose: () => setFormOpen(false),
+  });
+  const bulkOrgSwipeRef = useSwipeToDismiss({
+    onClose: () => setBulkOrgModalOpen(false),
+  });
+  const statsModalSwipeRef = useSwipeToDismiss({
+    onClose: () => setStatsModalOpen(false),
+  });
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -3360,11 +3378,20 @@ export default function ContactsPage() {
         <div className="fixed inset-x-0 top-0 bottom-16 md:bottom-0 z-40 flex" onClick={() => setSelectedContact(null)}>
           <div className="flex-1 bg-black/50 backdrop-blur-sm" />
           <div
-            className="animate-slide-in-right w-full max-w-md bg-slate-900 border-l border-white/10 h-full overflow-y-auto flex flex-col"
+            ref={contactDetailSwipeRef}
+            className="animate-slide-in-right w-full max-w-md bg-slate-900 border-l border-white/10 h-full overflow-y-auto flex flex-col relative"
             onClick={e => e.stopPropagation()}
           >
+            {/* Left Edge Drag Affordance on Desktop */}
+            <div
+              className="hidden sm:flex absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-12 bg-white/15 hover:bg-white/35 rounded-full cursor-grab active:cursor-grabbing transition-colors z-30"
+              title="Drag right to close"
+            />
+
             {/* Header */}
             <div className="sticky top-0 bg-slate-900/95 backdrop-blur-md border-b border-white/10 z-20 shadow-md">
+              {/* Mobile grab handle */}
+              <div className="w-10 h-1 bg-white/20 hover:bg-white/40 rounded-full mx-auto mt-2 -mb-1 sm:hidden transition-colors cursor-grab" />
               <div className="flex items-center justify-between px-5 sm:px-6 py-3.5">
                 <div>
                   <h3 className="font-semibold text-white text-base leading-tight">
@@ -3866,8 +3893,11 @@ export default function ContactsPage() {
               }
             }}
             className="relative w-full max-w-lg bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+            ref={editContactSwipeRef}
             onClick={e => e.stopPropagation()}
           >
+            {/* Mobile swipe grab bar */}
+            <div className="w-10 h-1 bg-white/20 hover:bg-white/40 rounded-full mx-auto mt-2 -mb-2 sm:hidden transition-colors cursor-grab" />
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
               <div className="flex items-center gap-3">
                 <div className="w-7 h-7 rounded-md bg-amber-500/15 flex items-center justify-center">
@@ -4363,8 +4393,11 @@ export default function ContactsPage() {
               }
             }}
             className="relative w-full max-w-lg bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            ref={addPersonSwipeRef}
             onClick={e => e.stopPropagation()}
           >
+            {/* Mobile swipe grab bar */}
+            <div className="w-10 h-1 bg-white/20 hover:bg-white/40 rounded-full mx-auto mt-2 -mb-2 sm:hidden transition-colors cursor-grab" />
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-900/95 backdrop-blur-sm sticky top-0 z-10">
               <div className="flex items-center gap-3">
@@ -4950,8 +4983,14 @@ export default function ContactsPage() {
 
       {/* ── Bulk Organization Change Modal ── */}
       {bulkOrgModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-white/10 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setBulkOrgModalOpen(false)}>
+          <div
+            ref={bulkOrgSwipeRef}
+            className="bg-slate-900 border border-white/10 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-5 relative"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Mobile swipe grab bar */}
+            <div className="w-10 h-1 bg-white/20 hover:bg-white/40 rounded-full mx-auto -mt-2 -mb-2 sm:hidden transition-colors cursor-grab" />
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
@@ -5120,9 +5159,12 @@ export default function ContactsPage() {
       {statsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setStatsModalOpen(false)}>
           <div
+            ref={statsModalSwipeRef}
             className="w-full max-w-lg bg-slate-900 border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] relative"
             onClick={e => e.stopPropagation()}
           >
+            {/* Mobile swipe grab bar */}
+            <div className="w-10 h-1 bg-white/20 hover:bg-white/40 rounded-full mx-auto mt-2 -mb-2 sm:hidden transition-colors cursor-grab" />
             {/* Glow accent */}
             <div className="absolute -top-24 -right-24 w-60 h-60 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -bottom-24 -left-24 w-60 h-60 bg-purple-500/15 rounded-full blur-3xl pointer-events-none" />

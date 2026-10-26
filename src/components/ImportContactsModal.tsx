@@ -23,6 +23,7 @@ import {
   Phone,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss';
 
 interface ParsedContactRow {
   rowNum: number;
@@ -140,6 +141,7 @@ export default function ImportContactsModal({
 }: ImportContactsModalProps) {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const modalSwipeRef = useSwipeToDismiss({ onClose });
 
   // Available units ONLY (contacts belong to units, never wards)
   const availableUnits = useMemo(() => {
@@ -532,11 +534,13 @@ export default function ImportContactsModal({
   const invalidCount = parsedRows.filter(r => !r.isValid).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in duration-200" onClick={onClose}>
       <div
+        ref={modalSwipeRef}
         className="w-full max-w-2xl bg-slate-900 border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] relative"
         onClick={e => e.stopPropagation()}
       >
+        <div className="w-10 h-1 bg-white/20 hover:bg-white/40 rounded-full mx-auto mt-2 -mb-2 sm:hidden transition-colors cursor-grab" />
         {/* Glow accent */}
         <div className="absolute -top-24 -right-24 w-60 h-60 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-60 h-60 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />

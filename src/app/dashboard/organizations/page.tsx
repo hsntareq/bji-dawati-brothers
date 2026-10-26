@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import ImportContactsModal from '@/components/ImportContactsModal';
+import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss';
 import {
   getAllFromStore,
   putAllInStore,
@@ -65,6 +66,17 @@ export default function OrganizationsPage() {
   const [memberLoading,   setMemberLoading]   = useState(false);
   const [feedback,        setFeedback]        = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  // ── Swipe to Dismiss Handlers (Slide right to close) ──
+  const orgDetailSwipeRef = useSwipeToDismiss({
+    onClose: () => setSelectedOrg(null),
+  });
+  const orgModalSwipeRef = useSwipeToDismiss({
+    onClose: () => {
+      setIsModalOpen(false);
+      setForm(emptyForm);
+    },
+  });
 
   const handleImportSuccess = (importedContacts: any[], unitId: string) => {
     setContactCounts(prev => ({
@@ -900,11 +912,21 @@ export default function OrganizationsPage() {
         <div className="fixed inset-x-0 top-0 bottom-16 md:bottom-0 z-50 flex" onClick={() => setSelectedOrg(null)}>
           <div className="flex-1 bg-black/60 backdrop-blur-sm" />
           <div
-            className="animate-slide-in-right w-full max-w-lg bg-slate-900 border-l border-white/10 h-full overflow-y-auto flex flex-col shadow-2xl"
+            ref={orgDetailSwipeRef}
+            className="animate-slide-in-right w-full max-w-lg bg-slate-900 border-l border-white/10 h-full overflow-y-auto flex flex-col shadow-2xl relative"
             onClick={e => e.stopPropagation()}
           >
+            {/* Left Edge Drag Affordance on Desktop */}
+            <div
+              className="hidden sm:flex absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-12 bg-white/15 hover:bg-white/35 rounded-full cursor-grab active:cursor-grabbing transition-colors z-30"
+              title="Drag right to close"
+            />
+
             {/* Slide-over Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 sticky top-0 bg-slate-900/95 backdrop-blur-md z-10">
+            <div className="px-6 py-4 border-b border-white/10 sticky top-0 bg-slate-900/95 backdrop-blur-md z-10">
+              {/* Mobile grab handle */}
+              <div className="w-10 h-1 bg-white/20 hover:bg-white/40 rounded-full mx-auto -mt-1 mb-2.5 sm:hidden transition-colors cursor-grab" />
+              <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 min-w-0">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
                   selectedOrg.type === 'ward' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'
@@ -933,6 +955,7 @@ export default function OrganizationsPage() {
               >
                 <X className="w-4 h-4" />
               </button>
+              </div>
             </div>
 
             {/* Quick Stats Grid */}
@@ -1426,8 +1449,14 @@ export default function OrganizationsPage() {
 
       {/* ── Create Organization Modal ───────────────── */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => { setIsModalOpen(false); setForm(emptyForm); }}>
+          <div
+            ref={orgModalSwipeRef}
+            className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl relative"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Mobile swipe grab bar */}
+            <div className="w-10 h-1 bg-white/20 hover:bg-white/40 rounded-full mx-auto mt-2 -mb-2 sm:hidden transition-colors cursor-grab" />
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
               <h2 className="text-lg font-bold">Create Organization</h2>
               <button onClick={() => { setIsModalOpen(false); setForm(emptyForm); }}
