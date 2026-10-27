@@ -254,7 +254,15 @@ export default function OrganizationDetailPage() {
         if (usersSnap.exists()) {
           const uList: any[] = [];
           usersSnap.forEach(child => {
-            uList.push({ uid: child.key, ...child.val() });
+            const val = child.val();
+            if (val && typeof val.email === 'string' && val.email.trim()) {
+              uList.push({
+                uid: child.key,
+                email: val.email.trim(),
+                name: val.name || val.profile?.displayName || '',
+                ...val,
+              });
+            }
           });
           setRegisteredUsers(uList);
         }
@@ -1167,6 +1175,7 @@ export default function OrganizationDetailPage() {
                 {/* Registered users quick-suggestions */}
                 {registeredUsers.length > 0 && (() => {
                   const unassignedUsers = registeredUsers.filter((u: any) =>
+                    Boolean(u?.email) &&
                     u.email !== currentOrg.creatorEmail &&
                     !(currentOrg.allowedEmails || []).includes(u.email)
                   );
@@ -1185,8 +1194,8 @@ export default function OrganizationDetailPage() {
                             className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-blue-600/20 border border-white/5 hover:border-blue-500/30 text-[11px] text-slate-300 hover:text-blue-300 flex items-center gap-1 transition-all cursor-pointer"
                           >
                             <Plus className="w-3 h-3 text-blue-400" />
-                            <span>{u.name || u.email.split('@')[0]}</span>
-                            <span className="text-slate-500 text-[9px]">({u.email})</span>
+                            <span>{u.name || (u.email ? u.email.split('@')[0] : 'User')}</span>
+                            {u.email && <span className="text-slate-500 text-[9px]">({u.email})</span>}
                           </button>
                         ))}
                       </div>
@@ -1217,7 +1226,7 @@ export default function OrganizationDetailPage() {
 
                 {/* Assigned members */}
                 {(currentOrg.allowedEmails || []).map((email: string) => {
-                  const matchedUser = registeredUsers.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
+                  const matchedUser = registeredUsers.find((u: any) => u.email && email && u.email.toLowerCase() === email.toLowerCase());
                   return (
                     <div
                       key={email}

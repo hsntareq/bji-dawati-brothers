@@ -272,7 +272,7 @@ export default function OrganizationsPage() {
       }
 
       const cachedUsers = await getMetaItem<any[]>('registered_users');
-      if (cachedUsers) setRegisteredUsers(cachedUsers);
+      if (cachedUsers) setRegisteredUsers(cachedUsers.filter((u: any) => Boolean(u?.email)));
     } catch (e) {
       console.warn('[Orgs] Error loading IndexedDB cache:', e);
     }
@@ -1495,6 +1495,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
                   {/* Registered users quick-suggestions */}
                   {registeredUsers.length > 0 && (() => {
                     const unassignedUsers = registeredUsers.filter((u: any) =>
+                      Boolean(u?.email) &&
                       u.email !== selectedOrg.creatorEmail &&
                       !(selectedOrg.allowedEmails || []).includes(u.email)
                     );
@@ -1513,8 +1514,8 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
                               className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-blue-600/20 border border-white/5 hover:border-blue-500/30 text-[11px] text-slate-300 hover:text-blue-300 flex items-center gap-1 transition-all cursor-pointer"
                             >
                               <Plus className="w-3 h-3 text-blue-400" />
-                              <span>{u.name || u.email.split('@')[0]}</span>
-                              <span className="text-slate-500 text-[9px]">({u.email})</span>
+                              <span>{u.name || (u.email ? u.email.split('@')[0] : 'User')}</span>
+                              {u.email && <span className="text-slate-500 text-[9px]">({u.email})</span>}
                             </button>
                           ))}
                         </div>
@@ -1545,7 +1546,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
 
                   {/* Assigned members */}
                   {(selectedOrg.allowedEmails || []).map((email: string) => {
-                    const matchedUser = registeredUsers.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
+                    const matchedUser = registeredUsers.find((u: any) => u.email && email && u.email.toLowerCase() === email.toLowerCase());
                     return (
                       <div
                         key={email}
@@ -2360,6 +2361,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
                     {/* Registered users quick-suggestions */}
                     {registeredUsers.length > 0 && (() => {
                       const unassignedUsers = registeredUsers.filter(u =>
+                        Boolean(u?.email) &&
                         u.email !== selectedOrg.creatorEmail &&
                         !(selectedOrg.allowedEmails || []).includes(u.email)
                       );
@@ -2378,8 +2380,8 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
                                 className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-blue-600/20 border border-white/5 hover:border-blue-500/30 text-xs text-slate-300 hover:text-blue-300 flex items-center gap-1.5 transition-all cursor-pointer"
                               >
                                 <Plus className="w-3 h-3 text-blue-400" />
-                                <span>{u.name || u.email.split('@')[0]}</span>
-                                <span className="text-slate-500 text-[10px]">({u.email})</span>
+                                <span>{u.name || (u.email ? u.email.split('@')[0] : 'User')}</span>
+                                {u.email && <span className="text-slate-500 text-[10px]">({u.email})</span>}
                               </button>
                             ))}
                           </div>
@@ -2410,7 +2412,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
 
                     {/* Assigned members */}
                     {(selectedOrg.allowedEmails || []).map((email: string) => {
-                      const matchedUser = registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+                      const matchedUser = registeredUsers.find(u => u.email && email && u.email.toLowerCase() === email.toLowerCase());
                       return (
                         <div
                           key={email}
