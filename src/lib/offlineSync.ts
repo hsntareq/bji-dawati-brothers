@@ -15,52 +15,57 @@ const DB_VERSION = 1;
 let dbPromise: Promise<IDBDatabase> | null = null;
 
 export function getDB(): Promise<IDBDatabase> {
-  if (typeof window === 'undefined') {
-    return Promise.reject(new Error('IndexedDB is only available in browser'));
+  if (typeof window === 'undefined' || typeof indexedDB === 'undefined' || !window.indexedDB) {
+    return Promise.reject(new Error('IndexedDB is not supported or accessible on this device'));
   }
 
   if (dbPromise) return dbPromise;
 
-  dbPromise = new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+  dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
+    try {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
 
-      // Contacts store
-      if (!db.objectStoreNames.contains('contacts')) {
-        const store = db.createObjectStore('contacts', { keyPath: 'id' });
-        store.createIndex('organizationId', 'organizationId', { unique: false });
-      }
+        // Contacts store
+        if (!db.objectStoreNames.contains('contacts')) {
+          const store = db.createObjectStore('contacts', { keyPath: 'id' });
+          store.createIndex('organizationId', 'organizationId', { unique: false });
+        }
 
-      // Organizations store
-      if (!db.objectStoreNames.contains('organizations')) {
-        db.createObjectStore('organizations', { keyPath: 'id' });
-      }
+        // Organizations store
+        if (!db.objectStoreNames.contains('organizations')) {
+          db.createObjectStore('organizations', { keyPath: 'id' });
+        }
 
-      // Contact activities store
-      if (!db.objectStoreNames.contains('contact_activities')) {
-        const store = db.createObjectStore('contact_activities', { keyPath: 'id' });
-        store.createIndex('contactId', 'contactId', { unique: false });
-      }
+        // Contact activities store
+        if (!db.objectStoreNames.contains('contact_activities')) {
+          const store = db.createObjectStore('contact_activities', { keyPath: 'id' });
+          store.createIndex('contactId', 'contactId', { unique: false });
+        }
 
-      // Offline sync queue
-      if (!db.objectStoreNames.contains('sync_queue')) {
-        const store = db.createObjectStore('sync_queue', { keyPath: 'id' });
-        store.createIndex('timestamp', 'timestamp', { unique: false });
-      }
+        // Offline sync queue
+        if (!db.objectStoreNames.contains('sync_queue')) {
+          const store = db.createObjectStore('sync_queue', { keyPath: 'id' });
+          store.createIndex('timestamp', 'timestamp', { unique: false });
+        }
 
-      // App metadata store
-      if (!db.objectStoreNames.contains('meta')) {
-        db.createObjectStore('meta', { keyPath: 'key' });
-      }
-    };
+        // App metadata store
+        if (!db.objectStoreNames.contains('meta')) {
+          db.createObjectStore('meta', { keyPath: 'key' });
+        }
+      };
 
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => {
+        dbPromise = null;
+        reject(request.error);
+      };
+    } catch (err) {
       dbPromise = null;
-      reject(request.error);
-    };
+      reject(err);
+    }
   });
 
   return dbPromise;

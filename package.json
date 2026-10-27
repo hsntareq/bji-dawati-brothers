@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3015",
-    "dev:emulators": "concurrently \"next dev -p 3015\" \"npm run emulators\"",
+    "dev": "next dev --webpack -p 3015",
+    "dev:emulators": "concurrently \"next dev --webpack -p 3015\" \"npm run emulators\"",
     "build": "next build",
     "start": "next start -p 3015",
     "lint": "eslint",
@@ -29,5 +29,15 @@
     "firebase-tools": "^15.32.1",
     "tailwindcss": "^4",
     "typescript": "^5"
-  }
+  },
+  "browserslist": [
+    "> 0.2%",
+    "last 2 versions",
+    "not dead",
+    "Android >= 7",
+    "Chrome >= 60",
+    "iOS >= 12",
+    "Safari >= 12",
+    "Samsung >= 10"
+  ]
 }

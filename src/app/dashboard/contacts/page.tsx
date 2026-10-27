@@ -128,10 +128,11 @@ function StatusSelectOrCreate({
   const buttonRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const { language } = useLanguage();
   const isUnsetVal = !value || value === 'new';
   const curMeta = (isUnsetVal ? statuses.find(s => s.value === '') : statuses.find(s => s.value === value)) || {
     value,
-    label: (!isUnsetVal) ? value.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Set status…',
+    label: (!isUnsetVal) ? value.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : (language === 'bn' ? 'স্ট্যাটাস দিন…' : 'Set status…'),
     dot: (!isUnsetVal) ? '#38bdf8' : '#475569',
     ring: 'ring-slate-600',
   };
@@ -252,7 +253,7 @@ function StatusSelectOrCreate({
                   setIsOpen(false);
                 }
               }}
-              placeholder="Search or create status..."
+              placeholder={language === 'bn' ? 'স্ট্যাটাস খুঁজুন বা তৈরি করুন...' : 'Search or create status...'}
               className="w-full bg-slate-800/90 border border-white/10 rounded-xl pl-8 pr-7 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all"
             />
             {search && (
@@ -275,7 +276,7 @@ function StatusSelectOrCreate({
             >
               <Plus className="w-3.5 h-3.5 text-blue-400 shrink-0 group-hover:scale-125 transition-transform" />
               <span className="truncate">
-                Create &quot;<span className="text-white font-bold">{cleanQuery}</span>&quot;
+                {language === 'bn' ? 'তৈরি করুন ' : 'Create '}&quot;<span className="text-white font-bold">{cleanQuery}</span>&quot;
               </span>
             </button>
           )}
@@ -481,7 +482,25 @@ export default function ContactsPage() {
 
   // Compute all available statuses: default + custom + any legacy/contact status
   const allStatuses: StatusOption[] = useMemo(() => {
-    const list: StatusOption[] = [...STATUSES];
+    const list: StatusOption[] = STATUSES.map(s => {
+      let localizedLabel = s.label;
+      if (language === 'bn') {
+        if (s.value === '') localizedLabel = 'স্ট্যাটাস দেওয়া হয়নি';
+        else if (s.value === 'no_answer') localizedLabel = 'উত্তর নেই';
+        else if (s.value === 'not_interested') localizedLabel = 'আগ্রহী নন';
+        else if (s.value === 'wont_come') localizedLabel = 'আসবেন না';
+        else if (s.value === 'will_join') localizedLabel = 'যুক্ত হবেন ✓';
+        else if (s.value === 'active') localizedLabel = 'সক্রিয় কর্মী';
+        else if (s.value === 'silent') localizedLabel = 'নীরব সমর্থক';
+        else if (s.value === 'donor') localizedLabel = 'অনুদানকারী';
+        else if (s.value === 'call_next') localizedLabel = 'পরবর্তী প্রোগ্রামে কল';
+        else if (s.value === 'dnc') localizedLabel = 'বিরক্ত / কল নিষেধ';
+      }
+      return {
+        ...s,
+        label: localizedLabel,
+      };
+    });
     const existingValues = new Set(list.map(s => s.value));
 
     customStatuses.forEach(cs => {
@@ -506,7 +525,7 @@ export default function ContactsPage() {
     });
 
     return list;
-  }, [customStatuses, contacts]);
+  }, [customStatuses, contacts, language]);
 
   const statusMeta = (v?: string): StatusOption => {
     if (!v || v === 'new') return STATUSES[0];
@@ -742,9 +761,16 @@ export default function ContactsPage() {
     return contacts.filter(c => c.category === 'kormi').length;
   }, [contacts]);
 
-  const isDispositionFiltered = defaultFilterDisposition === 'all'
-    ? filterStatuses.size > 0
-    : (filterStatuses.size !== 1 || !filterStatuses.has(defaultFilterDisposition));
+  const isDispositionFiltered = (() => {
+    if (defaultFilterDisposition === 'all') {
+      return filterStatuses.size > 0;
+    }
+    if (defaultFilterDisposition === 'no_status' || defaultFilterDisposition === 'set_status' || defaultFilterDisposition === '') {
+      const hasUnsetOnly = filterStatuses.size === 1 && (filterStatuses.has('') || filterStatuses.has('set_status') || filterStatuses.has('no_status') || filterStatuses.has('new'));
+      return !hasUnsetOnly;
+    }
+    return filterStatuses.size !== 1 || !filterStatuses.has(defaultFilterDisposition);
+  })();
 
   const isActivelyFiltered = Boolean(
     searchQuery.trim() ||
@@ -758,7 +784,8 @@ export default function ContactsPage() {
     setFilterOrgIds(new Set());
     setFilterCategory(defaultFilterCategory);
     if (defaultFilterDisposition && defaultFilterDisposition !== 'all') {
-      setFilterStatuses(new Set([defaultFilterDisposition]));
+      const targetDisp = (defaultFilterDisposition === 'no_status' || defaultFilterDisposition === 'set_status') ? '' : defaultFilterDisposition;
+      setFilterStatuses(new Set([targetDisp]));
     } else {
       setFilterStatuses(new Set());
     }
@@ -977,6 +1004,8 @@ export default function ContactsPage() {
           if (!userInteractedDispositionRef.current) {
             if (val.defaultFilterDisposition === 'all') {
               setFilterStatuses(new Set());
+            } else if (val.defaultFilterDisposition === 'no_status' || val.defaultFilterDisposition === 'set_status') {
+              setFilterStatuses(new Set(['']));
             } else {
               setFilterStatuses(new Set([val.defaultFilterDisposition]));
             }
@@ -2178,7 +2207,7 @@ export default function ContactsPage() {
                         filterCategory === 'shohojogi' ? 'text-blue-400 bg-blue-500/10' : 'text-slate-300 hover:bg-white/5'
                       }`}
                     >
-                      <span>Shohojogi</span>
+                      <span>{language === 'bn' ? 'সহযোগী' : 'Shohojogi'}</span>
                       {filterCategory === 'shohojogi' && <Check className="w-3.5 h-3.5" />}
                     </button>
                     <button
@@ -2192,7 +2221,7 @@ export default function ContactsPage() {
                         filterCategory === 'kormi' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-300 hover:bg-white/5'
                       }`}
                     >
-                      <span>Kormi</span>
+                      <span>{language === 'bn' ? 'কর্মী' : 'Kormi'}</span>
                       {filterCategory === 'kormi' && <Check className="w-3.5 h-3.5" />}
                     </button>
 
@@ -2257,7 +2286,7 @@ export default function ContactsPage() {
                         className="text-[10px] text-slate-400 hover:text-cyan-400 transition-colors flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded-md border border-white/10"
                       >
                         <Settings className="w-3 h-3 text-cyan-400" />
-                        <span>Default: {defaultFilterCategory === 'all' ? 'All' : defaultFilterCategory === 'kormi' ? 'Kormi' : 'Shohojogi'}</span>
+                        <span>{language === 'bn' ? 'ডিফল্ট: ' : 'Default: '}{defaultFilterCategory === 'all' ? (language === 'bn' ? 'সকল' : 'All') : defaultFilterCategory === 'kormi' ? (language === 'bn' ? 'কর্মী' : 'Kormi') : (language === 'bn' ? 'সহযোগী' : 'Shohojogi')}</span>
                       </Link>
                     )}
                   </div>
@@ -2291,10 +2320,10 @@ export default function ContactsPage() {
                       >
                         <span className="text-blue-400 font-semibold">
                           {filterCategory === 'all'
-                            ? 'All categories'
+                            ? (language === 'bn' ? 'সকল ক্যাটাগরি' : 'All categories')
                             : filterCategory === 'kormi'
-                            ? (language === 'bn' ? 'কর্মী (Kormi)' : 'Kormi')
-                            : (language === 'bn' ? 'সহযোগী (Shohojogi)' : 'Shohojogi')}
+                            ? (language === 'bn' ? 'কর্মী' : 'Kormi')
+                            : (language === 'bn' ? 'সহযোগী' : 'Shohojogi')}
                         </span>
                         <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${expandedFilter === 'category' ? 'rotate-180' : ''}`} />
                       </button>
@@ -2303,9 +2332,9 @@ export default function ContactsPage() {
                     {expandedFilter === 'category' && (
                       <div className="mt-2 pt-2 border-t border-white/5 space-y-0.5">
                         {[
-                          { value: 'all', label: 'All categories' },
-                          { value: 'shohojogi', label: language === 'bn' ? 'সহযোগী (Shohojogi)' : 'Shohojogi (সহযোগী)' },
-                          { value: 'kormi', label: language === 'bn' ? 'কর্মী (Kormi)' : 'Kormi (কর্মী)' },
+                          { value: 'all', label: language === 'bn' ? 'সকল ক্যাটাগরি' : 'All categories' },
+                          { value: 'shohojogi', label: language === 'bn' ? 'সহযোগী' : 'Shohojogi' },
+                          { value: 'kormi', label: language === 'bn' ? 'কর্মী' : 'Kormi' },
                         ].map(opt => (
                           <button
                             key={opt.value}
@@ -2334,7 +2363,7 @@ export default function ContactsPage() {
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-medium text-slate-300 flex items-center gap-2">
                         <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
-                        <span>Disposition</span>
+                        <span>{language === 'bn' ? 'স্ট্যাটাস' : 'Disposition'}</span>
                       </span>
                       <button
                         type="button"
@@ -2342,12 +2371,12 @@ export default function ContactsPage() {
                         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-800 border border-white/10 text-xs font-medium text-slate-200 transition-all cursor-pointer max-w-[190px]"
                       >
                         {filterStatuses.size === 0 ? (
-                          <span className="text-slate-400">All Dispositions</span>
+                          <span className="text-slate-400">{language === 'bn' ? 'সকল স্ট্যাটাস' : 'All Dispositions'}</span>
                         ) : filterStatuses.size === 1 ? (
                           (() => {
                             const val = Array.from(filterStatuses)[0];
                             const s = allStatuses.find(st => st.value === val);
-                            const isUnset = val === '' || val === 'set_status' || val === 'new';
+                            const isUnset = val === '' || val === 'set_status' || val === 'new' || val === 'no_status';
                             const label = isUnset
                               ? (language === 'bn' ? 'স্ট্যাটাস দেওয়া হয়নি' : 'Set status…')
                               : (s?.label ?? val);
@@ -2362,7 +2391,7 @@ export default function ContactsPage() {
                         ) : (
                           <span className="flex items-center gap-1.5 text-blue-400 font-semibold">
                             <span className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
-                            <span>{filterStatuses.size} selected</span>
+                            <span>{filterStatuses.size} {language === 'bn' ? 'টি নির্বাচিত' : 'selected'}</span>
                           </span>
                         )}
                         <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform shrink-0 ${expandedFilter === 'disposition' ? 'rotate-180' : ''}`} />
@@ -2383,17 +2412,17 @@ export default function ContactsPage() {
                               : 'text-slate-300 hover:bg-white/5 hover:text-white'
                           }`}
                         >
-                          <span>All Dispositions</span>
+                          <span>{language === 'bn' ? 'সকল স্ট্যাটাস' : 'All Dispositions'}</span>
                           {filterStatuses.size === 0 && <Check className="w-3.5 h-3.5 text-blue-400" />}
                         </button>
                         <div className="my-1 border-t border-white/5" />
                         {allStatuses.map(s => {
                           const isUnset = s.value === '';
                           const label = isUnset
-                            ? (language === 'bn' ? 'স্ট্যাটাস দেওয়া হয়নি (Set status…)' : 'Set status… (No status)')
+                            ? (language === 'bn' ? 'স্ট্যাটাস দেওয়া হয়নি' : 'Set status…')
                             : s.label;
                           const active = isUnset
-                            ? (filterStatuses.has('') || filterStatuses.has('set_status') || filterStatuses.has('new'))
+                            ? (filterStatuses.has('') || filterStatuses.has('set_status') || filterStatuses.has('new') || filterStatuses.has('no_status'))
                             : filterStatuses.has(s.value);
                           return (
                             <button
@@ -2452,14 +2481,14 @@ export default function ContactsPage() {
                                     ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30'
                                     : 'bg-blue-100 dark:bg-blue-500/20 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30'
                                 }`}>
-                                  {isWard ? 'Ward' : 'Unit'}
+                                  {isWard ? (language === 'bn' ? 'ওয়ার্ড' : 'Ward') : (language === 'bn' ? 'ইউনিট' : 'Unit')}
                                 </span>
                               </span>
                             );
                           })()
                         ) : (
                           <span className="text-blue-600 dark:text-blue-400 font-semibold truncate">
-                            {filterOrgIds.size} Organizations
+                            {filterOrgIds.size} {language === 'bn' ? 'টি সংগঠন' : 'Organizations'}
                           </span>
                         )}
                         <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform shrink-0 ${expandedFilter === 'organization' ? 'rotate-180' : ''}`} />
@@ -2511,7 +2540,7 @@ export default function ContactsPage() {
                                 </span>
                                 <div className="flex items-center gap-1.5 shrink-0">
                                   <span className="text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-500/25 text-purple-900 dark:text-purple-300 border border-purple-300 dark:border-purple-500/40">
-                                    Parent Ward
+                                    {language === 'bn' ? 'ওয়ার্ড' : 'Parent Ward'}
                                   </span>
                                   {isWardActive && <Check className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />}
                                 </div>
@@ -2541,7 +2570,7 @@ export default function ContactsPage() {
                                         </span>
                                         <div className="flex items-center gap-1.5 shrink-0">
                                           <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-500/15 text-blue-900 dark:text-blue-300 border border-blue-300 dark:border-blue-500/30">
-                                            Child Unit
+                                            {language === 'bn' ? 'অধীনস্থ ইউনিট' : 'Child Unit'}
                                           </span>
                                           {isChildActive && <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />}
                                         </div>
@@ -2559,7 +2588,7 @@ export default function ContactsPage() {
                           <div className="space-y-0.5 pt-1">
                             {wardGroups.length > 0 && (
                               <div className="px-2 pt-1 pb-0.5 text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--bji-text-3)' }}>
-                                Standalone Units
+                                {language === 'bn' ? 'স্বতন্ত্র ইউনিট' : 'Standalone Units'}
                               </div>
                             )}
                             {standaloneUnits.map(unit => {
@@ -2583,7 +2612,7 @@ export default function ContactsPage() {
                                   </span>
                                   <div className="flex items-center gap-1.5 shrink-0">
                                     <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700/60 text-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-600/30">
-                                      Unit
+                                      {language === 'bn' ? 'ইউনিট' : 'Unit'}
                                     </span>
                                     {isActive && <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />}
                                   </div>
@@ -2817,14 +2846,14 @@ export default function ContactsPage() {
                           {contactPrimaryName(c)?.[0]?.toUpperCase() ?? '?'}
                         </div>
                         <span
-                          title={c.category === 'kormi' ? 'কর্মী (Kormi)' : 'সহযোগী (Shohojogi)'}
+                          title={c.category === 'kormi' ? (language === 'bn' ? 'কর্মী' : 'Kormi') : (language === 'bn' ? 'সহযোগী' : 'Shohojogi')}
                           className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black border border-slate-900 bji-avatar-border shadow-sm ${
                             c.category === 'kormi'
                               ? 'bg-emerald-500 text-slate-950'
                               : 'bg-blue-500 text-white'
                           }`}
                         >
-                          {c.category === 'kormi' ? 'K' : 'S'}
+                          {c.category === 'kormi' ? (language === 'bn' ? 'ক' : 'K') : (language === 'bn' ? 'স' : 'S')}
                         </span>
                       </div>
 
@@ -2972,14 +3001,14 @@ export default function ContactsPage() {
                       </div>
                       {/* Meaningfully positioned Category badge (S / K) - no brackets */}
                       <span
-                        title={c.category === 'kormi' ? 'কর্মী (Kormi)' : 'সহযোগী (Shohojogi)'}
+                        title={c.category === 'kormi' ? (language === 'bn' ? 'কর্মী' : 'Kormi') : (language === 'bn' ? 'সহযোগী' : 'Shohojogi')}
                         className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black border-2 border-slate-900 bji-avatar-border shadow-md ${
                           c.category === 'kormi'
                             ? 'bg-emerald-500 text-slate-950 shadow-emerald-500/30'
                             : 'bg-blue-500 text-white shadow-blue-500/30'
                         }`}
                       >
-                        {c.category === 'kormi' ? 'K' : 'S'}
+                        {c.category === 'kormi' ? (language === 'bn' ? 'ক' : 'K') : (language === 'bn' ? 'স' : 'S')}
                       </span>
                     </div>
 
@@ -3024,11 +3053,11 @@ export default function ContactsPage() {
                                 ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30'
                                 : 'bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-500/20'
                             }`}>
-                              {isWard ? 'Ward' : 'Unit'}
+                              {isWard ? (language === 'bn' ? 'ওয়ার্ড' : 'Ward') : (language === 'bn' ? 'ইউনিট' : 'Unit')}
                             </span>
                             {parentWard && (
-                              <span className="text-[10px] text-purple-700 dark:text-purple-400 font-semibold" title={`Child of ${parentWard.name}`}>
-                                ↳ {parentWard.name}
+                              <span className="text-[10px] text-purple-700 dark:text-purple-400 font-semibold" title={language === 'bn' ? `${parentWard.name}-এর অধীনে` : `Child of ${parentWard.name}`}>
+                                ↳ {language === 'bn' ? 'ওয়ার্ড:' : 'Ward:'} {parentWard.name}
                               </span>
                             )}
                           </div>
@@ -3212,14 +3241,14 @@ export default function ContactsPage() {
                               </div>
 
                               <span
-                                title={c.category === 'kormi' ? 'কর্মী (Kormi)' : 'সহযোগী (Shohojogi)'}
+                                title={c.category === 'kormi' ? (language === 'bn' ? 'কর্মী' : 'Kormi') : (language === 'bn' ? 'সহযোগী' : 'Shohojogi')}
                                 className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black border-2 border-slate-900 bji-avatar-border shadow-sm ${
                                   c.category === 'kormi'
                                     ? 'bg-emerald-500 text-slate-950'
                                     : 'bg-blue-500 text-white'
                                 }`}
                               >
-                                {c.category === 'kormi' ? 'K' : 'S'}
+                                {c.category === 'kormi' ? (language === 'bn' ? 'ক' : 'K') : (language === 'bn' ? 'স' : 'S')}
                               </span>
                             </div>
 
@@ -3381,12 +3410,12 @@ export default function ContactsPage() {
                                         ? 'bg-purple-200 dark:bg-purple-500/25 text-purple-900 dark:text-purple-200'
                                         : 'bg-blue-200 dark:bg-blue-500/20 text-blue-900 dark:text-blue-200'
                                     }`}>
-                                      {isWard ? 'Ward' : 'Unit'}
+                                      {isWard ? (language === 'bn' ? 'ওয়ার্ড' : 'Ward') : (language === 'bn' ? 'ইউনিট' : 'Unit')}
                                     </span>
                                   </span>
                                   {parentWard && (
-                                    <span className="inline-flex items-center gap-1 text-[10px] text-purple-700 dark:text-purple-400 font-semibold pl-1" title={`Child of ${parentWard.name}`}>
-                                      <span>↳ Ward: {parentWard.name}</span>
+                                    <span className="inline-flex items-center gap-1 text-[10px] text-purple-700 dark:text-purple-400 font-semibold pl-1" title={language === 'bn' ? `${parentWard.name}-এর অধীনে` : `Child of ${parentWard.name}`}>
+                                      <span>↳ {language === 'bn' ? 'ওয়ার্ড:' : 'Ward:'} {parentWard.name}</span>
                                     </span>
                                   )}
                                 </div>
@@ -3792,11 +3821,11 @@ export default function ContactsPage() {
                               ? 'bg-purple-200 dark:bg-purple-500/30 text-purple-900 dark:text-purple-200'
                               : 'bg-blue-200 dark:bg-blue-500/20 text-blue-900 dark:text-blue-200'
                           }`}>
-                            {isWard ? 'Ward' : 'Unit'}
+                            {isWard ? (language === 'bn' ? 'ওয়ার্ড' : 'Ward') : (language === 'bn' ? 'ইউনিট' : 'Unit')}
                           </span>
                           {parentWard && (
                             <span className="text-[10px] text-purple-700 dark:text-purple-400 font-semibold truncate">
-                              (↳ {parentWard.name})
+                              (↳ {language === 'bn' ? 'ওয়ার্ড:' : 'Ward:'} {parentWard.name})
                             </span>
                           )}
                         </span>
@@ -3884,16 +3913,16 @@ export default function ContactsPage() {
                     { icon: MapPin,    label: 'Location',     value: selectedContact.location },
                     {
                       icon: Building2,
-                      label: 'Organization',
+                      label: language === 'bn' ? 'সংগঠন' : 'Organization',
                       value: (() => {
                         const org = organizations.find(o => o.id === selectedContact.organizationId);
                         const parentWard = org?.parentOrgId ? (organizations.find(o => o.id === org.parentOrgId) || allOrgs.find(o => o.id === org.parentOrgId)) : null;
                         if (!org) return '—';
-                        return parentWard ? `${org.name} (Child Unit of ${parentWard.name})` : org.name;
+                        return parentWard ? `${org.name} (${language === 'bn' ? 'ওয়ার্ড:' : 'Ward:'} ${parentWard.name})` : org.name;
                       })(),
                     },
-                    { icon: Users,     label: 'Note',         value: selectedContact.note },
-                    { icon: Calendar,  label: 'Added',        value: fmtDate(selectedContact.createdAt) },
+                    { icon: Users,     label: language === 'bn' ? 'নোট' : 'Note',         value: selectedContact.note },
+                    { icon: Calendar,  label: language === 'bn' ? 'যুক্ত করার সময়' : 'Added',        value: fmtDate(selectedContact.createdAt) },
                   ] as { icon: any; label: string; value: any }[]).filter(r => r.value).map(({ icon: Icon, label, value }) => (
                     <div key={label} className="flex items-start gap-3">
                       <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -3971,7 +4000,6 @@ export default function ContactsPage() {
                       {editForm.category === 'shohojogi' && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]" />}
                     </span>
                     <span>{t('shohojogi')}</span>
-                    <span className="text-[10px] opacity-75 font-normal">{language === 'bn' ? '(Shohojogi)' : '(সহযোগী)'}</span>
                   </button>
 
                   <button
@@ -3989,7 +4017,6 @@ export default function ContactsPage() {
                       {editForm.category === 'kormi' && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]" />}
                     </span>
                     <span>{t('kormi')}</span>
-                    <span className="text-[10px] opacity-75 font-normal">{language === 'bn' ? '(Kormi)' : '(কর্মী)'}</span>
                   </button>
                 </div>
               </div>
@@ -4495,7 +4522,6 @@ export default function ContactsPage() {
                         {form.category === 'shohojogi' && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.8)]" />}
                       </span>
                       <span>{t('shohojogi')}</span>
-                      <span className="text-[10px] opacity-75 font-normal">{language === 'bn' ? '(Shohojogi)' : '(সহযোগী)'}</span>
                     </button>
 
                     <button
@@ -4513,7 +4539,6 @@ export default function ContactsPage() {
                         {form.category === 'kormi' && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.8)]" />}
                       </span>
                       <span>{t('kormi')}</span>
-                      <span className="text-[10px] opacity-75 font-normal">{language === 'bn' ? '(Kormi)' : '(কর্মী)'}</span>
                     </button>
                   </div>
                 </div>
@@ -5076,7 +5101,7 @@ export default function ContactsPage() {
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <span className="text-[9px] uppercase font-bold text-purple-300 bg-purple-500/20 border border-purple-500/30 px-1.5 py-0.5 rounded">
-                            Parent Ward
+                            {language === 'bn' ? 'ওয়ার্ড' : 'Parent Ward'}
                           </span>
                           {isWardSelected && <Check className="w-4 h-4 text-purple-400" />}
                         </div>
@@ -5104,7 +5129,7 @@ export default function ContactsPage() {
                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0">
                                   <span className="text-[9px] uppercase font-semibold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded">
-                                    Child Unit
+                                    {language === 'bn' ? 'অধীনস্থ ইউনিট' : 'Child Unit'}
                                   </span>
                                   {isChildSelected && <Check className="w-4 h-4 text-blue-400" />}
                                 </div>
@@ -5122,7 +5147,7 @@ export default function ContactsPage() {
                   <div className="space-y-1 pt-1">
                     {wardGroups.length > 0 && (
                       <div className="px-1 text-[10px] uppercase font-bold text-slate-500 tracking-wider">
-                        Standalone Units
+                        {language === 'bn' ? 'স্বতন্ত্র ইউনিট' : 'Standalone Units'}
                       </div>
                     )}
                     {standaloneUnits.map(unit => {
@@ -5144,7 +5169,7 @@ export default function ContactsPage() {
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
                             <span className="text-[9px] uppercase font-bold text-slate-400 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
-                              Unit
+                              {language === 'bn' ? 'ইউনিট' : 'Unit'}
                             </span>
                             {isUnitSelected && <Check className="w-4 h-4 text-blue-400" />}
                           </div>

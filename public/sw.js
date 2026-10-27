@@ -75,11 +75,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Bypass local development server Next.js compilation / hot reload chunks
-  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
-    if (url.pathname.startsWith('/_next/')) {
-      return;
-    }
+  // Completely bypass local development server so Turbopack, HMR, and RSC navigation are never intercepted
+  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]') {
+    return;
   }
 
   // Handle Offline state directly to avoid DevTools net::ERR_INTERNET_DISCONNECTED red errors

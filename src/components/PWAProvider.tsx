@@ -63,21 +63,41 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
         (navigator as any).standalone === true;
       setIsInstalled(isStandalone);
 
-      // Register Service Worker
+      // Register Service Worker only on production HTTPS (unregister during dev or non-https LAN)
       if ("serviceWorker" in navigator) {
-        const isGhPages = window.location.pathname.startsWith("/bji-dawati-brothers");
-        const swPath = isGhPages ? "/bji-dawati-brothers/sw.js" : "/sw.js";
+        const isSecureOrProd =
+          window.location.protocol === 'https:' &&
+          process.env.NODE_ENV === 'production';
 
-        navigator.serviceWorker
-          .register(swPath, {
-            scope: isGhPages ? "/bji-dawati-brothers/" : "/",
-          })
-          .then((registration) => {
-            console.log("PWA Service Worker registered:", registration.scope);
-          })
-          .catch((err) => {
-            console.warn("Service Worker registration failed:", err);
-          });
+        if (!isSecureOrProd) {
+          navigator.serviceWorker
+            .getRegistrations()
+            .then((registrations) => {
+              for (const registration of registrations) {
+                registration.unregister();
+              }
+            })
+            .catch(() => {});
+          if ("caches" in window) {
+            caches.keys().then((keys) => {
+              keys.forEach((key) => caches.delete(key));
+            }).catch(() => {});
+          }
+        } else {
+          const isGhPages = window.location.pathname.startsWith("/bji-dawati-brothers");
+          const swPath = isGhPages ? "/bji-dawati-brothers/sw.js" : "/sw.js";
+
+          navigator.serviceWorker
+            .register(swPath, {
+              scope: isGhPages ? "/bji-dawati-brothers/" : "/",
+            })
+            .then((registration) => {
+              console.log("PWA Service Worker registered:", registration.scope);
+            })
+            .catch((err) => {
+              console.warn("Service Worker registration failed:", err);
+            });
+        }
       }
 
       // Handle beforeinstallprompt event (Chromium)
@@ -153,13 +173,6 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     >
       {children}
 
-      {/* Offline Status Toast */}
-      {isOffline && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-amber-500/95 text-slate-950 px-4 py-2.5 rounded-xl shadow-2xl backdrop-blur-md text-xs sm:text-sm font-semibold animate-bounce">
-          <WifiOff className="w-4 h-4 text-slate-950 flex-shrink-0" />
-          <span>You are currently offline. IndexedDB data is active and will sync when online.</span>
-        </div>
-      )}
 
       {/* Slide-in PWA Install Banner */}
       {showInstallBanner && !isInstalled && (

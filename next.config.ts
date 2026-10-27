@@ -5,10 +5,20 @@ import type { NextConfig } from "next";
 const isCI = process.env.GITHUB_ACTIONS === "true";
 
 // Allow network IP access for dev — set ALLOWED_DEV_ORIGINS in .env.local
-// e.g. ALLOWED_DEV_ORIGINS=192.168.1.100,192.168.1.101
-const allowedDevOrigins = process.env.ALLOWED_DEV_ORIGINS
+const envOrigins = process.env.ALLOWED_DEV_ORIGINS
   ? process.env.ALLOWED_DEV_ORIGINS.split(",").map((o) => o.trim())
   : [];
+
+const allowedDevOrigins = Array.from(
+  new Set([
+    ...envOrigins,
+    "192.168.31.97",
+    "172.20.10.2",
+    "192.168.31.165",
+    "localhost",
+    "127.0.0.1",
+  ])
+);
 
 const nextConfig: NextConfig = {
   ...(isCI && {
@@ -17,7 +27,8 @@ const nextConfig: NextConfig = {
     assetPrefix: "/bji-dawati-brothers/",
     trailingSlash: true,
   }),
-  ...(allowedDevOrigins.length > 0 && { allowedDevOrigins }),
+  allowedDevOrigins,
+  transpilePackages: ["lucide-react", "react-icons"],
   devIndicators: false,
   images: {
     unoptimized: true, // required for static export

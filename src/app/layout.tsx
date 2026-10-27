@@ -1,18 +1,22 @@
+import "@/lib/polyfills";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { PWAProvider } from "@/components/PWAProvider";
+import { GlobalErrorBoundary } from "@/components/GlobalErrorBoundary";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  preload: false,
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  preload: false,
 });
 
 export const viewport: Viewport = {
@@ -67,11 +71,13 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>
-          <LanguageProvider>
-            <PWAProvider>{children}</PWAProvider>
-          </LanguageProvider>
-        </AuthProvider>
+        <GlobalErrorBoundary>
+          <AuthProvider>
+            <LanguageProvider>
+              <PWAProvider>{children}</PWAProvider>
+            </LanguageProvider>
+          </AuthProvider>
+        </GlobalErrorBoundary>
       </body>
     </html>
   );

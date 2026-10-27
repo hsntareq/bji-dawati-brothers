@@ -159,9 +159,9 @@ export const translations = {
     will_join: 'যুক্ত হবেন ✓',
     active: 'সক্রিয় কর্মী',
     silent: 'নীরব সমর্থক',
-    donor: 'দাতা',
+    donor: 'অনুদানকারী',
     call_next: 'পরবর্তী প্রোগ্রামে কল',
-    dnc: 'বিরক্ত / DNC',
+    dnc: 'বিরক্ত / কল নিষেধ',
   },
 };
 

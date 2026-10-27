@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, connectAuthEmulator } from "firebase/auth";
-import { getDatabase, connectDatabaseEmulator } from "firebase/database";
+import { getDatabase, connectDatabaseEmulator, goOffline, goOnline } from "firebase/database";
 
 let dbUrl = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL;
 if (!dbUrl || !dbUrl.startsWith("http")) {
@@ -22,6 +22,18 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const database = getDatabase(app, dbUrl);
+
+export function reconnectDatabase() {
+  if (typeof window === "undefined") return;
+  try {
+    goOffline(database);
+    setTimeout(() => {
+      goOnline(database);
+    }, 200);
+  } catch (err) {
+    console.warn("[Firebase] Could not reconnect database:", err);
+  }
+}
 
 // Initialize Analytics conditionally on the client
 let analytics: any = null;

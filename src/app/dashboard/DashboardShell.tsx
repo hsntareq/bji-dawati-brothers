@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { database } from '@/lib/firebase';
+import { database, reconnectDatabase } from '@/lib/firebase';
 import { ref, onValue, update, query, orderByChild, limitToLast } from 'firebase/database';
 import {
   LogOut, Bell, LayoutDashboard, Building2, Users,
@@ -195,9 +195,13 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const [theme,   setTheme]   = useState<'dark' | 'light'>('dark');
   const [compact, setCompact] = useState(false);
 
-  const [isOnline,         setIsOnline]         = useState(true);
-  const [pendingSyncCount, setPendingSyncCount] = useState(0);
-  const [isSyncing,        setIsSyncing]        = useState(false);
+  const [isOnline,               setIsOnline]               = useState(true);
+  const [isDbConnected,          setIsDbConnected]          = useState<boolean | null>(null);
+  const [showReconnectingNotice, setShowReconnectingNotice] = useState(false);
+  const [isRetryingConnect,      setIsRetryingConnect]      = useState(false);
+  const [dismissNotice,          setDismissNotice]          = useState(false);
+  const [pendingSyncCount,       setPendingSyncCount]       = useState(0);
+  const [isSyncing,              setIsSyncing]              = useState(false);
 
   useEffect(() => {
     setIsOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -215,12 +219,39 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       setIsSyncing(syncing);
     });
 
+    let reconnectTimer: NodeJS.Timeout | null = null;
+    const connectedRef = ref(database, '.info/connected');
+    const unsubConnected = onValue(connectedRef, (snap) => {
+      const connected = snap.val() === true;
+      setIsDbConnected(connected);
+      if (connected) {
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        setShowReconnectingNotice(false);
+        setDismissNotice(false);
+        syncQueueWithFirebase();
+      } else {
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        reconnectTimer = setTimeout(() => {
+          setShowReconnectingNotice(true);
+        }, 2000);
+      }
+    });
+
     return () => {
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
       unsubSync();
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      unsubConnected();
     };
   }, []);
+
+  const handleRetryConnect = () => {
+    setIsRetryingConnect(true);
+    reconnectDatabase();
+    syncQueueWithFirebase();
+    setTimeout(() => setIsRetryingConnect(false), 2000);
+  };
 
   useEffect(() => {
     const savedId = localStorage.getItem('bji-theme-id');
@@ -459,17 +490,28 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           </div>
           {/* Offline & Sync Status Indicator */}
           <div className="flex items-center gap-2">
-            {!isOnline && (
+            {!isOnline ? (
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-400 text-xs font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                <span className="hidden sm:inline">Offline Mode</span>
+                <span className="hidden sm:inline">{language === 'bn' ? 'অফলাইন মোড' : 'Offline Mode'}</span>
               </div>
-            )}
+            ) : showReconnectingNotice && isDbConnected === false ? (
+              <button
+                type="button"
+                onClick={handleRetryConnect}
+                title={language === 'bn' ? 'সার্ভারে পুনরায় সংযোগ চেষ্টা করুন' : 'Click to retry cloud connection'}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-medium transition-all hover:bg-amber-500/25 cursor-pointer shadow-sm"
+              >
+                <RefreshCw className={`w-3 h-3 text-amber-400 ${isRetryingConnect ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">{language === 'bn' ? 'সার্ভারে পুনরায় সংযোগ হচ্ছে...' : 'Reconnecting...'}</span>
+              </button>
+            ) : null}
+
             {pendingSyncCount > 0 && (
               <button
                 onClick={() => syncQueueWithFirebase()}
                 disabled={!isOnline || isSyncing}
-                title={isOnline ? "Click to sync changes to Firebase" : "Saved in IndexedDB. Will sync automatically when online."}
+                title={isOnline ? (language === 'bn' ? 'পরিবর্তনগুলো ক্লাউডে সিঙ্ক করুন' : 'Click to sync changes to Firebase') : (language === 'bn' ? 'লোকাল স্টোরেজে সংরক্ষিত। ইন্টারনেট পেলে সিঙ্ক হবে।' : 'Saved in IndexedDB. Will sync automatically when online.')}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
                   isOnline
                     ? 'bg-blue-500/15 border border-blue-500/30 text-blue-400 hover:bg-blue-500/25 cursor-pointer shadow-sm'
@@ -477,8 +519,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                 }`}
               >
                 <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin text-blue-400' : ''}`} />
-                <span>{pendingSyncCount} {pendingSyncCount === 1 ? 'change' : 'changes'}</span>
-                {isOnline && !isSyncing && <span className="text-[10px] text-blue-300 underline ml-0.5">Sync</span>}
+                <span>{pendingSyncCount} {language === 'bn' ? 'টি পরিবর্তন সিঙ্ক বাকি' : pendingSyncCount === 1 ? 'change pending' : 'changes pending'}</span>
+                {isOnline && !isSyncing && <span className="text-[10px] text-blue-300 underline ml-0.5">{language === 'bn' ? 'সিঙ্ক' : 'Sync'}</span>}
               </button>
             )}
           </div>
@@ -789,11 +831,59 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             </div>
           )}
 
-          {!isOnline && (
-            <div className="mb-6 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-200 text-xs flex items-center gap-3">
-              <WifiOff className="w-4 h-4 text-amber-400 flex-shrink-0" />
-              <div className="flex-1">
-                <span className="font-semibold text-amber-300">Offline Mode Active</span> — You are currently offline. All additions, edits, and status changes are safely stored in IndexedDB and will automatically sync with Firebase when your connection returns.
+          {/* Proper Notice for Offline or Cloud Disconnection */}
+          {((!isOnline) || (showReconnectingNotice && isDbConnected === false)) && !dismissNotice && (
+            <div className="mb-6 p-4 rounded-2xl bg-slate-900/90 border border-amber-500/30 shadow-xl shadow-amber-500/5 backdrop-blur-xl text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="flex items-start sm:items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                  {!isOnline ? (
+                    <WifiOff className="w-4 h-4 text-amber-400" />
+                  ) : (
+                    <RefreshCw className={`w-4 h-4 text-amber-400 ${isRetryingConnect ? 'animate-spin' : ''}`} />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="font-bold text-amber-300 text-sm flex items-center gap-2">
+                    <span>
+                      {!isOnline
+                        ? (language === 'bn' ? 'অফলাইন মোড সক্রিয়' : 'Offline Mode Active')
+                        : (language === 'bn' ? 'সার্ভার সংযোগ বিচ্ছিন্ন — পুনরায় সংযোগের চেষ্টা চলছে' : 'Cloud Connection Interrupted — Reconnecting…')}
+                    </span>
+                  </div>
+                  <p className="text-slate-300 text-[11px] sm:text-xs mt-0.5 leading-relaxed">
+                    {!isOnline
+                      ? (language === 'bn'
+                          ? 'আপনি বর্তমানে অফলাইনে আছেন। আপনার সমস্ত তথ্য লোকাল স্টোরেজে নিরাপদে সংরক্ষিত আছে এবং সংযোগ ফিরে পেলে স্বয়ংক্রিয়ভাবে ক্লাউডে সিঙ্ক হবে।'
+                          : 'You are currently offline. All contact additions and updates are safely saved locally and will auto-sync once internet is restored.')
+                      : (language === 'bn'
+                          ? 'ক্লাউড ডেটাবেজে সরাসরি সংযোগে বিলম্ব হচ্ছে। লোকাল ক্যাশ সক্রিয় আছে এবং পরিবর্তনগুলো সংরক্ষিত হচ্ছে।'
+                          : 'Direct connection to Firebase database was interrupted. Offline cache is active and your changes remain safe.')}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                <button
+                  type="button"
+                  onClick={handleRetryConnect}
+                  disabled={isRetryingConnect}
+                  className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/30 font-semibold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 text-xs shadow-sm"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isRetryingConnect ? 'animate-spin text-amber-400' : ''}`} />
+                  <span>
+                    {isRetryingConnect
+                      ? (language === 'bn' ? 'চেষ্টা করা হচ্ছে...' : 'Retrying…')
+                      : (language === 'bn' ? 'পুনরায় চেষ্টা করুন' : 'Retry Connection')}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDismissNotice(true)}
+                  title={language === 'bn' ? 'নোটিশটি বন্ধ করুন' : 'Dismiss notice'}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             </div>
           )}

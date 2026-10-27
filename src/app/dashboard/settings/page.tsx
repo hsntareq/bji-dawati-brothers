@@ -46,39 +46,40 @@ const defaultSettings: SystemSettings = {
 const DEFAULT_CATEGORY_OPTIONS = [
   {
     value: 'shohojogi',
-    labelEn: 'Shohojogi (Associate)',
-    labelBn: 'সহযোগী (Shohojogi)',
+    labelEn: 'Shohojogi',
+    labelBn: 'সহযোগী',
     tag: 'Recommended',
     descEn: 'Default directory filter displays associate brothers on initial view',
     descBn: 'ডিরেক্টরি ওপেন করার পর ডিফল্টভাবে সহযোগী ভাইদের তালিকা প্রদর্শিত হবে',
   },
   {
     value: 'kormi',
-    labelEn: 'Kormi (Worker)',
-    labelBn: 'কর্মী (Kormi)',
+    labelEn: 'Kormi',
+    labelBn: 'কর্মী',
     descEn: 'Default directory filter displays worker brothers on initial view',
     descBn: 'ডিরেক্টরি ওপেন করার পর ডিফল্টভাবে কর্মী ভাইদের তালিকা প্রদর্শিত হবে',
   },
   {
     value: 'all',
     labelEn: 'All Categories',
-    labelBn: 'সকল ক্যাটাগরি (All Categories)',
+    labelBn: 'সকল ক্যাটাগরি',
     descEn: 'Shows all contacts without any category restrictions',
     descBn: 'কোনো ক্যাটাগরি সীমাবদ্ধতা ছাড়া সমস্ত ভাইদের তালিকা একসাথে দেখাবে',
   },
 ] as const;
 
 const DEFAULT_DISPOSITION_CHOICES = [
-  { value: 'all', labelEn: 'All Dispositions', labelBn: 'সকল স্ট্যাটাস (All Dispositions)', dot: '#94a3b8' },
-  { value: 'will_join', labelEn: 'Will Join ✓', labelBn: 'যুক্ত হবেন ✓ (Will Join)', dot: '#34d399' },
-  { value: 'active', labelEn: 'Active Worker', labelBn: 'সক্রিয় কর্মী (Active)', dot: '#60a5fa' },
-  { value: 'call_next', labelEn: 'Call Next Program', labelBn: 'পরবর্তী প্রোগ্রামে কল (Call Next)', dot: '#22d3ee' },
-  { value: 'donor', labelEn: 'Donor', labelBn: 'অনুদানকারী (Donor)', dot: '#fbbf24' },
-  { value: 'silent', labelEn: 'Silent Supporter', labelBn: 'নীরব সমর্থক (Silent)', dot: '#c084fc' },
-  { value: 'no_answer', labelEn: 'No Answer', labelBn: 'উত্তর নেই (No Answer)', dot: '#94a3b8' },
-  { value: 'not_interested', labelEn: 'Not Interested', labelBn: 'আগ্রহী নন (Not Interested)', dot: '#f87171' },
-  { value: 'wont_come', labelEn: "Won't Come", labelBn: 'আসবেন না (Won\'t Come)', dot: '#fb923c' },
-  { value: 'dnc', labelEn: 'DNC / Irritated', labelBn: 'বিরক্ত / কল নিষেধ (DNC)', dot: '#fb7185' },
+  { value: 'all', labelEn: 'All Dispositions', labelBn: 'সকল স্ট্যাটাস', dot: '#94a3b8' },
+  { value: 'no_status', labelEn: 'Set status… (No status)', labelBn: 'স্ট্যাটাস দেওয়া হয়নি', dot: '#475569' },
+  { value: 'will_join', labelEn: 'Will Join ✓', labelBn: 'যুক্ত হবেন ✓', dot: '#34d399' },
+  { value: 'active', labelEn: 'Active Worker', labelBn: 'সক্রিয় কর্মী', dot: '#60a5fa' },
+  { value: 'call_next', labelEn: 'Call Next Program', labelBn: 'পরবর্তী প্রোগ্রামে কল', dot: '#22d3ee' },
+  { value: 'donor', labelEn: 'Donor', labelBn: 'অনুদানকারী', dot: '#fbbf24' },
+  { value: 'silent', labelEn: 'Silent Supporter', labelBn: 'নীরব সমর্থক', dot: '#c084fc' },
+  { value: 'no_answer', labelEn: 'No Answer', labelBn: 'উত্তর নেই', dot: '#94a3b8' },
+  { value: 'not_interested', labelEn: 'Not Interested', labelBn: 'আগ্রহী নন', dot: '#f87171' },
+  { value: 'wont_come', labelEn: "Won't Come", labelBn: 'আসবেন না', dot: '#fb923c' },
+  { value: 'dnc', labelEn: 'DNC / Irritated', labelBn: 'বিরক্ত / কল নিষেধ', dot: '#fb7185' },
 ];
 
 interface UserRecord {
@@ -729,7 +730,7 @@ export default function SuperAdminSettingsPage() {
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-semibold text-slate-200">
-                    {language === 'bn' ? '১. ডিফল্ট ক্যাটাগরি (Default Category)' : '1. Default Category Filter'}
+                    {language === 'bn' ? '১. ডিফল্ট ক্যাটাগরি' : '1. Default Category Filter'}
                   </label>
                   <span className="text-[11px] text-slate-400 font-mono">
                     active: <span className="text-cyan-400 font-bold">{settings.defaultFilterCategory || 'shohojogi'}</span>
@@ -773,7 +774,7 @@ export default function SuperAdminSettingsPage() {
               <div className="space-y-2.5 pt-3 border-t border-white/5">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-semibold text-slate-200">
-                    {language === 'bn' ? '২. ডিফল্ট কল স্ট্যাটাস (Default Disposition)' : '2. Default Call Disposition'}
+                    {language === 'bn' ? '২. ডিফল্ট কল স্ট্যাটাস' : '2. Default Call Disposition'}
                   </label>
                   <span className="text-[11px] text-slate-400 font-mono">
                     status: <span className="text-cyan-400 font-bold">{settings.defaultFilterDisposition || 'all'}</span>
