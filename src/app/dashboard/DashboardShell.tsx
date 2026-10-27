@@ -699,7 +699,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                               : 'text-slate-400 hover:text-white'
                           }`}
                         >
-                          বাং
+                          বাংলা
                         </button>
                       </div>
                     </div>
