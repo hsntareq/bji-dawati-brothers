@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { database } from '@/lib/firebase';
 import { ref, get, push, set, update, remove } from 'firebase/database';
@@ -8,7 +8,9 @@ import {
   Building2, Plus, X, Loader2, ChevronDown, ChevronRight,
   MapPin, Users, Shield, GitBranch, Pencil, Check, Trash2,
   UserPlus, Settings, Save, AlertCircle, Crown, UserCheck, Phone,
-  FileSpreadsheet, UploadCloud,
+  FileSpreadsheet, UploadCloud, Calendar, Clock, MessageSquare,
+  Share2, Copy, CheckCircle2, ArrowLeft, Send, Search, Filter,
+  Sparkles, ExternalLink, ChevronLeft,
 } from 'lucide-react';
 import Link from 'next/link';
 import ImportContactsModal from '@/components/ImportContactsModal';
@@ -36,6 +38,61 @@ const ORG_TYPES = [
   { value: 'other',  label: 'Other',  desc: 'General / standalone organization',      color: 'text-slate-400',  bg: 'bg-slate-500/10',  border: 'border-slate-500/20'  },
 ];
 
+export interface OrgEvent {
+  id: string;
+  orgId: string;
+  name: string;
+  location: string;
+  date: string; // YYYY-MM-DD
+  time: string;
+  message: string;
+  targetCategory?: 'all' | 'shohojogi' | 'kormi';
+  createdAt: number;
+  createdBy: string;
+  createdByName?: string;
+  attendeeResponses?: Record<string, 'invited' | 'confirmed' | 'attended' | 'declined'>;
+}
+
+const emptyEventForm = {
+  name: '',
+  location: '',
+  date: '',
+  time: '16:30',
+  message: '',
+  targetCategory: 'all' as 'all' | 'shohojogi' | 'kormi',
+};
+
+const toE164Phone = (m?: string | null): string => {
+  if (!m) return '';
+  const digits = m.replace(/\D/g, '');
+  if (digits.startsWith('880')) return digits;
+  if (digits.startsWith('0')) return '880' + digits.slice(1);
+  return '880' + digits;
+};
+
+const BN_MONTHS_NAMES = [
+  'জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন',
+  'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'
+];
+
+const BN_DIGITS_MAP = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+
+const toBnNum = (str: string | number): string => {
+  return String(str).replace(/\d/g, d => BN_DIGITS_MAP[parseInt(d, 10)] || d);
+};
+
+const formatMonthLabel = (monthKey: string, lang: 'en' | 'bn'): string => {
+  if (!monthKey) return '';
+  const parts = monthKey.split('-');
+  const y = parseInt(parts[0], 10) || 2026;
+  const m = parseInt(parts[1], 10) || 1;
+  if (lang === 'bn') {
+    return `${BN_MONTHS_NAMES[m - 1]} ${toBnNum(y)}`;
+  }
+  const date = new Date(y, m - 1, 1);
+  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+};
+
 const emptyForm = {
   name: '',
   nameBn: '',
@@ -62,8 +119,9 @@ export default function OrganizationsPage() {
   const [editingWardId, setEditingWardId] = useState<string | null>(null);
   const [editWardName,  setEditWardName]  = useState('');
 
-  // Selected Org for Detail & Edit Slide-over
+  // Selected Org for Detail & Edit Full View
   const [selectedOrg,     setSelectedOrg]     = useState<any | null>(null);
+  const [activeOrgTab,    setActiveOrgTab]    = useState<'events' | 'members' | 'settings'>('events');
   const [editOrgForm,     setEditOrgForm]     = useState({ name: '', nameBn: '', type: 'unit', wardName: '', parentOrgId: '' });
   const [savingOrg,       setSavingOrg]       = useState(false);
   const [deletingOrg,     setDeletingOrg]     = useState(false);
@@ -71,6 +129,62 @@ export default function OrganizationsPage() {
   const [memberLoading,   setMemberLoading]   = useState(false);
   const [feedback,        setFeedback]        = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  // All accessible contacts for attendee resolution
+  const [allContacts,     setAllContacts]     = useState<any[]>([]);
+
+  // ── Monthly Events State ──
+  const [orgEvents,       setOrgEvents]       = useState<OrgEvent[]>([]);
+  const [eventsLoading,   setEventsLoading]   = useState(false);
+  const [selectedMonth,   setSelectedMonth]   = useState<string>(() => new Date().toISOString().slice(0, 7));
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [editingEvent,    setEditingEvent]    = useState<OrgEvent | null>(null);
+  const [eventForm,       setEventForm]       = useState(emptyEventForm);
+  const [savingEvent,     setSavingEvent]     = useState(false);
+
+  // ── Attendee Messaging State ──
+  const [messagingEvent,  setMessagingEvent]  = useState<OrgEvent | null>(null);
+  const [attendeeSearchQuery, setAttendeeSearchQuery] = useState('');
+  const [attendeeCategoryFilter, setAttendeeCategoryFilter] = useState<'all' | 'shohojogi' | 'kormi'>('all');
+  const [attendeeStatusFilter, setAttendeeStatusFilter] = useState<'all' | 'invited' | 'confirmed' | 'attended' | 'declined'>('all');
+
+  // Month navigation
+  const goToPrevMonth = () => {
+    const parts = selectedMonth.split('-');
+    const y = parseInt(parts[0], 10) || 2026;
+    const m = parseInt(parts[1], 10) || 1;
+    const prevDate = new Date(y, m - 2, 1);
+    setSelectedMonth(prevDate.toISOString().slice(0, 7));
+  };
+
+  const goToNextMonth = () => {
+    const parts = selectedMonth.split('-');
+    const y = parseInt(parts[0], 10) || 2026;
+    const m = parseInt(parts[1], 10) || 1;
+    const nextDate = new Date(y, m, 1);
+    setSelectedMonth(nextDate.toISOString().slice(0, 7));
+  };
+
+  const goToCurrentMonth = () => {
+    setSelectedMonth(new Date().toISOString().slice(0, 7));
+  };
+
+  // Keyboard Escape listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (messagingEvent) {
+          setMessagingEvent(null);
+        } else if (isEventModalOpen) {
+          setIsEventModalOpen(false);
+        } else if (selectedOrg) {
+          setSelectedOrg(null);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedOrg, messagingEvent, isEventModalOpen]);
 
   // ── Swipe to Dismiss Handlers (Slide right to close) ──
   const orgDetailSwipeRef = useSwipeToDismiss({
@@ -134,6 +248,11 @@ export default function OrganizationsPage() {
       const cachedCounts = await getMetaItem<Record<string, number>>('contact_counts');
       if (cachedCounts) setContactCounts(cachedCounts);
 
+      const cachedContacts = await getAllFromStore('contacts');
+      if (cachedContacts && cachedContacts.length > 0) {
+        setAllContacts(cachedContacts);
+      }
+
       const cachedUsers = await getMetaItem<any[]>('registered_users');
       if (cachedUsers) setRegisteredUsers(cachedUsers);
     } catch (e) {
@@ -185,6 +304,7 @@ export default function OrganizationsPage() {
         const allContacts = Object.values(cSnap.val()) as any[];
         const accessibleOrgIds = new Set<string>(mine.map((o: any) => o.id));
         const accessibleContacts = filterAccessibleContacts(allContacts, user, accessibleOrgIds);
+        setAllContacts(accessibleContacts);
         accessibleContacts.forEach((c: any) => {
           if (c.organizationId) {
             counts[c.organizationId] = (counts[c.organizationId] || 0) + 1;
@@ -291,9 +411,61 @@ export default function OrganizationsPage() {
     }
   };
 
-  // Open Organization Detail Slide-over
+  // Available locations helper
+  const getAvailableLocations = (org: any): string[] => {
+    if (!org) return [];
+    if (org.type === 'ward') {
+      return org.locations || org.adminSettings?.locations || [];
+    }
+    if (org.parentOrgId) {
+      const parent = allOrgsRaw.find(o => o.id === org.parentOrgId);
+      return parent?.locations || parent?.adminSettings?.locations || [];
+    }
+    return [];
+  };
+
+  // Fetch events for organization
+  const fetchOrgEvents = async (orgId: string) => {
+    if (!orgId) return;
+    setEventsLoading(true);
+    try {
+      const cached = await getMetaItem<OrgEvent[]>(`org_events_${orgId}`);
+      if (cached && Array.isArray(cached)) {
+        setOrgEvents(cached);
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setEventsLoading(false);
+      return;
+    }
+
+    try {
+      const snap = await get(ref(database, `org_events/${orgId}`));
+      if (snap.exists()) {
+        const list = Object.entries(snap.val()).map(([id, val]: any) => ({
+          id,
+          ...val,
+        })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        setOrgEvents(list);
+        await setMetaItem(`org_events_${orgId}`, list);
+      } else {
+        setOrgEvents([]);
+        await setMetaItem(`org_events_${orgId}`, []);
+      }
+    } catch (err) {
+      console.error('Error fetching org events:', err);
+    } finally {
+      setEventsLoading(false);
+    }
+  };
+
+  // Open Organization Full View
   const openOrgDetail = (org: any) => {
     setSelectedOrg(org);
+    setActiveOrgTab('events');
     setEditOrgForm({
       name: org.name || '',
       nameBn: org.nameBn || org.bnName || '',
@@ -304,7 +476,214 @@ export default function OrganizationsPage() {
     setNewMemberEmail('');
     setNewLocationInput('');
     setFeedback(null);
+    setMessagingEvent(null);
+    setIsEventModalOpen(false);
+    fetchOrgEvents(org.id);
   };
+
+  // Event creation & editing triggers
+  const handleOpenCreateEvent = () => {
+    setEditingEvent(null);
+    const nowIsoMonth = new Date().toISOString().slice(0, 7);
+    const defaultDate = selectedMonth === nowIsoMonth
+      ? new Date().toISOString().slice(0, 10)
+      : `${selectedMonth}-01`;
+    const locs = selectedOrg ? getAvailableLocations(selectedOrg) : [];
+    setEventForm({
+      name: '',
+      location: locs[0] || '',
+      date: defaultDate,
+      time: '16:30',
+      message: '',
+      targetCategory: 'all',
+    });
+    setIsEventModalOpen(true);
+  };
+
+  const handleOpenEditEvent = (evt: OrgEvent) => {
+    setEditingEvent(evt);
+    setEventForm({
+      name: evt.name || '',
+      location: evt.location || '',
+      date: evt.date || '',
+      time: evt.time || '',
+      message: evt.message || '',
+      targetCategory: evt.targetCategory || 'all',
+    });
+    setIsEventModalOpen(true);
+  };
+
+  const handleSaveEvent = async () => {
+    if (!selectedOrg || !eventForm.name.trim() || !eventForm.date) {
+      showFeedback(language === 'bn' ? 'কর্মসূচির নাম ও তারিখ দেওয়া আবশ্যক' : 'Event name and date are required', 'error');
+      return;
+    }
+    setSavingEvent(true);
+    try {
+      const eventId = editingEvent?.id || generateOfflineId();
+      const newEvent: OrgEvent = {
+        id: eventId,
+        orgId: selectedOrg.id,
+        name: eventForm.name.trim(),
+        location: eventForm.location.trim(),
+        date: eventForm.date,
+        time: eventForm.time.trim(),
+        message: eventForm.message.trim(),
+        targetCategory: eventForm.targetCategory,
+        createdAt: editingEvent?.createdAt || Date.now(),
+        createdBy: editingEvent?.createdBy || user?.uid || '',
+        createdByName: editingEvent?.createdByName || user?.email?.split('@')[0] || '',
+        attendeeResponses: editingEvent?.attendeeResponses || {},
+      };
+
+      // Optimistic update
+      setOrgEvents(prev => {
+        const exists = prev.some(e => e.id === eventId);
+        const updated = exists ? prev.map(e => e.id === eventId ? newEvent : e) : [newEvent, ...prev];
+        return updated.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      });
+
+      await setMetaItem(`org_events_${selectedOrg.id}`, [
+        newEvent,
+        ...orgEvents.filter(e => e.id !== eventId),
+      ]);
+
+      const path = `org_events/${selectedOrg.id}/${eventId}`;
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          await set(ref(database, path), newEvent);
+        } catch {
+          await enqueueSync({ collection: 'contact_activities' as any, action: 'set', path, data: newEvent });
+        }
+      } else {
+        await enqueueSync({ collection: 'contact_activities' as any, action: 'set', path, data: newEvent });
+      }
+
+      showFeedback(editingEvent ? (language === 'bn' ? 'কর্মসূচি আপডেট করা হয়েছে!' : 'Event updated!') : (language === 'bn' ? 'নতুন কর্মসূচি তৈরি সম্পন্ন!' : 'Event created!'), 'success');
+      setIsEventModalOpen(false);
+      setEditingEvent(null);
+    } catch (e) {
+      console.error(e);
+      showFeedback('Failed to save event', 'error');
+    } finally {
+      setSavingEvent(false);
+    }
+  };
+
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!selectedOrg) return;
+    const confirmMsg = language === 'bn' ? 'আপনি কি এই কর্মসূচিটি মুছে ফেলতে চান?' : 'Are you sure you want to delete this event?';
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      setOrgEvents(prev => prev.filter(e => e.id !== eventId));
+      if (messagingEvent?.id === eventId) setMessagingEvent(null);
+
+      const path = `org_events/${selectedOrg.id}/${eventId}`;
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          await remove(ref(database, path));
+        } catch {
+          await enqueueSync({ collection: 'contact_activities' as any, action: 'remove', path });
+        }
+      } else {
+        await enqueueSync({ collection: 'contact_activities' as any, action: 'remove', path });
+      }
+      showFeedback(language === 'bn' ? 'কর্মসূচি মুছে ফেলা হয়েছে' : 'Event deleted!', 'success');
+    } catch (e) {
+      console.error(e);
+      showFeedback('Failed to delete event', 'error');
+    }
+  };
+
+  const handleUpdateAttendeeResponse = async (eventId: string, contactId: string, status: 'invited' | 'confirmed' | 'attended' | 'declined') => {
+    if (!selectedOrg) return;
+    const targetEvent = orgEvents.find(e => e.id === eventId);
+    if (!targetEvent) return;
+
+    const updatedResponses = {
+      ...(targetEvent.attendeeResponses || {}),
+      [contactId]: status,
+    };
+    const updatedEvent = { ...targetEvent, attendeeResponses: updatedResponses };
+
+    setOrgEvents(prev => prev.map(e => e.id === eventId ? updatedEvent : e));
+    if (messagingEvent?.id === eventId) {
+      setMessagingEvent(updatedEvent);
+    }
+
+    const path = `org_events/${selectedOrg.id}/${eventId}/attendeeResponses/${contactId}`;
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      try {
+        await set(ref(database, path), status);
+      } catch {
+        await enqueueSync({ collection: 'contact_activities' as any, action: 'set', path, data: status });
+      }
+    } else {
+      await enqueueSync({ collection: 'contact_activities' as any, action: 'set', path, data: status });
+    }
+  };
+
+  // Format WhatsApp / Announcement Invitation Message
+  const formatEventInvitation = (event: OrgEvent, contact?: any) => {
+    const targetOrgName = orgName(selectedOrg);
+    const contactGreeting = contact
+      ? (language === 'bn' ? `আসসালামু আলাইকুম ${contact.nameBn || contact.name},` : `Assalamu Alaikum ${contact.name},`)
+      : (language === 'bn' ? 'আসসালামু আলাইকুম,' : 'Assalamu Alaikum,');
+
+    const dateFormatted = event.date;
+    const timeFormatted = event.time || (language === 'bn' ? 'সময়মতো' : 'On time');
+    const locationFormatted = event.location || targetOrgName;
+
+    if (language === 'bn') {
+      return `${contactGreeting}
+
+📢 *কর্মসূচির আমন্ত্রণ - ${targetOrgName}*
+
+📌 *কর্মসূচি:* ${event.name}
+📅 *তারিখ:* ${dateFormatted}
+⏰ *সময়:* ${timeFormatted}
+📍 *স্থান:* ${locationFormatted}
+
+${event.message ? `💬 *বার্তা:*\n${event.message}\n\n` : ''}ইনশাআল্লাহ আপনার সময়মতো উপস্থিতি ও সক্রিয় সহযোগিতা একান্তভাবে কাম্য।`;
+    }
+
+    return `${contactGreeting}
+
+📢 *Program Invitation - ${targetOrgName}*
+
+📌 *Event:* ${event.name}
+📅 *Date:* ${dateFormatted}
+⏰ *Time:* ${timeFormatted}
+📍 *Location:* ${locationFormatted}
+
+${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual presence and participation are earnestly requested. InshaAllah.`;
+  };
+
+  const copyToClipboard = async (text: string, successMsg: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showFeedback(successMsg, 'success');
+    } catch {
+      showFeedback('Could not copy to clipboard', 'error');
+    }
+  };
+
+  // Contacts belonging to the selected organization (or ward + child units)
+  const orgAttendees = useMemo(() => {
+    if (!selectedOrg) return [];
+    if (selectedOrg.type === 'ward') {
+      const childIds = new Set(childrenOf(selectedOrg.id).map(c => c.id));
+      childIds.add(selectedOrg.id);
+      return allContacts.filter(c => c.organizationId && childIds.has(c.organizationId));
+    }
+    return allContacts.filter(c => c.organizationId === selectedOrg.id);
+  }, [selectedOrg, allContacts, organizations]);
+
+  // Events filtered by selected month (monthly basis)
+  const monthEvents = useMemo(() => {
+    return orgEvents.filter(e => (e.date || '').startsWith(selectedMonth));
+  }, [orgEvents, selectedMonth]);
 
   // Save changes to organization details
   const handleSaveOrgDetails = async () => {
@@ -937,238 +1316,548 @@ export default function OrganizationsPage() {
         </div>
       )}
 
-      {/* ── Organization Detail & Edit Slide-over Panel ── */}
+      {/* ── Organization Full View (Manage View) ── */}
       {selectedOrg && (
-        <div className="fixed inset-x-0 top-0 bottom-16 md:bottom-0 z-50 flex" onClick={() => setSelectedOrg(null)}>
-          <div className="flex-1 bg-black/60 backdrop-blur-sm" />
-          <div
-            ref={orgDetailSwipeRef}
-            className="animate-slide-in-right w-full max-w-lg bg-slate-900 border-l border-white/10 h-full overflow-y-auto flex flex-col shadow-2xl relative"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Left Edge Drag Affordance on Desktop */}
-            <div
-              className="hidden sm:flex absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-12 bg-white/15 hover:bg-white/35 rounded-full cursor-grab active:cursor-grabbing transition-colors z-30"
-              title="Drag right to close"
-            />
-
-            {/* Slide-over Header */}
-            <div className="px-6 py-4 border-b border-white/10 sticky top-0 bg-slate-900/95 backdrop-blur-md z-10">
-              {/* Mobile grab handle */}
-              <div className="w-10 h-1 bg-white/20 hover:bg-white/40 rounded-full mx-auto -mt-1 mb-2.5 sm:hidden transition-colors cursor-grab" />
-              <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                  selectedOrg.type === 'ward' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'
-                }`}>
-                  {selectedOrg.type === 'ward' ? <Shield className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
-                </div>
-                <div className="min-w-0">
-                  <h3 className="font-bold text-white text-base truncate">
-                    {orgName(selectedOrg)}
-                    {getOrgSecondaryName(selectedOrg, language) && (
-                      <span className="text-xs text-slate-400 font-normal ml-2">
-                        ({getOrgSecondaryName(selectedOrg, language)})
-                      </span>
-                    )}
-                  </h3>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${
-                      selectedOrg.type === 'ward' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'
-                    }`}>
-                      {selectedOrg.type?.toUpperCase() ?? 'UNIT'}
-                    </span>
-                    {selectedOrg.createdBy === user.uid && (
-                      <span className="text-[10px] text-amber-800 dark:text-amber-400 flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-400/40 dark:border-amber-500/30 font-semibold shadow-xs">
-                        <Crown className="w-3 h-3 text-amber-600 dark:text-amber-400" /> Owner
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
+        <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col overflow-hidden text-slate-100 animate-fade-in">
+          {/* Top Navigation Bar */}
+          <header className="px-4 sm:px-6 py-3.5 border-b border-white/10 bg-slate-900/90 backdrop-blur-md flex items-center justify-between shrink-0 z-20">
+            <div className="flex items-center gap-3 min-w-0">
               <button
+                type="button"
                 onClick={() => setSelectedOrg(null)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white flex items-center justify-center transition-all cursor-pointer shrink-0"
+                title={language === 'bn' ? 'ফিরে যান (Esc)' : 'Back / Close (Esc)'}
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+
+              <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
+                selectedOrg.type === 'ward' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+              }`}>
+                {selectedOrg.type === 'ward' ? <Shield className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="font-bold text-white text-base sm:text-lg truncate">
+                    {orgName(selectedOrg)}
+                  </h2>
+                  {getOrgSecondaryName(selectedOrg, language) && (
+                    <span className="text-xs text-slate-400 font-normal truncate hidden sm:inline">
+                      ({getOrgSecondaryName(selectedOrg, language)})
+                    </span>
+                  )}
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                    selectedOrg.type === 'ward' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                  }`}>
+                    {selectedOrg.type === 'ward' ? (language === 'bn' ? 'ওয়ার্ড' : 'WARD') : (language === 'bn' ? 'ইউনিট' : 'UNIT')}
+                  </span>
+                  {selectedOrg.createdBy === user.uid && (
+                    <span className="text-[10px] text-amber-300 flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 font-semibold">
+                      <Crown className="w-3 h-3 text-amber-400" /> {language === 'bn' ? 'মালিক' : 'Owner'}
+                    </span>
+                  )}
+                </div>
+                {selectedOrg.parentOrgId && (
+                  <p className="text-[11px] text-purple-400/90 truncate mt-0.5">
+                    ↳ {language === 'bn' ? 'মূল ওয়ার্ড:' : 'Parent Ward:'} {orgNameById(selectedOrg.parentOrgId)}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Top Right Actions */}
+            <div className="flex items-center gap-2 shrink-0">
+              <Link
+                href={`/dashboard/contacts?orgId=${selectedOrg.id}`}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/20 text-xs font-semibold transition-all"
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>{language === 'bn' ? 'যোগাযোগ দেখুন' : 'View Contacts'}</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-blue-500/20 text-[10px]">
+                  {contactCounts[selectedOrg.id] ?? 0}
+                </span>
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => setSelectedOrg(null)}
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer border border-white/5"
+                title="Close (Esc)"
               >
                 <X className="w-4 h-4" />
               </button>
-              </div>
             </div>
+          </header>
 
-            {/* Quick Stats Grid */}
-            <div className="grid grid-cols-3 gap-2 p-5 border-b border-white/10 bg-slate-950/40">
-              <div className="bg-slate-800/50 rounded-xl p-3 border border-white/5 text-center">
-                <p className="text-[10px] text-slate-500 uppercase font-semibold">Members</p>
-                <p className="text-lg font-bold text-white mt-0.5">
-                  {(selectedOrg.allowedEmails?.length ?? 0) + (selectedOrg.creatorEmail ? 1 : 0)}
-                </p>
-              </div>
-              <div className="bg-slate-800/50 rounded-xl p-3 border border-white/5 text-center flex flex-col justify-between">
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase font-semibold">Contacts</p>
-                  <p className="text-lg font-bold text-white mt-0.5">
-                    {contactCounts[selectedOrg.id] ?? 0}
-                  </p>
-                </div>
-                {selectedOrg.type === 'unit' && (
+          {/* Navigation Tab Bar */}
+          <nav className="px-4 sm:px-6 border-b border-white/10 bg-slate-900/60 backdrop-blur-sm shrink-0 flex items-center gap-2 sm:gap-4 overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => setActiveOrgTab('events')}
+              className={`flex items-center gap-2 py-3 px-3 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                activeOrgTab === 'events'
+                  ? 'border-blue-500 text-blue-400'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              <span>{language === 'bn' ? 'কর্মসূচি ও ইভেন্ট' : 'Events & Programs'}</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                activeOrgTab === 'events' ? 'bg-blue-500/20 text-blue-300' : 'bg-white/5 text-slate-400'
+              }`}>
+                {monthEvents.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveOrgTab('members')}
+              className={`flex items-center gap-2 py-3 px-3 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                activeOrgTab === 'members'
+                  ? 'border-blue-500 text-blue-400'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              <span>{language === 'bn' ? 'সদস্য ও অনুমতি' : 'Members & Access'}</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                activeOrgTab === 'members' ? 'bg-blue-500/20 text-blue-300' : 'bg-white/5 text-slate-400'
+              }`}>
+                {(selectedOrg.allowedEmails?.length ?? 0) + (selectedOrg.creatorEmail ? 1 : 0)}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveOrgTab('settings')}
+              className={`flex items-center gap-2 py-3 px-3 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                activeOrgTab === 'settings'
+                  ? 'border-blue-500 text-blue-400'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Settings className="w-4 h-4" />
+              <span>{language === 'bn' ? 'বিবরণ ও সেটিংস' : 'Details & Settings'}</span>
+            </button>
+          </nav>
+
+          {/* Main Scrollable Content */}
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
+
+            {/* ════════════════════════════════════════════════════════════
+                TAB 1: EVENTS & PROGRAMS (MONTHLY BASIS)
+               ════════════════════════════════════════════════════════════ */}
+            {activeOrgTab === 'events' && (
+              <div className="space-y-6 animate-fade-in">
+                {/* Month Navigator & Create Button Banner */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/80 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-lg">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center bg-slate-800 border border-white/10 rounded-xl p-1 shadow-inner">
+                      <button
+                        type="button"
+                        onClick={goToPrevMonth}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition-all cursor-pointer"
+                        title={language === 'bn' ? 'পূর্ববর্তী মাস' : 'Previous Month'}
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <div className="px-3 py-1 flex items-center gap-2 text-white font-bold text-sm min-w-[150px] justify-center">
+                        <Calendar className="w-4 h-4 text-blue-400 shrink-0" />
+                        <span>{formatMonthLabel(selectedMonth, language)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={goToNextMonth}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition-all cursor-pointer"
+                        title={language === 'bn' ? 'পরবর্তী মাস' : 'Next Month'}
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {selectedMonth !== new Date().toISOString().slice(0, 7) && (
+                      <button
+                        type="button"
+                        onClick={goToCurrentMonth}
+                        className="px-3 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs font-semibold transition-all cursor-pointer"
+                      >
+                        {language === 'bn' ? 'চলতি মাস' : 'Current Month'}
+                      </button>
+                    )}
+                  </div>
+
                   <button
                     type="button"
-                    onClick={() => setIsImportModalOpen(true)}
-                    className="mt-1 text-[10px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center justify-center gap-1 hover:underline cursor-pointer"
+                    onClick={handleOpenCreateEvent}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-500/25 transition-all cursor-pointer active:scale-95"
                   >
-                    <FileSpreadsheet className="w-3 h-3" />
-                    <span>+ Import</span>
+                    <Plus className="w-4 h-4" />
+                    <span>{language === 'bn' ? 'নতুন কর্মসূচি তৈরি করুন' : 'Create Event'}</span>
                   </button>
-                )}
-              </div>
-              <div className="bg-slate-800/50 rounded-xl p-3 border border-white/5 text-center">
-                <p className="text-[10px] text-slate-500 uppercase font-semibold">
-                  {selectedOrg.type === 'ward' ? 'Child Units' : 'Parent Ward'}
-                </p>
-                <p className="text-xs font-semibold text-purple-300 mt-1 truncate">
-                  {selectedOrg.type === 'ward'
-                    ? childrenOf(selectedOrg.id).length
-                    : selectedOrg.parentOrgId ? orgNameById(selectedOrg.parentOrgId) : 'None'}
-                </p>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-6 flex-1">
-
-              {/* ── Section 1: Member Assignment & Access ──────── */}
-              <div className="space-y-4 bg-slate-950/40 border border-white/10 rounded-2xl p-5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-blue-400" />
-                    <h4 className="text-sm font-semibold text-white">Assigned Users & Members</h4>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 text-xs font-semibold">
-                    {(selectedOrg.allowedEmails?.length ?? 0) + (selectedOrg.creatorEmail ? 1 : 0)}
-                  </span>
                 </div>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Users assigned here will be able to log in and manage this organization and its contacts.
-                </p>
 
-                {/* Add member input */}
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <input
-                      type="email"
-                      value={newMemberEmail}
-                      onChange={e => setNewMemberEmail(e.target.value)}
-                      placeholder="user@example.com"
-                      className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddMember(); } }}
-                    />
+                {/* Monthly Summary Statistics */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="bg-slate-900/60 border border-white/5 rounded-2xl p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/20">
+                      <Calendar className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-slate-400 font-medium">
+                        {language === 'bn' ? 'এই মাসের কর্মসূচি' : 'Month Events'}
+                      </p>
+                      <p className="text-xl font-bold text-white mt-0.5">
+                        {language === 'bn' ? toBnNum(monthEvents.length) : monthEvents.length}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/60 border border-white/5 rounded-2xl p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/20">
+                      <Users className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-slate-400 font-medium">
+                        {language === 'bn' ? 'সম্ভাব্য সাথী / উপস্থিতি' : 'Audience / Contacts'}
+                      </p>
+                      <p className="text-xl font-bold text-white mt-0.5">
+                        {language === 'bn' ? toBnNum(orgAttendees.length) : orgAttendees.length}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/60 border border-white/5 rounded-2xl p-4 flex items-center gap-3 col-span-2 sm:col-span-1">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-slate-400 font-medium">
+                        {language === 'bn' ? 'সম্মতিপ্রাপ্ত উপস্থিতি' : 'Confirmed Attendees'}
+                      </p>
+                      <p className="text-xl font-bold text-white mt-0.5">
+                        {(() => {
+                          const confirmedCount = monthEvents.reduce((acc: number, evt: OrgEvent) => {
+                            const confirmedInEvt = Object.values(evt.attendeeResponses || {}).filter(st => st === 'confirmed' || st === 'attended').length;
+                            return acc + confirmedInEvt;
+                          }, 0);
+                          return language === 'bn' ? toBnNum(confirmedCount) : confirmedCount;
+                        })()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Events Cards List */}
+                {eventsLoading ? (
+                  <div className="py-16 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
+                    <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
+                    <span className="text-sm">{language === 'bn' ? 'কর্মসূচি লোড হচ্ছে...' : 'Loading events...'}</span>
+                  </div>
+                ) : monthEvents.length === 0 ? (
+                  <div className="py-16 px-4 bg-slate-900/40 border border-dashed border-white/10 rounded-2xl text-center flex flex-col items-center justify-center gap-3">
+                    <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-slate-500 border border-white/5">
+                      <Calendar className="w-7 h-7" />
+                    </div>
+                    <div className="max-w-md">
+                      <h4 className="text-base font-bold text-white">
+                        {language === 'bn'
+                          ? `${formatMonthLabel(selectedMonth, 'bn')}-এ কোনো কর্মসূচি নির্ধারিত নেই`
+                          : `No events scheduled for ${formatMonthLabel(selectedMonth, 'en')}`}
+                      </h4>
+                      <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                        {language === 'bn'
+                          ? 'মাসিক বৈঠক, দাওয়াতী সমাবেশ বা সাধারণ সভার পরিকল্পনা করুন এবং উপস্থিতদের এক ক্লিকে আমন্ত্রণ মেসেজ পাঠান।'
+                          : 'Plan monthly meetings, study sessions, or community gatherings and message attendees with ease.'}
+                      </p>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => handleAddMember()}
-                      disabled={memberLoading || !newMemberEmail.trim()}
-                      className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-semibold transition-all flex items-center gap-1.5 shadow-md shadow-blue-600/20 cursor-pointer active:scale-95"
+                      onClick={handleOpenCreateEvent}
+                      className="mt-2 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/20 cursor-pointer"
                     >
-                      {memberLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
-                      <span>Assign</span>
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{language === 'bn' ? 'নতুন কর্মসূচি যোগ করুন' : 'Create Event'}</span>
                     </button>
                   </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {monthEvents.map((evt: OrgEvent) => {
+                      const responses = evt.attendeeResponses || {};
+                      const confirmedNum = Object.values(responses).filter(r => r === 'confirmed' || r === 'attended').length;
+                      const dayStr = evt.date ? evt.date.split('-')[2] : '—';
+                      return (
+                        <div
+                          key={evt.id}
+                          className="bg-slate-900/80 border border-white/10 hover:border-blue-500/30 rounded-2xl p-5 shadow-lg transition-all flex flex-col justify-between gap-4 group"
+                        >
+                          <div>
+                            {/* Card Top: Date Badge + Title + Category */}
+                            <div className="flex items-start gap-3">
+                              <div className="flex flex-col items-center justify-center w-12 h-14 rounded-xl bg-gradient-to-b from-blue-600/30 to-indigo-600/30 border border-blue-500/30 text-blue-300 shrink-0 font-bold">
+                                <span className="text-lg leading-tight font-extrabold">
+                                  {language === 'bn' ? toBnNum(dayStr) : dayStr}
+                                </span>
+                                <span className="text-[10px] uppercase tracking-wider text-slate-400">
+                                  {language === 'bn' ? 'তারিখ' : 'DAY'}
+                                </span>
+                              </div>
 
-                  {/* Registered users quick-suggestions */}
-                  {registeredUsers.length > 0 && (() => {
-                    const unassignedUsers = registeredUsers.filter(u =>
-                      u.email !== selectedOrg.creatorEmail &&
-                      !(selectedOrg.allowedEmails || []).includes(u.email)
-                    );
-                    if (unassignedUsers.length === 0) return null;
-                    return (
-                      <div className="pt-1">
-                        <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-1.5">
-                          Quick Add from Registered Users:
-                        </p>
-                        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                          {unassignedUsers.slice(0, 8).map(u => (
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="font-bold text-white text-base group-hover:text-blue-300 transition-colors truncate">
+                                    {evt.name}
+                                  </h3>
+                                  {evt.targetCategory && evt.targetCategory !== 'all' && (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/25">
+                                      {evt.targetCategory === 'kormi' ? (language === 'bn' ? 'কর্মী' : 'Worker') : (language === 'bn' ? 'সহযোগী' : 'Associate')}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-3 text-xs text-slate-400 mt-1.5 flex-wrap">
+                                  {evt.time && (
+                                    <span className="flex items-center gap-1 font-medium text-slate-300">
+                                      <Clock className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                                      <span>{evt.time}</span>
+                                    </span>
+                                  )}
+                                  {evt.location && (
+                                    <span className="flex items-center gap-1 font-medium text-purple-300 truncate max-w-[200px]" title={evt.location}>
+                                      <MapPin className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                                      <span className="truncate">{evt.location}</span>
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Message Quote Box */}
+                            {evt.message && (
+                              <div className="mt-3 p-3 rounded-xl bg-slate-950/60 border border-white/5 text-xs text-slate-300 leading-relaxed relative">
+                                <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-slate-500 mb-1">
+                                  <MessageSquare className="w-3 h-3 text-blue-400" />
+                                  <span>{language === 'bn' ? 'উপস্থিতদের জন্য বার্তা' : 'Message to Attendees'}:</span>
+                                </div>
+                                <p className="italic text-slate-300 whitespace-pre-wrap">{evt.message}</p>
+                              </div>
+                            )}
+
+                            {/* Attendance status summary badge */}
+                            <div className="mt-3 flex items-center justify-between text-xs text-slate-400 pt-1">
+                              <span className="flex items-center gap-1.5">
+                                <Users className="w-3.5 h-3.5 text-slate-400" />
+                                <span>{language === 'bn' ? `${toBnNum(orgAttendees.length)} জন সাথী` : `${orgAttendees.length} attendees`}</span>
+                              </span>
+                              {confirmedNum > 0 && (
+                                <span className="flex items-center gap-1 text-emerald-400 font-semibold text-[11px] bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                  <Check className="w-3 h-3" />
+                                  <span>{language === 'bn' ? `${toBnNum(confirmedNum)} জন নিশ্চিত` : `${confirmedNum} confirmed`}</span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Action Buttons Row */}
+                          <div className="pt-3 border-t border-white/10 flex items-center justify-between gap-2">
                             <button
-                              key={u.uid}
                               type="button"
-                              onClick={() => handleAddMember(u.email)}
-                              className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-blue-600/20 border border-white/5 hover:border-blue-500/30 text-[11px] text-slate-300 hover:text-blue-300 flex items-center gap-1 transition-all cursor-pointer"
+                              onClick={() => setMessagingEvent(evt)}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold transition-all cursor-pointer shadow-sm active:scale-95"
                             >
-                              <Plus className="w-3 h-3 text-blue-400" />
-                              <span>{u.name || u.email.split('@')[0]}</span>
-                              <span className="text-slate-500 text-[9px]">({u.email})</span>
+                              <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>{language === 'bn' ? 'উপস্থিতদের মেসেজ পাঠান' : 'Message Attendees'}</span>
                             </button>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
 
-                {/* Member list */}
-                <div className="space-y-2 pt-2">
-                  {/* Creator / Owner */}
-                  {selectedOrg.creatorEmail && (
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-800/60 border border-amber-500/20">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs font-bold shrink-0">
-                          {selectedOrg.creatorEmail[0]?.toUpperCase() ?? 'O'}
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(formatEventInvitation(evt), language === 'bn' ? 'কর্মসূচির বার্তা কপি হয়েছে!' : 'Invitation message copied!')}
+                              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/5 text-xs font-medium transition-all cursor-pointer"
+                              title={language === 'bn' ? 'বার্তা কপি করুন' : 'Copy Message'}
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditEvent(evt)}
+                              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/5 text-xs font-medium transition-all cursor-pointer"
+                              title={language === 'bn' ? 'সম্পাদনা' : 'Edit'}
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteEvent(evt.id)}
+                              className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-medium transition-all cursor-pointer"
+                              title={language === 'bn' ? 'মুছে ফেলুন' : 'Delete'}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-white truncate">{selectedOrg.creatorEmail}</p>
-                          <p className="text-[10px] text-slate-500">Created this organization</p>
-                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ════════════════════════════════════════════════════════════
+                TAB 2: MEMBERS & ACCESS
+               ════════════════════════════════════════════════════════════ */}
+            {activeOrgTab === 'members' && (
+              <div className="space-y-6 animate-fade-in max-w-4xl">
+                {/* ── Section 1: Member Assignment & Access ──────── */}
+                <div className="space-y-4 bg-slate-900/80 border border-white/10 rounded-2xl p-5 sm:p-6 shadow-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center border border-blue-500/30">
+                        <Users className="w-4 h-4" />
                       </div>
-                      <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-800 dark:text-amber-400 border border-amber-400/40 dark:border-amber-500/30 text-[10px] font-semibold flex items-center gap-1 shadow-xs">
-                        <Crown className="w-3 h-3 text-amber-600 dark:text-amber-400" /> Owner
-                      </span>
+                      <div>
+                        <h4 className="text-base font-bold text-white">
+                          {language === 'bn' ? 'অনুমোদিত সদস্য ও ব্যবহারকারী' : 'Assigned Users & Members'}
+                        </h4>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {language === 'bn'
+                            ? 'এখানে নিযুক্ত ব্যবহারকারীরা এই সংগঠনে লগইন করে ব্যবস্থাপনা ও যোগাযোগ পরিচালনা করতে পারবেন।'
+                            : 'Users assigned here will be able to log in and manage this organization and its contacts.'}
+                        </p>
+                      </div>
                     </div>
-                  )}
+                    <span className="px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20">
+                      {(selectedOrg.allowedEmails?.length ?? 0) + (selectedOrg.creatorEmail ? 1 : 0)}
+                    </span>
+                  </div>
 
-                  {/* Assigned members */}
-                  {(selectedOrg.allowedEmails || []).map((email: string) => {
-                    const matchedUser = registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-                    return (
-                      <div
-                        key={email}
-                        className="flex items-center justify-between p-3 rounded-xl bg-slate-800/40 border border-white/5 hover:border-white/10 transition-colors"
+                  {/* Add member input */}
+                  <div className="space-y-2 pt-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="email"
+                        value={newMemberEmail}
+                        onChange={e => setNewMemberEmail(e.target.value)}
+                        placeholder="user@example.com"
+                        className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddMember(); } }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleAddMember()}
+                        disabled={memberLoading || !newMemberEmail.trim()}
+                        className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 shadow-md shadow-blue-600/20 cursor-pointer active:scale-95"
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold shrink-0">
-                            {email[0]?.toUpperCase()}
+                        {memberLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                        <span>{language === 'bn' ? 'সদস্য যুক্ত করুন' : 'Assign'}</span>
+                      </button>
+                    </div>
+
+                    {/* Registered users quick-suggestions */}
+                    {registeredUsers.length > 0 && (() => {
+                      const unassignedUsers = registeredUsers.filter(u =>
+                        u.email !== selectedOrg.creatorEmail &&
+                        !(selectedOrg.allowedEmails || []).includes(u.email)
+                      );
+                      if (unassignedUsers.length === 0) return null;
+                      return (
+                        <div className="pt-2">
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2">
+                            {language === 'bn' ? 'নিবন্ধিত ব্যবহারকারী থেকে দ্রুত যোগ করুন:' : 'Quick Add from Registered Users:'}
+                          </p>
+                          <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                            {unassignedUsers.slice(0, 10).map(u => (
+                              <button
+                                key={u.uid}
+                                type="button"
+                                onClick={() => handleAddMember(u.email)}
+                                className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-blue-600/20 border border-white/5 hover:border-blue-500/30 text-xs text-slate-300 hover:text-blue-300 flex items-center gap-1.5 transition-all cursor-pointer"
+                              >
+                                <Plus className="w-3 h-3 text-blue-400" />
+                                <span>{u.name || u.email.split('@')[0]}</span>
+                                <span className="text-slate-500 text-[10px]">({u.email})</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Member list */}
+                  <div className="space-y-2.5 pt-4">
+                    {/* Creator / Owner */}
+                    {selectedOrg.creatorEmail && (
+                      <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-800/60 border border-amber-500/20">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs font-bold shrink-0">
+                            {selectedOrg.creatorEmail[0]?.toUpperCase() ?? 'O'}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-semibold text-white truncate">{email}</p>
-                            {matchedUser?.name && (
-                              <p className="text-[10px] text-slate-400 truncate">{matchedUser.name}</p>
-                            )}
+                            <p className="text-xs sm:text-sm font-semibold text-white truncate">{selectedOrg.creatorEmail}</p>
+                            <p className="text-[11px] text-slate-500">{language === 'bn' ? 'সংগঠন তৈরিকারী' : 'Created this organization'}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-semibold">
-                            Member
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveMember(email)}
-                            title="Remove member access"
-                            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                        <span className="px-2.5 py-1 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-semibold flex items-center gap-1">
+                          <Crown className="w-3.5 h-3.5 text-amber-400" /> {language === 'bn' ? 'মালিক' : 'Owner'}
+                        </span>
                       </div>
-                    );
-                  })}
+                    )}
 
-                  {(!selectedOrg.allowedEmails || selectedOrg.allowedEmails.length === 0) && !selectedOrg.creatorEmail && (
-                    <p className="text-xs text-slate-500 italic py-2 text-center">
-                      No members assigned yet. Add user emails above.
-                    </p>
-                  )}
+                    {/* Assigned members */}
+                    {(selectedOrg.allowedEmails || []).map((email: string) => {
+                      const matchedUser = registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+                      return (
+                        <div
+                          key={email}
+                          className="flex items-center justify-between p-3.5 rounded-xl bg-slate-800/40 border border-white/5 hover:border-white/10 transition-colors"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold shrink-0">
+                              {email[0]?.toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs sm:text-sm font-semibold text-white truncate">{email}</p>
+                              {matchedUser?.name && (
+                                <p className="text-[11px] text-slate-400 truncate">{matchedUser.name}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-xs font-semibold">
+                              {language === 'bn' ? 'সদস্য' : 'Member'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveMember(email)}
+                              title="Remove member access"
+                              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {(!selectedOrg.allowedEmails || selectedOrg.allowedEmails.length === 0) && !selectedOrg.creatorEmail && (
+                      <p className="text-xs text-slate-500 italic py-4 text-center">
+                        {language === 'bn' ? 'এখনো কোনো সদস্য যুক্ত করা হয়নি।' : 'No members assigned yet. Add user emails above.'}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
+            )}
 
-              {/* ── Section: Unit Contacts & CSV Import ──────── */}
-              {selectedOrg.type === 'unit' && (
+            {/* ════════════════════════════════════════════════════════════
+                TAB 3: DETAILS & SETTINGS
+               ════════════════════════════════════════════════════════════ */}
+            {activeOrgTab === 'settings' && (
+              <div className="space-y-6 animate-fade-in max-w-4xl">
+                {/* ── Section: Unit Contacts & CSV Import ──────── */}
+                {selectedOrg.type === 'unit' && (
                 <div className="space-y-4 bg-slate-950/40 border border-emerald-500/20 rounded-2xl p-5 shadow-lg shadow-emerald-950/10">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
@@ -1493,7 +2182,486 @@ export default function OrganizationsPage() {
                   Delete Organization
                 </button>
               </div>
+            </div>
+          )}
+        </main>
+      </div>
+    )}
 
+      {/* ── Sub-modal: Create / Edit Event Modal ────────────── */}
+      {isEventModalOpen && selectedOrg && (
+        <div className="fixed inset-0 z-60 bg-black/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in" onClick={() => setIsEventModalOpen(false)}>
+          <div
+            className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[92vh]"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="px-5 sm:px-6 py-4 border-b border-white/10 flex items-center justify-between bg-slate-900">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center border border-blue-500/30">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-base">
+                    {editingEvent
+                      ? (language === 'bn' ? 'কর্মসূচি সম্পাদনা' : 'Edit Event')
+                      : (language === 'bn' ? 'নতুন কর্মসূচি তৈরি' : 'Create Event')}
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    {orgName(selectedOrg)}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEventModalOpen(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form
+              onSubmit={e => { e.preventDefault(); handleSaveEvent(); }}
+              className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1 text-xs"
+            >
+              {/* Event Name */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  {language === 'bn' ? 'কর্মসূচির নাম / বিষয় *' : 'Event Name / Subject *'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={eventForm.name}
+                  onChange={e => setEventForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder={language === 'bn' ? 'যেমন: মাসিক সাধারণ সভা, দাওয়াতী সমাবেশ...' : 'e.g. Monthly General Meeting, Study Circle...'}
+                  className="w-full bg-slate-800 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Date & Time Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                    {language === 'bn' ? 'তারিখ *' : 'Date *'}
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={eventForm.date}
+                    onChange={e => setEventForm(f => ({ ...f, date: e.target.value }))}
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                    {language === 'bn' ? 'সময় (Time)' : 'Time'}
+                  </label>
+                  <input
+                    type="text"
+                    value={eventForm.time}
+                    onChange={e => setEventForm(f => ({ ...f, time: e.target.value }))}
+                    placeholder="e.g. 16:30 বা বিকাল ৫:০০"
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Time Presets Chips */}
+              <div>
+                <p className="text-[10px] text-slate-500 font-semibold mb-1">
+                  {language === 'bn' ? 'দ্রুত সময়ের প্রিসেট:' : 'Quick Time Presets:'}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {['বাদ ফজর (সকাল ৬:০০)', 'সকাল ১০:০০', 'বাদ জোহর (দুপুর ২:০০)', 'বাদ আসর (বিকাল ৪:৩০)', 'বাদ মাগরিব (সন্ধ্যা ৬:০০)', 'বাদ এশা (রাত ৮:৩০)'].map(preset => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setEventForm(f => ({ ...f, time: preset }))}
+                      className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-blue-600/20 border border-white/5 hover:border-blue-500/30 text-[10px] text-slate-300 hover:text-blue-300 transition-all cursor-pointer"
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Location Input + Suggestion Chips */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  {language === 'bn' ? 'স্থান / ভেন্যু (Location)' : 'Location / Venue'}
+                </label>
+                <input
+                  type="text"
+                  value={eventForm.location}
+                  onChange={e => setEventForm(f => ({ ...f, location: e.target.value }))}
+                  placeholder={language === 'bn' ? 'যেমন: নূরানী মসজিদ প্রাঙ্গণ' : 'e.g. Noorani Masjid Premises'}
+                  className="w-full bg-slate-800 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+
+                {/* Available location chips from ward/unit */}
+                {selectedOrg && (() => {
+                  const locs = getAvailableLocations(selectedOrg);
+                  if (locs.length === 0) return null;
+                  return (
+                    <div className="mt-2">
+                      <p className="text-[10px] text-slate-500 font-semibold mb-1">
+                        {language === 'bn' ? 'সংগঠনের নির্ধারিত স্থান থেকে নির্বাচন করুন:' : 'Pick from Organization Locations:'}
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {locs.map(l => (
+                          <button
+                            key={l}
+                            type="button"
+                            onClick={() => setEventForm(f => ({ ...f, location: orgName(l) }))}
+                            className="px-2 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 text-[11px] text-purple-300 flex items-center gap-1 transition-all cursor-pointer"
+                          >
+                            <MapPin className="w-3 h-3 text-purple-400" />
+                            <span>{orgName(l)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Target Audience / Category */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  {language === 'bn' ? 'আমন্ত্রিত সাথী শ্রেণি (Target Audience)' : 'Target Category'}
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'all', label: language === 'bn' ? 'সকল সাথী' : 'All Contacts' },
+                    { id: 'kormi', label: language === 'bn' ? 'শুধুমাত্র কর্মী' : 'Workers Only' },
+                    { id: 'shohojogi', label: language === 'bn' ? 'সহযোগী সাথী' : 'Associates Only' },
+                  ].map(opt => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setEventForm(f => ({ ...f, targetCategory: opt.id as any }))}
+                      className={`py-2 px-2 rounded-xl text-xs font-semibold border text-center transition-all cursor-pointer ${
+                        eventForm.targetCategory === opt.id
+                          ? 'bg-blue-600/30 text-blue-300 border-blue-500/50 shadow-sm'
+                          : 'bg-slate-800/80 text-slate-400 border-white/5 hover:text-white'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Message to Attendees */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    {language === 'bn' ? 'উপস্থিতদের জন্য বার্তা (Message to Attendees)' : 'Message to Attendees'}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const sample = language === 'bn'
+                        ? 'আসসালামু আলাইকুম। আমাদের মাসিক সাধারণ সভা অনুষ্ঠিত হবে। আপনার আন্তরিক উপস্থিতি ও সহযোগিতা একান্ত কাম্য।'
+                        : 'Assalamu Alaikum. Our monthly general meeting will be held. Your attendance and participation are earnestly requested.';
+                      setEventForm(f => ({ ...f, message: sample }));
+                    }}
+                    className="text-[11px] text-blue-400 hover:text-blue-300 font-semibold cursor-pointer"
+                  >
+                    {language === 'bn' ? '✨ নমুনা বার্তা ব্যবহার করুন' : '✨ Use Template'}
+                  </button>
+                </div>
+                <textarea
+                  rows={3}
+                  value={eventForm.message}
+                  onChange={e => setEventForm(f => ({ ...f, message: e.target.value }))}
+                  placeholder={language === 'bn' ? 'উপস্থিতদের উদ্দেশ্যে বিশেষ নির্দেশনা বা অনুরোধ লিখুন...' : 'Add special instructions or notes for attendees...'}
+                  className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed"
+                />
+              </div>
+
+              {/* Buttons */}
+              <div className="pt-3 border-t border-white/10 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEventModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-all cursor-pointer"
+                >
+                  {language === 'bn' ? 'বাতিল' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEvent}
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/25 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {savingEvent ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  <span>{editingEvent ? (language === 'bn' ? 'আপডেট করুন' : 'Update Event') : (language === 'bn' ? 'কর্মসূচি সংরক্ষণ' : 'Save Event')}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Sub-modal: Message Attendees View ───────────────── */}
+      {messagingEvent && selectedOrg && (
+        <div className="fixed inset-0 z-60 bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in" onClick={() => setMessagingEvent(null)}>
+          <div
+            className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="px-5 sm:px-6 py-4 border-b border-white/10 bg-slate-900/95 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 shrink-0">
+                  <MessageSquare className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-white text-base truncate">
+                    {language === 'bn' ? 'উপস্থিতদের মেসেজ পাঠান' : 'Message Attendees'}: {messagingEvent.name}
+                  </h3>
+                  <p className="text-xs text-slate-400 truncate mt-0.5">
+                    📅 {messagingEvent.date} {messagingEvent.time ? `• ⏰ ${messagingEvent.time}` : ''} {messagingEvent.location ? `• 📍 ${messagingEvent.location}` : ''}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMessagingEvent(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Quick Broadcast / Announcement Copy Banner */}
+            <div className="px-5 sm:px-6 py-3.5 bg-slate-950/70 border-b border-white/10 flex flex-wrap items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(formatEventInvitation(messagingEvent), language === 'bn' ? 'সম্পূর্ণ আমন্ত্রণ বার্তা কপি হয়েছে!' : 'Full announcement copied!')}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>{language === 'bn' ? '📋 আমন্ত্রণ বার্তা কপি করুন' : '📋 Copy Full Announcement'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const numbers = orgAttendees.map((a: any) => a.mobile).filter(Boolean).join(', ');
+                    copyToClipboard(numbers, language === 'bn' ? 'সকল নম্বর কপি হয়েছে!' : 'All phone numbers copied!');
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-white/10 flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Phone className="w-3.5 h-3.5 text-blue-400" />
+                  <span>{language === 'bn' ? 'সকল ফোন নম্বর কপি' : 'Copy All Numbers'}</span>
+                </button>
+              </div>
+
+              <span className="text-xs text-slate-400 font-medium">
+                {language === 'bn'
+                  ? `${toBnNum(orgAttendees.length)} জন সাথী তালিকাভুক্ত`
+                  : `${orgAttendees.length} total contacts`}
+              </span>
+            </div>
+
+            {/* Search & Category Filter */}
+            <div className="px-5 sm:px-6 py-3 border-b border-white/10 bg-slate-900/80 flex flex-col sm:flex-row items-center gap-3 shrink-0">
+              <div className="relative flex-1 w-full">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={attendeeSearchQuery}
+                  onChange={e => setAttendeeSearchQuery(e.target.value)}
+                  placeholder={language === 'bn' ? 'নাম বা ফোন নম্বর দিয়ে খুঁজুন...' : 'Search attendees by name or phone...'}
+                  className="w-full bg-slate-800/80 border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0 w-full sm:w-auto overflow-x-auto">
+                {[
+                  { id: 'all', label: language === 'bn' ? 'সকল' : 'All' },
+                  { id: 'kormi', label: language === 'bn' ? 'কর্মী' : 'Worker' },
+                  { id: 'shohojogi', label: language === 'bn' ? 'সহযোগী' : 'Associate' },
+                ].map(cat => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setAttendeeCategoryFilter(cat.id as any)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      attendeeCategoryFilter === cat.id
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Attendees List */}
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-2.5 divide-y divide-white/5">
+              {(() => {
+                const q = attendeeSearchQuery.toLowerCase().trim();
+                const filtered = orgAttendees.filter((att: any) => {
+                  const matchCat = attendeeCategoryFilter === 'all' || (att.category || 'shohojogi') === attendeeCategoryFilter;
+                  const matchSearch = !q ||
+                    (att.name || '').toLowerCase().includes(q) ||
+                    (att.nameBn || '').toLowerCase().includes(q) ||
+                    (att.mobile || '').includes(q);
+                  return matchCat && matchSearch;
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="py-12 text-center text-slate-500 text-xs">
+                      {language === 'bn' ? 'কোনো সাথী পাওয়া যায়নি।' : 'No contacts match the criteria.'}
+                    </div>
+                  );
+                }
+
+                return filtered.map((contact: any) => {
+                  const contactPhone = toE164Phone(contact.mobile);
+                  const currentResponse = messagingEvent.attendeeResponses?.[contact.id] || 'invited';
+                  const invitationText = formatEventInvitation(messagingEvent, contact);
+                  const waUrl = contactPhone ? `https://wa.me/${contactPhone}?text=${encodeURIComponent(invitationText)}` : null;
+
+                  return (
+                    <div
+                      key={contact.id}
+                      className="pt-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-white/[0.02] p-2 rounded-xl transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-sm text-white truncate">
+                            {contact.name}
+                          </span>
+                          {contact.nameBn && (
+                            <span className="text-xs text-slate-400 font-normal">
+                              ({contact.nameBn})
+                            </span>
+                          )}
+                          <span className={`px-2 py-0.2 rounded-full text-[10px] font-semibold ${
+                            contact.category === 'kormi'
+                              ? 'bg-purple-500/15 text-purple-300 border border-purple-500/25'
+                              : 'bg-blue-500/15 text-blue-300 border border-blue-500/25'
+                          }`}>
+                            {contact.category === 'kormi' ? (language === 'bn' ? 'কর্মী' : 'Worker') : (language === 'bn' ? 'সহযোগী' : 'Associate')}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
+                          {contact.mobile && (
+                            <span className="font-mono">{contact.mobile}</span>
+                          )}
+                          {contact.location && (
+                            <span className="flex items-center gap-1 text-[11px] text-purple-300">
+                              <MapPin className="w-3 h-3 text-purple-400" />
+                              <span>{orgName(contact.location)}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Messaging & RSVP Controls */}
+                      <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                        {/* Attendance Response Picker */}
+                        <div className="flex items-center bg-slate-800/90 border border-white/10 rounded-lg p-0.5 text-[11px]">
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateAttendeeResponse(messagingEvent.id, contact.id, 'confirmed')}
+                            className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
+                              currentResponse === 'confirmed'
+                                ? 'bg-emerald-600 text-white font-bold'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                            title={language === 'bn' ? 'উপস্থিত হবেন' : 'Confirmed'}
+                          >
+                            ✓ {language === 'bn' ? 'হবেন' : 'Yes'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateAttendeeResponse(messagingEvent.id, contact.id, 'attended')}
+                            className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
+                              currentResponse === 'attended'
+                                ? 'bg-blue-600 text-white font-bold'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                            title={language === 'bn' ? 'উপস্থিত ছিলেন' : 'Attended'}
+                          >
+                            🌟 {language === 'bn' ? 'ছিলেন' : 'Attended'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateAttendeeResponse(messagingEvent.id, contact.id, 'declined')}
+                            className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
+                              currentResponse === 'declined'
+                                ? 'bg-red-600 text-white font-bold'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                            title={language === 'bn' ? 'অপারগ' : 'Declined'}
+                          >
+                            ✕ {language === 'bn' ? 'না' : 'No'}
+                          </button>
+                        </div>
+
+                        {/* Direct WhatsApp Button */}
+                        {waUrl ? (
+                          <a
+                            href={waUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-all shadow-sm active:scale-95 cursor-pointer"
+                            title={language === 'bn' ? 'হোয়াটসঅ্যাপে আমন্ত্রণ পাঠান' : 'Send WhatsApp Message'}
+                          >
+                            <Send className="w-3 h-3" />
+                            <span>WhatsApp</span>
+                          </a>
+                        ) : (
+                          <span className="text-[10px] text-slate-500 italic">No phone</span>
+                        )}
+
+                        {/* Direct Call / SMS */}
+                        {contact.mobile && (
+                          <div className="flex items-center gap-1">
+                            <a
+                              href={`tel:${contact.mobile}`}
+                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                              title="Call"
+                            >
+                              <Phone className="w-3.5 h-3.5" />
+                            </a>
+                            <a
+                              href={`sms:${contact.mobile}?body=${encodeURIComponent(invitationText)}`}
+                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                              title="SMS"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" />
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3 border-t border-white/10 bg-slate-900/95 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setMessagingEvent(null)}
+                className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold cursor-pointer transition-colors"
+              >
+                {language === 'bn' ? 'বন্ধ করুন' : 'Close'}
+              </button>
             </div>
           </div>
         </div>
