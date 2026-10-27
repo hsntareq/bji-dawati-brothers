@@ -119,8 +119,9 @@ export default function OrganizationsPage() {
   const [editingWardId, setEditingWardId] = useState<string | null>(null);
   const [editWardName,  setEditWardName]  = useState('');
 
-  // Selected Org for Detail & Edit Full View
+  // Selected Org for Detail Drawer & Full View Manage
   const [selectedOrg,     setSelectedOrg]     = useState<any | null>(null);
+  const [isFullView,      setIsFullView]      = useState(false);
   const [activeOrgTab,    setActiveOrgTab]    = useState<'events' | 'members' | 'settings'>('events');
   const [editOrgForm,     setEditOrgForm]     = useState({ name: '', nameBn: '', type: 'unit', wardName: '', parentOrgId: '' });
   const [savingOrg,       setSavingOrg]       = useState(false);
@@ -179,6 +180,7 @@ export default function OrganizationsPage() {
           setIsEventModalOpen(false);
         } else if (selectedOrg) {
           setSelectedOrg(null);
+          setIsFullView(false);
         }
       }
     };
@@ -188,7 +190,10 @@ export default function OrganizationsPage() {
 
   // ── Swipe to Dismiss Handlers (Slide right to close) ──
   const orgDetailSwipeRef = useSwipeToDismiss({
-    onClose: () => setSelectedOrg(null),
+    onClose: () => {
+      setSelectedOrg(null);
+      setIsFullView(false);
+    },
   });
   const orgModalSwipeRef = useSwipeToDismiss({
     onClose: () => {
@@ -462,9 +467,10 @@ export default function OrganizationsPage() {
     }
   };
 
-  // Open Organization Full View
-  const openOrgDetail = (org: any) => {
+  // Open Organization Full View (When Manage button is clicked)
+  const openOrgManage = (org: any) => {
     setSelectedOrg(org);
+    setIsFullView(true);
     setActiveOrgTab('events');
     setEditOrgForm({
       name: org.name || '',
@@ -480,6 +486,26 @@ export default function OrganizationsPage() {
     setIsEventModalOpen(false);
     fetchOrgEvents(org.id);
   };
+
+  // Open Organization Slide-over Panel (When clicking other area of organization card)
+  const openOrgDrawer = (org: any) => {
+    setSelectedOrg(org);
+    setIsFullView(false);
+    setEditOrgForm({
+      name: org.name || '',
+      nameBn: org.nameBn || org.bnName || '',
+      type: org.type || 'unit',
+      wardName: org.wardName || '',
+      parentOrgId: org.parentOrgId || '',
+    });
+    setNewMemberEmail('');
+    setNewLocationInput('');
+    setFeedback(null);
+    setMessagingEvent(null);
+    setIsEventModalOpen(false);
+  };
+
+  const openOrgDetail = openOrgDrawer;
 
   // Event creation & editing triggers
   const handleOpenCreateEvent = () => {
@@ -846,6 +872,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
       const orgId = selectedOrg.id;
       // Optimistic delete
       setSelectedOrg(null);
+      setIsFullView(false);
       setAllOrgsRaw(prev => prev.filter(o => o.id !== orgId));
       setOrganizations(prev => prev.filter(o => o.id !== orgId));
       await deleteFromStore('organizations', orgId);
@@ -1111,7 +1138,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
                     {/* Action buttons (Manage + Expand/Collapse) */}
                     <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
                       <button
-                        onClick={() => openOrgDetail(ward)}
+                        onClick={() => openOrgManage(ward)}
                         title="Manage details & users"
                         className="p-2 sm:px-3 sm:py-2 rounded-xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-500/15 dark:hover:bg-purple-500/25 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-sm"
                       >
@@ -1206,7 +1233,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
 
                           {/* Manage Button */}
                           <button
-                            onClick={e => { e.stopPropagation(); openOrgDetail(unit); }}
+                            onClick={e => { e.stopPropagation(); openOrgManage(unit); }}
                             className="w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shrink-0 active:scale-95 shadow-sm cursor-pointer"
                             title="Manage unit"
                           >
@@ -1266,7 +1293,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
                         </p>
                       </div>
                       <button
-                        onClick={e => { e.stopPropagation(); openOrgDetail(unit); }}
+                        onClick={e => { e.stopPropagation(); openOrgManage(unit); }}
                         className="w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shrink-0 active:scale-95 shadow-sm"
                       >
                         <Settings className="w-3.5 h-3.5" />
@@ -1303,7 +1330,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
                       </div>
                     </div>
                     <button
-                      onClick={e => { e.stopPropagation(); openOrgDetail(org); }}
+                      onClick={e => { e.stopPropagation(); openOrgManage(org); }}
                       className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all shrink-0"
                     >
                       <Settings className="w-4 h-4" />
@@ -1316,15 +1343,590 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
         </div>
       )}
 
+      {/* ── Organization Detail & Edit Slide-over Panel (When clicking other area of card) ── */}
+      {selectedOrg && !isFullView && (
+        <div className="fixed inset-x-0 top-0 bottom-16 md:bottom-0 z-50 flex" onClick={() => setSelectedOrg(null)}>
+          <div className="flex-1 bg-black/60 backdrop-blur-sm" />
+          <div
+            ref={orgDetailSwipeRef}
+            className="animate-slide-in-right w-full max-w-lg bg-slate-900 border-l border-white/10 h-full overflow-y-auto flex flex-col shadow-2xl relative"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Left Edge Drag Affordance on Desktop */}
+            <div
+              className="hidden sm:flex absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-12 bg-white/15 hover:bg-white/35 rounded-full cursor-grab active:cursor-grabbing transition-colors z-30"
+              title="Drag right to close"
+            />
+
+            {/* Slide-over Header */}
+            <div className="px-6 py-4 border-b border-white/10 sticky top-0 bg-slate-900/95 backdrop-blur-md z-10">
+              {/* Mobile grab handle */}
+              <div className="w-10 h-1 bg-white/20 hover:bg-white/40 rounded-full mx-auto -mt-1 mb-2.5 sm:hidden transition-colors cursor-grab" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                    selectedOrg.type === 'ward' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'
+                  }`}>
+                    {selectedOrg.type === 'ward' ? <Shield className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-white text-base truncate">
+                      {orgName(selectedOrg)}
+                      {getOrgSecondaryName(selectedOrg, language) && (
+                        <span className="text-xs text-slate-400 font-normal ml-2">
+                          ({getOrgSecondaryName(selectedOrg, language)})
+                        </span>
+                      )}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${
+                        selectedOrg.type === 'ward' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'
+                      }`}>
+                        {selectedOrg.type?.toUpperCase() ?? 'UNIT'}
+                      </span>
+                      {selectedOrg.createdBy === user?.uid && (
+                        <span className="text-[10px] text-amber-800 dark:text-amber-400 flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-400/40 dark:border-amber-500/30 font-semibold shadow-xs">
+                          <Crown className="w-3 h-3 text-amber-600 dark:text-amber-400" /> Owner
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openOrgManage(selectedOrg)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 text-xs font-semibold transition-all cursor-pointer shadow-xs active:scale-95"
+                    title={language === 'bn' ? 'সম্পূর্ণ ব্যবস্থাপনা ও কর্মসূচি পেজে যান' : 'Open Full Management & Events'}
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span className="hidden xs:inline">{language === 'bn' ? 'সম্পূর্ণ ভিউ' : 'Full View'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => { setSelectedOrg(null); setIsFullView(false); }}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Stats Grid */}
+            <div className="grid grid-cols-3 gap-2 p-5 border-b border-white/10 bg-slate-950/40">
+              <div className="bg-slate-800/50 rounded-xl p-3 border border-white/5 text-center">
+                <p className="text-[10px] text-slate-500 uppercase font-semibold">Members</p>
+                <p className="text-lg font-bold text-white mt-0.5">
+                  {(selectedOrg.allowedEmails?.length ?? 0) + (selectedOrg.creatorEmail ? 1 : 0)}
+                </p>
+              </div>
+              <div className="bg-slate-800/50 rounded-xl p-3 border border-white/5 text-center flex flex-col justify-between">
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase font-semibold">Contacts</p>
+                  <p className="text-lg font-bold text-white mt-0.5">
+                    {contactCounts[selectedOrg.id] ?? 0}
+                  </p>
+                </div>
+                {selectedOrg.type === 'unit' && (
+                  <button
+                    type="button"
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="mt-1 text-[10px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center justify-center gap-1 hover:underline cursor-pointer"
+                  >
+                    <FileSpreadsheet className="w-3 h-3" />
+                    <span>+ Import</span>
+                  </button>
+                )}
+              </div>
+              <div className="bg-slate-800/50 rounded-xl p-3 border border-white/5 text-center">
+                <p className="text-[10px] text-slate-500 uppercase font-semibold">
+                  {selectedOrg.type === 'ward' ? 'Child Units' : 'Parent Ward'}
+                </p>
+                <p className="text-xs font-semibold text-purple-300 mt-1 truncate">
+                  {selectedOrg.type === 'ward'
+                    ? childrenOf(selectedOrg.id).length
+                    : selectedOrg.parentOrgId ? orgNameById(selectedOrg.parentOrgId) : 'None'}
+                </p>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6 flex-1">
+
+              {/* ── Section 1: Member Assignment & Access ──────── */}
+              <div className="space-y-4 bg-slate-950/40 border border-white/10 rounded-2xl p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-blue-400" />
+                    <h4 className="text-sm font-semibold text-white">Assigned Users & Members</h4>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 text-xs font-semibold">
+                    {(selectedOrg.allowedEmails?.length ?? 0) + (selectedOrg.creatorEmail ? 1 : 0)}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Users assigned here will be able to log in and manage this organization and its contacts.
+                </p>
+
+                {/* Add member input */}
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      value={newMemberEmail}
+                      onChange={e => setNewMemberEmail(e.target.value)}
+                      placeholder="user@example.com"
+                      className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddMember(); } }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAddMember()}
+                      disabled={memberLoading || !newMemberEmail.trim()}
+                      className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-semibold transition-all flex items-center gap-1.5 shadow-md shadow-blue-600/20 cursor-pointer active:scale-95"
+                    >
+                      {memberLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
+                      <span>Assign</span>
+                    </button>
+                  </div>
+
+                  {/* Registered users quick-suggestions */}
+                  {registeredUsers.length > 0 && (() => {
+                    const unassignedUsers = registeredUsers.filter((u: any) =>
+                      u.email !== selectedOrg.creatorEmail &&
+                      !(selectedOrg.allowedEmails || []).includes(u.email)
+                    );
+                    if (unassignedUsers.length === 0) return null;
+                    return (
+                      <div className="pt-1">
+                        <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-1.5">
+                          Quick Add from Registered Users:
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                          {unassignedUsers.slice(0, 8).map((u: any) => (
+                            <button
+                              key={u.uid}
+                              type="button"
+                              onClick={() => handleAddMember(u.email)}
+                              className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-blue-600/20 border border-white/5 hover:border-blue-500/30 text-[11px] text-slate-300 hover:text-blue-300 flex items-center gap-1 transition-all cursor-pointer"
+                            >
+                              <Plus className="w-3 h-3 text-blue-400" />
+                              <span>{u.name || u.email.split('@')[0]}</span>
+                              <span className="text-slate-500 text-[9px]">({u.email})</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Member list */}
+                <div className="space-y-2 pt-2">
+                  {/* Creator / Owner */}
+                  {selectedOrg.creatorEmail && (
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-800/60 border border-amber-500/20">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs font-bold shrink-0">
+                          {selectedOrg.creatorEmail[0]?.toUpperCase() ?? 'O'}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-white truncate">{selectedOrg.creatorEmail}</p>
+                          <p className="text-[10px] text-slate-500">Created this organization</p>
+                        </div>
+                      </div>
+                      <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-800 dark:text-amber-400 border border-amber-400/40 dark:border-amber-500/30 text-[10px] font-semibold flex items-center gap-1 shadow-xs">
+                        <Crown className="w-3 h-3 text-amber-600 dark:text-amber-400" /> Owner
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Assigned members */}
+                  {(selectedOrg.allowedEmails || []).map((email: string) => {
+                    const matchedUser = registeredUsers.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
+                    return (
+                      <div
+                        key={email}
+                        className="flex items-center justify-between p-3 rounded-xl bg-slate-800/40 border border-white/5 hover:border-white/10 transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold shrink-0">
+                            {email[0]?.toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-white truncate">{email}</p>
+                            {matchedUser?.name && (
+                              <p className="text-[10px] text-slate-400 truncate">{matchedUser.name}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-semibold">
+                            Member
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMember(email)}
+                            title="Remove member access"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {(!selectedOrg.allowedEmails || selectedOrg.allowedEmails.length === 0) && !selectedOrg.creatorEmail && (
+                    <p className="text-xs text-slate-500 italic py-2 text-center">
+                      No members assigned yet. Add user emails above.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Section: Unit Contacts & CSV Import ──────── */}
+              {selectedOrg.type === 'unit' && (
+                <div className="space-y-4 bg-slate-950/40 border border-emerald-500/20 rounded-2xl p-5 shadow-lg shadow-emerald-950/10">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                        <FileSpreadsheet className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                          Unit Contacts & Import
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">
+                            Grassroots
+                          </span>
+                        </h4>
+                        <p className="text-[11px] text-slate-400">
+                          Contacts belong directly to this unit. Individuals imported here are scoped only to this unit.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-800/60 rounded-xl border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold text-white">
+                        {contactCounts[selectedOrg.id] ?? 0} Contacts in {selectedOrg.name}
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Bulk upload contacts or view current contacts assigned to this unit.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                      <Link
+                        href={`/dashboard/contacts?orgId=${selectedOrg.id}`}
+                        className="flex-1 sm:flex-initial px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-white/10 transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <Users className="w-3.5 h-3.5 text-blue-400" />
+                        <span>View Contacts</span>
+                      </Link>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsImportModalOpen(true)}
+                        className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-all shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                      >
+                        <UploadCloud className="w-3.5 h-3.5" />
+                        <span>Import CSV</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Section: Ward Admin Settings & Locations ────── */}
+              {selectedOrg.type === 'ward' ? (
+                <div className="space-y-4 bg-slate-950/40 border border-purple-500/20 rounded-2xl p-5 shadow-lg shadow-purple-950/10">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/30">
+                        <MapPin className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                          Ward Admin Settings
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300">
+                            Ward & Units
+                          </span>
+                        </h4>
+                        <p className="text-[11px] text-slate-400">
+                          Settings & locations configured here apply to this ward and its child units
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Locations Element Card */}
+                  <div className="pt-1 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-purple-300">
+                        <span>Locations of the Ward</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 text-[10px] font-mono border border-white/5">
+                        {(selectedOrg.locations || selectedOrg.adminSettings?.locations || []).length} added
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Add locations, areas, or roads for this ward. These will be available in the location dropdown when creating or editing contacts for this ward and any of its child units.
+                    </p>
+
+                    {/* Create more element: Input + Add Button */}
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <MapPin className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={newLocationInput}
+                          onChange={e => setNewLocationInput(e.target.value)}
+                          placeholder="e.g. Block C, Road 12, South Para…"
+                          className="w-full bg-slate-800 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddWardLocation();
+                            }
+                          }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddWardLocation}
+                        disabled={locationSaving || !newLocationInput.trim()}
+                        className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white text-xs font-semibold transition-all flex items-center gap-1.5 shadow-md shadow-purple-600/20 cursor-pointer active:scale-95 shrink-0"
+                      >
+                        {locationSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                        <span>Add Location</span>
+                      </button>
+                    </div>
+
+                    {/* List of locations added before */}
+                    <div className="space-y-1.5 pt-2">
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                        Locations List
+                      </p>
+
+                      {(selectedOrg.locations || selectedOrg.adminSettings?.locations || []).length === 0 ? (
+                        <div className="p-4 rounded-xl bg-slate-800/30 border border-dashed border-white/10 text-center">
+                          <MapPin className="w-5 h-5 text-slate-600 mx-auto mb-1" />
+                          <p className="text-xs text-slate-400">No locations added yet.</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5">Enter a location name above and click &quot;Add Location&quot;.</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-1.5 max-h-56 overflow-y-auto pr-1">
+                          {(selectedOrg.locations || selectedOrg.adminSettings?.locations || []).map((loc: string, idx: number) => (
+                            <div
+                              key={loc + '-' + idx}
+                              className="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/60 border border-white/5 hover:border-purple-500/25 transition-all group"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span className="w-5 h-5 rounded-md bg-purple-500/15 text-purple-400 flex items-center justify-center text-[10px] font-bold shrink-0">
+                                  {idx + 1}
+                                </span>
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <MapPin className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                                  <span className="text-xs font-medium text-white truncate">{loc}</span>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveWardLocation(loc)}
+                                disabled={locationSaving}
+                                title="Delete location"
+                                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : selectedOrg.type === 'unit' ? (
+                /* Unit organization: show inherited locations from its parent ward */
+                <div className="space-y-3 bg-slate-950/40 border border-blue-500/20 rounded-2xl p-5 shadow-lg shadow-blue-950/10">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center border border-blue-500/30">
+                        <MapPin className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                          Ward Admin Settings
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-300">
+                            Inherited
+                          </span>
+                        </h4>
+                        <p className="text-[11px] text-slate-400">
+                          {selectedOrg.parentOrgId
+                            ? `Locations inherited from Parent Ward: ${orgNameById(selectedOrg.parentOrgId)}`
+                            : 'Standalone unit (no parent ward assigned)'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {(() => {
+                    const parent = allOrgsRaw.find(o => o.id === selectedOrg.parentOrgId);
+                    const parentLocs: string[] = parent?.locations || parent?.adminSettings?.locations || [];
+                    if (!selectedOrg.parentOrgId) {
+                      return (
+                        <p className="text-xs text-slate-400 italic">
+                          This unit is standalone. Set a parent ward in the details below to inherit its ward locations.
+                        </p>
+                      );
+                    }
+                    if (parentLocs.length === 0) {
+                      return (
+                        <div className="p-3 rounded-xl bg-slate-800/40 border border-white/5 text-xs text-slate-400">
+                          Parent ward ({parent?.name || 'Ward'}) has not added locations yet. Add locations in the parent ward&apos;s admin settings to make them available for this unit.
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="space-y-2 pt-1">
+                        <p className="text-xs text-slate-300">
+                          Contacts under this unit have access to {parentLocs.length} locations configured by {parent?.name}:
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+                          {parentLocs.map((loc: string) => (
+                            <span
+                              key={loc}
+                              className="px-2.5 py-1 rounded-lg bg-slate-800 border border-white/5 text-xs text-slate-300 flex items-center gap-1.5"
+                            >
+                              <MapPin className="w-3.5 h-3.5 text-purple-400" />
+                              <span>{loc}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : null}
+
+              {/* ── Section 2: Edit Organization Info ──────────── */}
+              <div className="space-y-4 bg-slate-950/40 border border-white/10 rounded-2xl p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Settings className="w-4 h-4 text-purple-400" />
+                    <h4 className="text-sm font-semibold text-white">Edit Organization Details</h4>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                        Name (English / মূল নাম) *
+                      </label>
+                      <input
+                        type="text"
+                        value={editOrgForm.name}
+                        onChange={e => setEditOrgForm(f => ({ ...f, name: e.target.value }))}
+                        placeholder="e.g. Noorani Masjid Unit"
+                        className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                        Name (Bangla / বাংলা নাম)
+                      </label>
+                      <input
+                        type="text"
+                        value={editOrgForm.nameBn}
+                        onChange={e => setEditOrgForm(f => ({ ...f, nameBn: e.target.value }))}
+                        placeholder="যেমন: নূরানী মসজিদ ইউনিট"
+                        className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Ward name / code (if ward) */}
+                  {selectedOrg.type === 'ward' && (
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                        Ward Name / Number
+                      </label>
+                      <input
+                        type="text"
+                        value={editOrgForm.wardName}
+                        onChange={e => setEditOrgForm(f => ({ ...f, wardName: e.target.value }))}
+                        placeholder="e.g. Ward No. 5"
+                        className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                  )}
+
+                  {/* Parent Ward selector (if unit) */}
+                  {selectedOrg.type === 'unit' && (
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                        Parent Ward
+                      </label>
+                      <select
+                        value={editOrgForm.parentOrgId}
+                        onChange={e => setEditOrgForm(f => ({ ...f, parentOrgId: e.target.value }))}
+                        className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                      >
+                        <option value="">Standalone (No Parent Ward)</option>
+                        {wardOrgs.filter(w => w.id !== selectedOrg.id).map(w => (
+                          <option key={w.id} value={w.id}>
+                            {orgName(w)} {w.wardName ? `(${w.wardName})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Save button */}
+                  <button
+                    type="button"
+                    onClick={handleSaveOrgDetails}
+                    disabled={savingOrg || !editOrgForm.name.trim()}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-semibold transition-all shadow-md shadow-blue-600/20 cursor-pointer active:scale-95"
+                  >
+                    {savingOrg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    Save Organization Details
+                  </button>
+                </div>
+              </div>
+
+              {/* ── Section 3: Delete Organization ───────────────── */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleDeleteOrg}
+                  disabled={deletingOrg}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold transition-colors border border-red-500/20 cursor-pointer"
+                >
+                  {deletingOrg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  Delete Organization
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Organization Full View (Manage View) ── */}
-      {selectedOrg && (
+      {selectedOrg && isFullView && (
         <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col overflow-hidden text-slate-100 animate-fade-in">
           {/* Top Navigation Bar */}
           <header className="px-4 sm:px-6 py-3.5 border-b border-white/10 bg-slate-900/90 backdrop-blur-md flex items-center justify-between shrink-0 z-20">
             <div className="flex items-center gap-3 min-w-0">
               <button
                 type="button"
-                onClick={() => setSelectedOrg(null)}
+                onClick={() => { setSelectedOrg(null); setIsFullView(false); }}
                 className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white flex items-center justify-center transition-all cursor-pointer shrink-0"
                 title={language === 'bn' ? 'ফিরে যান (Esc)' : 'Back / Close (Esc)'}
               >
@@ -1352,7 +1954,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
                   }`}>
                     {selectedOrg.type === 'ward' ? (language === 'bn' ? 'ওয়ার্ড' : 'WARD') : (language === 'bn' ? 'ইউনিট' : 'UNIT')}
                   </span>
-                  {selectedOrg.createdBy === user.uid && (
+                  {selectedOrg.createdBy === user?.uid && (
                     <span className="text-[10px] text-amber-300 flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 font-semibold">
                       <Crown className="w-3 h-3 text-amber-400" /> {language === 'bn' ? 'মালিক' : 'Owner'}
                     </span>
@@ -1381,7 +1983,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
 
               <button
                 type="button"
-                onClick={() => setSelectedOrg(null)}
+                onClick={() => { setSelectedOrg(null); setIsFullView(false); }}
                 className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer border border-white/5"
                 title="Close (Esc)"
               >
