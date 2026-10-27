@@ -27,6 +27,8 @@ import {
   getAccessibleOrganizations,
   filterAccessibleContacts,
 } from '@/lib/permissions';
+import { useLanguage } from '@/context/LanguageContext';
+import { getOrgDisplayName, getOrgSecondaryName } from '@/lib/orgHelper';
 
 const ORG_TYPES = [
   { value: 'ward',   label: 'Ward',   desc: 'Parent ward — oversees multiple units', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
@@ -36,6 +38,7 @@ const ORG_TYPES = [
 
 const emptyForm = {
   name: '',
+  nameBn: '',
   type: 'unit',
   wardName: '',
   parentOrgId: '',
@@ -45,6 +48,8 @@ const emptyForm = {
 
 export default function OrganizationsPage() {
   const { user } = useAuth();
+  const { language } = useLanguage();
+  const orgName = (o: any) => getOrgDisplayName(o, language);
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [allOrgsRaw,    setAllOrgsRaw]    = useState<any[]>([]);
   const [loading,       setLoading]       = useState(true);
@@ -59,7 +64,7 @@ export default function OrganizationsPage() {
 
   // Selected Org for Detail & Edit Slide-over
   const [selectedOrg,     setSelectedOrg]     = useState<any | null>(null);
-  const [editOrgForm,     setEditOrgForm]     = useState({ name: '', type: 'unit', wardName: '', parentOrgId: '' });
+  const [editOrgForm,     setEditOrgForm]     = useState({ name: '', nameBn: '', type: 'unit', wardName: '', parentOrgId: '' });
   const [savingOrg,       setSavingOrg]       = useState(false);
   const [deletingOrg,     setDeletingOrg]     = useState(false);
   const [newMemberEmail,  setNewMemberEmail]  = useState('');
@@ -215,6 +220,7 @@ export default function OrganizationsPage() {
       const newId = generateOfflineId('org');
       const data: any = {
         name:         form.name.trim(),
+        nameBn:       form.nameBn?.trim() || null,
         type:         form.type,
         createdBy:    user.uid,
         creatorEmail: user.email ?? null,
@@ -290,6 +296,7 @@ export default function OrganizationsPage() {
     setSelectedOrg(org);
     setEditOrgForm({
       name: org.name || '',
+      nameBn: org.nameBn || org.bnName || '',
       type: org.type || 'unit',
       wardName: org.wardName || '',
       parentOrgId: org.parentOrgId || '',
@@ -306,6 +313,7 @@ export default function OrganizationsPage() {
     try {
       const updates: any = {
         name: editOrgForm.name.trim(),
+        nameBn: editOrgForm.nameBn?.trim() || null,
         type: editOrgForm.type,
       };
       if (editOrgForm.type === 'ward') {
@@ -588,7 +596,10 @@ export default function OrganizationsPage() {
   const toggleWard = (id: string) =>
     setExpandedWards(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
 
-  const orgNameById = (id: string) => allOrgsRaw.find(o => o.id === id)?.name ?? '—';
+  const orgNameById = (id: string) => {
+    const found = allOrgsRaw.find(o => o.id === id);
+    return found ? orgName(found) : '—';
+  };
 
   if (!user) return null;
 
@@ -665,7 +676,12 @@ export default function OrganizationsPage() {
                     {/* Ward Info */}
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-white text-base sm:text-lg hover:text-purple-300 transition-colors truncate">
-                        {ward.name}
+                        {orgName(ward)}
+                        {getOrgSecondaryName(ward, language) && (
+                          <span className="text-xs text-slate-400 font-normal ml-2">
+                            ({getOrgSecondaryName(ward, language)})
+                          </span>
+                        )}
                       </h3>
 
                       {/* Ward name / subtitle */}
@@ -777,10 +793,15 @@ export default function OrganizationsPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <h4 className="text-sm font-semibold text-slate-100 group-hover:text-blue-300 transition-colors truncate">
-                                {unit.name}
+                                {orgName(unit)}
+                                {getOrgSecondaryName(unit, language) && (
+                                  <span className="text-xs text-slate-400 font-normal ml-1.5">
+                                    ({getOrgSecondaryName(unit, language)})
+                                  </span>
+                                )}
                               </h4>
                               <span className="px-1.5 py-0.5 rounded-md bg-blue-500/15 text-blue-300 border border-blue-500/30 text-[9px] font-bold uppercase tracking-wider">
-                                Unit
+                                {language === 'bn' ? 'ইউনিট' : 'Unit'}
                               </span>
                             </div>
                             <div className="flex items-center gap-2 mt-1 text-xs text-slate-400 flex-wrap">
@@ -844,8 +865,17 @@ export default function OrganizationsPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold text-white group-hover:text-blue-300 transition-colors truncate">{unit.name}</p>
-                          <span className="px-1.5 py-0.5 rounded-md bg-blue-500/15 text-blue-300 border border-blue-500/30 text-[9px] font-bold uppercase tracking-wider">Unit</span>
+                          <p className="text-sm font-semibold text-white group-hover:text-blue-300 transition-colors truncate">
+                            {orgName(unit)}
+                            {getOrgSecondaryName(unit, language) && (
+                              <span className="text-xs text-slate-400 font-normal ml-1.5">
+                                ({getOrgSecondaryName(unit, language)})
+                              </span>
+                            )}
+                          </p>
+                          <span className="px-1.5 py-0.5 rounded-md bg-blue-500/15 text-blue-300 border border-blue-500/30 text-[9px] font-bold uppercase tracking-wider">
+                            {language === 'bn' ? 'ইউনিট' : 'Unit'}
+                          </span>
                         </div>
                         <p className="text-xs text-slate-400 mt-1 flex items-center gap-2">
                           <span className="text-blue-300/90 font-medium inline-flex items-center gap-1">
@@ -934,7 +964,14 @@ export default function OrganizationsPage() {
                   {selectedOrg.type === 'ward' ? <Shield className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-bold text-white text-base truncate">{selectedOrg.name}</h3>
+                  <h3 className="font-bold text-white text-base truncate">
+                    {orgName(selectedOrg)}
+                    {getOrgSecondaryName(selectedOrg, language) && (
+                      <span className="text-xs text-slate-400 font-normal ml-2">
+                        ({getOrgSecondaryName(selectedOrg, language)})
+                      </span>
+                    )}
+                  </h3>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${
                       selectedOrg.type === 'ward' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'
@@ -1367,16 +1404,31 @@ export default function OrganizationsPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                      Organization Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={editOrgForm.name}
-                      onChange={e => setEditOrgForm(f => ({ ...f, name: e.target.value }))}
-                      className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                        Name (English / মূল নাম) *
+                      </label>
+                      <input
+                        type="text"
+                        value={editOrgForm.name}
+                        onChange={e => setEditOrgForm(f => ({ ...f, name: e.target.value }))}
+                        placeholder="e.g. Noorani Masjid Unit"
+                        className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                        Name (Bangla / বাংলা নাম)
+                      </label>
+                      <input
+                        type="text"
+                        value={editOrgForm.nameBn}
+                        onChange={e => setEditOrgForm(f => ({ ...f, nameBn: e.target.value }))}
+                        placeholder="যেমন: নূরানী মসজিদ ইউনিট"
+                        className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
                   </div>
 
                   {/* Ward name / code (if ward) */}
@@ -1409,7 +1461,7 @@ export default function OrganizationsPage() {
                         <option value="">Standalone (No Parent Ward)</option>
                         {wardOrgs.filter(w => w.id !== selectedOrg.id).map(w => (
                           <option key={w.id} value={w.id}>
-                            {w.name} {w.wardName ? `(${w.wardName})` : ''}
+                            {orgName(w)} {w.wardName ? `(${w.wardName})` : ''}
                           </option>
                         ))}
                       </select>
@@ -1489,18 +1541,32 @@ export default function OrganizationsPage() {
                 </div>
               </div>
 
-              {/* Name */}
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                  {form.type === 'ward' ? 'Ward Organization Name' : form.type === 'unit' ? 'Unit Name' : 'Organization Name'}
-                </label>
-                <input
-                  type="text" required autoFocus
-                  value={form.name}
-                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder={form.type === 'ward' ? 'e.g. চৌধুরীবাড়ি ওয়ার্ড' : form.type === 'unit' ? 'e.g. মিনারা মসজিদ ইউনিট' : 'Organization name'}
-                  className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                />
+              {/* Name (English & Bangla) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                    {form.type === 'ward' ? 'Ward Name (English)' : form.type === 'unit' ? 'Unit Name (English)' : 'Org Name (English)'} *
+                  </label>
+                  <input
+                    type="text" required autoFocus
+                    value={form.name}
+                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder={form.type === 'ward' ? 'e.g. Bhuiyanpara Ward' : 'e.g. Noorani Masjid Unit'}
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                    {form.type === 'ward' ? 'ওয়ার্ডের নাম (বাংলা)' : form.type === 'unit' ? 'ইউনিটের নাম (বাংলা)' : 'সংগঠনের নাম (বাংলা)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={form.nameBn}
+                    onChange={e => setForm(f => ({ ...f, nameBn: e.target.value }))}
+                    placeholder={form.type === 'ward' ? 'যেমন: ভূঁইয়াপাড়া ওয়ার্ড' : 'যেমন: নূরানী মসজিদ ইউনিট'}
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                  />
+                </div>
               </div>
 
               {/* Ward name field (for ward type) */}
@@ -1535,7 +1601,7 @@ export default function OrganizationsPage() {
                   >
                     <option value="">No parent (standalone unit)</option>
                     {wardOrgs.map(w => (
-                      <option key={w.id} value={w.id}>{w.name}{w.wardName ? ` (${w.wardName})` : ''}</option>
+                      <option key={w.id} value={w.id}>{orgName(w)}{w.wardName ? ` (${w.wardName})` : ''}</option>
                     ))}
                   </select>
                 </div>

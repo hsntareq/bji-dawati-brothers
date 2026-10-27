@@ -15,6 +15,8 @@ import {
   getAccessibleOrganizations,
   filterAccessibleContacts,
 } from '@/lib/permissions';
+import { useLanguage } from '@/context/LanguageContext';
+import { getOrgDisplayName } from '@/lib/orgHelper';
 import Link from 'next/link';
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss';
 import {
@@ -60,6 +62,8 @@ const defaultTargets = {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { language } = useLanguage();
+  const orgName = (o: any) => getOrgDisplayName(o, language);
   const [userData,       setUserData]       = useState<any>(null);
   const [organizations,  setOrganizations]  = useState<any[]>([]);
   const [contacts,       setContacts]       = useState<any[]>([]);
@@ -431,25 +435,25 @@ export default function DashboardPage() {
                 className="bg-transparent text-white font-medium focus:outline-none cursor-pointer text-xs"
               >
                 <option value="all" className="bg-slate-900 text-white font-medium">
-                  All Organizations ({organizations.length})
+                  {language === 'bn' ? `সকল সংগঠন (${organizations.length})` : `All Organizations (${organizations.length})`}
                 </option>
                 {wardGroups.map(({ ward, children }) => (
-                  <optgroup key={ward.id} label={`👑 ${ward.name} (Parent Ward)`} className="bg-slate-900 text-purple-300 font-semibold">
+                  <optgroup key={ward.id} label={`👑 ${orgName(ward)} (${language === 'bn' ? 'মূল ওয়ার্ড' : 'Parent Ward'})`} className="bg-slate-900 text-purple-300 font-semibold">
                     <option value={ward.id} className="bg-slate-900 text-white font-medium">
-                      🏛️ {ward.name} (Entire Ward)
+                      🏛️ {orgName(ward)} ({language === 'bn' ? 'পুরো ওয়ার্ড' : 'Entire Ward'})
                     </option>
                     {children.map(child => (
                       <option key={child.id} value={child.id} className="bg-slate-900 text-slate-200">
-                        &nbsp;&nbsp;↳ {child.name} (Unit)
+                        &nbsp;&nbsp;↳ {orgName(child)} ({language === 'bn' ? 'ইউনিট' : 'Unit'})
                       </option>
                     ))}
                   </optgroup>
                 ))}
                 {standaloneUnits.length > 0 && (
-                  <optgroup label="Standalone Units" className="bg-slate-900 text-slate-400">
+                  <optgroup label={language === 'bn' ? 'স্বতন্ত্র ইউনিট' : 'Standalone Units'} className="bg-slate-900 text-slate-400">
                     {standaloneUnits.map(unit => (
                       <option key={unit.id} value={unit.id} className="bg-slate-900 text-white">
-                        🏢 {unit.name} (Unit)
+                        🏢 {orgName(unit)} ({language === 'bn' ? 'ইউনিট' : 'Unit'})
                       </option>
                     ))}
                   </optgroup>
@@ -812,11 +816,11 @@ export default function DashboardPage() {
                       <td className="py-3.5 px-3 font-semibold text-white whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-blue-400" />
-                          <span>{unit.name}</span>
+                          <span>{orgName(unit)}</span>
                         </div>
                       </td>
                       <td className="py-3.5 px-3 text-slate-400 whitespace-nowrap">
-                        {parentWard?.name || '—'}
+                        {parentWard ? orgName(parentWard) : '—'}
                       </td>
                       <td className="py-3.5 px-3 text-slate-400 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">

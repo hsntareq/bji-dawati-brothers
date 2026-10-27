@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss';
+import { useLanguage } from '@/context/LanguageContext';
+import { getOrgDisplayName } from '@/lib/orgHelper';
 
 interface ParsedContactRow {
   rowNum: number;
@@ -140,6 +142,8 @@ export default function ImportContactsModal({
   onSuccess,
 }: ImportContactsModalProps) {
   const { user } = useAuth();
+  const { language } = useLanguage();
+  const orgName = (o: any) => getOrgDisplayName(o, language);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalSwipeRef = useSwipeToDismiss({ onClose });
 
@@ -516,7 +520,7 @@ export default function ImportContactsModal({
         onSuccess(newContacts, targetUnitId);
       }
 
-      const unitName = selectedUnit?.name || 'Selected Unit';
+      const unitName = selectedUnit ? orgName(selectedUnit) : (language === 'bn' ? 'নির্বাচিত ইউনিট' : 'Selected Unit');
       setSuccessResult({
         count: newContacts.length,
         unitName,
@@ -636,10 +640,10 @@ export default function ImportContactsModal({
               ) : isUnitLocked ? (
                 <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-800/80 border border-blue-500/30 text-white text-sm font-semibold">
                   <Building2 className="w-4 h-4 text-blue-400 shrink-0" />
-                  <span className="truncate">{selectedUnit?.name}</span>
+                  <span className="truncate">{selectedUnit ? orgName(selectedUnit) : ''}</span>
                   {selectedUnit?.parentOrgId && (
                     <span className="text-xs font-normal text-purple-300 ml-auto">
-                      Ward: {orgMap.get(selectedUnit.parentOrgId)?.name || 'Parent Ward'}
+                      {language === 'bn' ? 'ওয়ার্ড:' : 'Ward:'} {orgMap.get(selectedUnit.parentOrgId) ? orgName(orgMap.get(selectedUnit.parentOrgId)) : (language === 'bn' ? 'মূল ওয়ার্ড' : 'Parent Ward')}
                     </span>
                   )}
                 </div>
@@ -651,19 +655,19 @@ export default function ImportContactsModal({
                     className="w-full bg-slate-800 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer pr-10"
                   >
                     {wardUnitGroups.map(({ ward, units }) => (
-                      <optgroup key={ward.id} label={`👑 ${ward.name} (Parent Ward)`} className="bg-slate-900 text-purple-300 font-semibold">
+                      <optgroup key={ward.id} label={`👑 ${orgName(ward)} (${language === 'bn' ? 'মূল ওয়ার্ড' : 'Parent Ward'})`} className="bg-slate-900 text-purple-300 font-semibold">
                         {units.map(unit => (
                           <option key={unit.id} value={unit.id} className="bg-slate-900 text-white font-normal">
-                            ↳ {unit.name}
+                            ↳ {orgName(unit)}
                           </option>
                         ))}
                       </optgroup>
                     ))}
                     {standaloneImportUnits.length > 0 && (
-                      <optgroup label="Standalone Units" className="bg-slate-900 text-slate-400">
+                      <optgroup label={language === 'bn' ? 'স্বতন্ত্র ইউনিট' : 'Standalone Units'} className="bg-slate-900 text-slate-400">
                         {standaloneImportUnits.map(unit => (
                           <option key={unit.id} value={unit.id} className="bg-slate-900 text-white">
-                            🏢 {unit.name}
+                            🏢 {orgName(unit)}
                           </option>
                         ))}
                       </optgroup>
@@ -929,7 +933,7 @@ export default function ImportContactsModal({
                   <UploadCloud className="w-4 h-4" />
                   <span>
                     Import {validCount > 0 ? `${validCount} Contacts` : 'Contacts'} to{' '}
-                    {selectedUnit?.name || 'Unit'}
+                    {selectedUnit ? orgName(selectedUnit) : (language === 'bn' ? 'ইউনিট' : 'Unit')}
                   </span>
                 </>
               )}

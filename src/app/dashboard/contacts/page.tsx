@@ -17,6 +17,7 @@ import { FaWhatsapp } from 'react-icons/fa';
 import { useLanguage } from '@/context/LanguageContext';
 import ImportContactsModal from '@/components/ImportContactsModal';
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss';
+import { getOrgDisplayName } from '@/lib/orgHelper';
 
 import {
   getAllFromStore,
@@ -619,6 +620,16 @@ export default function ContactsPage() {
 
   const contactPrimaryName = contactName;
 
+  // Language-sensitive organization display name helper
+  const orgName = (o: any): string => {
+    if (!o) return '—';
+    if (typeof o === 'string') {
+      const found = organizations.find(x => x.id === o) || allOrgs.find(x => x.id === o);
+      if (found) return getOrgDisplayName(found, language);
+    }
+    return getOrgDisplayName(o, language);
+  };
+
   // Helper to resolve locations for a given organization (either from the ward directly or from parent ward)
   const getLocationsForOrg = (orgId: string): { locations: string[]; wardName?: string } => {
     if (!orgId) return { locations: [] };
@@ -627,16 +638,16 @@ export default function ContactsPage() {
 
     if (org.type === 'ward') {
       const locs: string[] = org.locations || org.adminSettings?.locations || [];
-      return { locations: locs, wardName: org.name };
+      return { locations: locs, wardName: orgName(org) };
     }
 
     if (org.type === 'unit' && org.parentOrgId) {
       const parent = allOrgs.find(o => o.id === org.parentOrgId) || organizations.find(o => o.id === org.parentOrgId);
       const locs: string[] = parent?.locations || parent?.adminSettings?.locations || org.locations || org.adminSettings?.locations || [];
-      return { locations: locs, wardName: parent?.name || org.name };
+      return { locations: locs, wardName: orgName(parent || org) };
     }
 
-    return { locations: org.locations || org.adminSettings?.locations || [], wardName: org.name };
+    return { locations: org.locations || org.adminSettings?.locations || [], wardName: orgName(org) };
   };
 
   // ── Add Person modal state ────────────────────────
@@ -1805,7 +1816,6 @@ export default function ContactsPage() {
     return matchSearch && matchStatus && matchOrg && matchCat;
   });
 
-  const orgName = (id: string) => organizations.find(o => o.id === id)?.name ?? '—';
   const clean   = (m?: string | null) => m ? toE164(m) : '';
   const getCallNumber = (c: any): string | null => {
     if (!c) return null;
@@ -2535,7 +2545,7 @@ export default function ContactsPage() {
                                 <span className="flex items-center gap-2 truncate">
                                   <Shield className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
                                   <span className="truncate font-bold text-slate-900 dark:text-white" style={{ color: 'var(--bji-text-1)' }}>
-                                    {ward.name}
+                                    {orgName(ward)}
                                   </span>
                                 </span>
                                 <div className="flex items-center gap-1.5 shrink-0">
@@ -2565,7 +2575,7 @@ export default function ContactsPage() {
                                         <span className="flex items-center gap-1.5 truncate">
                                           <CornerDownRight className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
                                           <span className="truncate font-semibold text-slate-800 dark:text-slate-100" style={{ color: 'var(--bji-text-1)' }}>
-                                            {child.name}
+                                            {orgName(child)}
                                           </span>
                                         </span>
                                         <div className="flex items-center gap-1.5 shrink-0">
@@ -2607,7 +2617,7 @@ export default function ContactsPage() {
                                   <span className="flex items-center gap-2 truncate">
                                     <Building2 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
                                     <span className="truncate font-semibold text-slate-800 dark:text-slate-100" style={{ color: 'var(--bji-text-1)' }}>
-                                      {unit.name}
+                                      {orgName(unit)}
                                     </span>
                                   </span>
                                   <div className="flex items-center gap-1.5 shrink-0">
@@ -2880,7 +2890,7 @@ export default function ContactsPage() {
                         </div>
                         <p className="text-[10px] text-slate-400 truncate leading-tight mt-0.5">
                           {orgName(c.organizationId)}
-                          {c.location ? ` • ${c.location}` : ''}
+                          {c.location ? ` • ${orgName(c.location)}` : ''}
                         </p>
                       </div>
 
@@ -3040,6 +3050,8 @@ export default function ContactsPage() {
                         const org = organizations.find(o => o.id === c.organizationId);
                         const parentWard = org?.parentOrgId ? (organizations.find(o => o.id === org.parentOrgId) || allOrgs.find(o => o.id === org.parentOrgId)) : null;
                         const isWard = org?.type === 'ward' || (!parentWard && (org?.name || '').toLowerCase().includes('ward'));
+                        const currentOrgName = orgName(org);
+                        const currentWardName = orgName(parentWard);
                         return (
                           <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-400 flex-wrap">
                             {isWard ? (
@@ -3047,7 +3059,7 @@ export default function ContactsPage() {
                             ) : (
                               <Building2 className="w-3 h-3 text-blue-600 dark:text-blue-400 shrink-0" />
                             )}
-                            <span className="text-slate-700 dark:text-slate-200 truncate font-medium">{org?.name || '—'}</span>
+                            <span className="text-slate-700 dark:text-slate-200 truncate font-medium">{currentOrgName}</span>
                             <span className={`text-[9px] uppercase px-1.5 py-0.2 rounded font-bold shrink-0 ${
                               isWard
                                 ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30'
@@ -3056,8 +3068,8 @@ export default function ContactsPage() {
                               {isWard ? (language === 'bn' ? 'ওয়ার্ড' : 'Ward') : (language === 'bn' ? 'ইউনিট' : 'Unit')}
                             </span>
                             {parentWard && (
-                              <span className="text-[10px] text-purple-700 dark:text-purple-400 font-semibold" title={language === 'bn' ? `${parentWard.name}-এর অধীনে` : `Child of ${parentWard.name}`}>
-                                ↳ {language === 'bn' ? 'ওয়ার্ড:' : 'Ward:'} {parentWard.name}
+                              <span className="text-[10px] text-purple-700 dark:text-purple-400 font-semibold" title={language === 'bn' ? `${currentWardName}-এর অধীনে` : `Child of ${currentWardName}`}>
+                                ↳ {language === 'bn' ? 'ওয়ার্ড:' : 'Ward:'} {currentWardName}
                               </span>
                             )}
                           </div>
@@ -3129,7 +3141,7 @@ export default function ContactsPage() {
                     {c.location ? (
                       <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-700 dark:text-purple-300 truncate max-w-[180px]">
                         <MapPin className="w-3 h-3 text-purple-600 dark:text-purple-400 shrink-0" />
-                        <span className="truncate">{c.location}</span>
+                        <span className="truncate">{orgName(c.location)}</span>
                       </span>
                     ) : c.mobile ? (
                       <span
@@ -3389,6 +3401,8 @@ export default function ContactsPage() {
                               const org = organizations.find(o => o.id === c.organizationId);
                               const parentWard = org?.parentOrgId ? (organizations.find(o => o.id === org.parentOrgId) || allOrgs.find(o => o.id === org.parentOrgId)) : null;
                               const isWard = org?.type === 'ward' || (!parentWard && (org?.name || '').toLowerCase().includes('ward'));
+                              const currentOrgName = orgName(org);
+                              const currentWardName = orgName(parentWard);
                               return (
                                 <div className="flex flex-col gap-0.5 items-start max-w-full">
                                   <span
@@ -3397,14 +3411,14 @@ export default function ContactsPage() {
                                         ? 'bg-purple-100 dark:bg-purple-500/10 hover:bg-purple-200 dark:hover:bg-purple-500/20 text-purple-900 dark:text-purple-300 border-purple-300 dark:border-purple-500/20'
                                         : 'bg-blue-100 dark:bg-blue-500/10 hover:bg-blue-200 dark:hover:bg-blue-500/15 text-blue-900 dark:text-blue-300 border-blue-300 dark:border-blue-500/20'
                                     }`}
-                                    title={org?.name || '—'}
+                                    title={currentOrgName}
                                   >
                                     {isWard ? (
                                       <Shield className="w-3 h-3 text-purple-600 dark:text-purple-400 shrink-0" />
                                     ) : (
                                       <Building2 className="w-3 h-3 text-blue-600 dark:text-blue-400 shrink-0" />
                                     )}
-                                    <span className="truncate">{org?.name || '—'}</span>
+                                    <span className="truncate">{currentOrgName}</span>
                                     <span className={`text-[9px] uppercase px-1 py-0.2 rounded font-bold shrink-0 ${
                                       isWard
                                         ? 'bg-purple-200 dark:bg-purple-500/25 text-purple-900 dark:text-purple-200'
@@ -3414,8 +3428,8 @@ export default function ContactsPage() {
                                     </span>
                                   </span>
                                   {parentWard && (
-                                    <span className="inline-flex items-center gap-1 text-[10px] text-purple-700 dark:text-purple-400 font-semibold pl-1" title={language === 'bn' ? `${parentWard.name}-এর অধীনে` : `Child of ${parentWard.name}`}>
-                                      <span>↳ {language === 'bn' ? 'ওয়ার্ড:' : 'Ward:'} {parentWard.name}</span>
+                                    <span className="inline-flex items-center gap-1 text-[10px] text-purple-700 dark:text-purple-400 font-semibold pl-1" title={language === 'bn' ? `${currentWardName}-এর অধীনে` : `Child of ${currentWardName}`}>
+                                      <span>↳ {language === 'bn' ? 'ওয়ার্ড:' : 'Ward:'} {currentWardName}</span>
                                     </span>
                                   )}
                                 </div>
@@ -3424,10 +3438,10 @@ export default function ContactsPage() {
                             {c.location && (
                               <span
                                 className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/20 truncate max-w-full"
-                                title={c.location}
+                                title={orgName(c.location)}
                               >
                                 <MapPin className="w-2.5 h-2.5 text-purple-600 dark:text-purple-400 shrink-0" />
-                                <span className="truncate">{c.location}</span>
+                                <span className="truncate">{orgName(c.location)}</span>
                               </span>
                             )}
                           </div>
@@ -3801,6 +3815,8 @@ export default function ContactsPage() {
                       const org = organizations.find(o => o.id === selectedContact.organizationId);
                       const parentWard = org?.parentOrgId ? (organizations.find(o => o.id === org.parentOrgId) || allOrgs.find(o => o.id === org.parentOrgId)) : null;
                       const isWard = org?.type === 'ward' || (!parentWard && (org?.name || '').toLowerCase().includes('ward'));
+                      const currentOrgName = orgName(org);
+                      const currentWardName = orgName(parentWard);
                       return (
                         <span
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border shadow-sm max-w-[280px] ${
@@ -3808,14 +3824,14 @@ export default function ContactsPage() {
                               ? 'bg-purple-100 dark:bg-purple-500/15 text-purple-900 dark:text-purple-300 border-purple-300 dark:border-purple-500/30'
                               : 'bg-blue-100 dark:bg-blue-500/15 text-blue-900 dark:text-blue-300 border-blue-300 dark:border-blue-500/25'
                           }`}
-                          title={org?.name || '—'}
+                          title={currentOrgName}
                         >
                           {isWard ? (
                             <Shield className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
                           ) : (
                             <Building2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
                           )}
-                          <span className="truncate">{org?.name || '—'}</span>
+                          <span className="truncate">{currentOrgName}</span>
                           <span className={`text-[9px] uppercase font-bold px-1 py-0.2 rounded shrink-0 ${
                             isWard
                               ? 'bg-purple-200 dark:bg-purple-500/30 text-purple-900 dark:text-purple-200'
@@ -3825,7 +3841,7 @@ export default function ContactsPage() {
                           </span>
                           {parentWard && (
                             <span className="text-[10px] text-purple-700 dark:text-purple-400 font-semibold truncate">
-                              (↳ {language === 'bn' ? 'ওয়ার্ড:' : 'Ward:'} {parentWard.name})
+                              (↳ {language === 'bn' ? 'ওয়ার্ড:' : 'Ward:'} {currentWardName})
                             </span>
                           )}
                         </span>
@@ -3918,7 +3934,9 @@ export default function ContactsPage() {
                         const org = organizations.find(o => o.id === selectedContact.organizationId);
                         const parentWard = org?.parentOrgId ? (organizations.find(o => o.id === org.parentOrgId) || allOrgs.find(o => o.id === org.parentOrgId)) : null;
                         if (!org) return '—';
-                        return parentWard ? `${org.name} (${language === 'bn' ? 'ওয়ার্ড:' : 'Ward:'} ${parentWard.name})` : org.name;
+                        const currentOrgName = orgName(org);
+                        const currentWardName = orgName(parentWard);
+                        return parentWard ? `${currentOrgName} (${language === 'bn' ? 'ওয়ার্ড:' : 'Ward:'} ${currentWardName})` : currentOrgName;
                       })(),
                     },
                     { icon: Users,     label: language === 'bn' ? 'নোট' : 'Note',         value: selectedContact.note },
@@ -4340,20 +4358,20 @@ export default function ContactsPage() {
                 >
                   <option value="" disabled>Select organization</option>
                   {wardGroups.map(({ ward, children }) => (
-                    <optgroup key={ward.id} label={`👑 ${ward.name} (Parent Ward)`} className="bg-slate-900 text-purple-300 font-semibold">
-                      <option value={ward.id} className="bg-slate-900 text-white font-medium">🏛️ {ward.name} (Ward)</option>
+                    <optgroup key={ward.id} label={`👑 ${orgName(ward)} (${language === 'bn' ? 'প্যারেন্ট ওয়ার্ড' : 'Parent Ward'})`} className="bg-slate-900 text-purple-300 font-semibold">
+                      <option value={ward.id} className="bg-slate-900 text-white font-medium">🏛️ {orgName(ward)} ({language === 'bn' ? 'ওয়ার্ড' : 'Ward'})</option>
                       {children.map(child => (
                         <option key={child.id} value={child.id} className="bg-slate-900 text-slate-200">
-                          &nbsp;&nbsp;↳ {child.name} (Unit)
+                          &nbsp;&nbsp;↳ {orgName(child)} ({language === 'bn' ? 'ইউনিট' : 'Unit'})
                         </option>
                       ))}
                     </optgroup>
                   ))}
                   {standaloneUnits.length > 0 && (
-                    <optgroup label="Standalone Units" className="bg-slate-900 text-slate-400">
+                    <optgroup label={language === 'bn' ? 'স্বতন্ত্র ইউনিট' : 'Standalone Units'} className="bg-slate-900 text-slate-400">
                       {standaloneUnits.map(unit => (
                         <option key={unit.id} value={unit.id} className="bg-slate-900 text-white">
-                          🏢 {unit.name} (Unit)
+                          🏢 {orgName(unit)} ({language === 'bn' ? 'ইউনিট' : 'Unit'})
                         </option>
                       ))}
                     </optgroup>
@@ -4878,20 +4896,20 @@ export default function ContactsPage() {
                   >
                     <option value="" disabled>Select organization</option>
                     {wardGroups.map(({ ward, children }) => (
-                      <optgroup key={ward.id} label={`👑 ${ward.name} (Parent Ward)`} className="bg-slate-900 text-purple-300 font-semibold">
-                        <option value={ward.id} className="bg-slate-900 text-white font-medium">🏛️ {ward.name} (Ward)</option>
+                      <optgroup key={ward.id} label={`👑 ${orgName(ward)} (${language === 'bn' ? 'প্যারেন্ট ওয়ার্ড' : 'Parent Ward'})`} className="bg-slate-900 text-purple-300 font-semibold">
+                        <option value={ward.id} className="bg-slate-900 text-white font-medium">🏛️ {orgName(ward)} ({language === 'bn' ? 'ওয়ার্ড' : 'Ward'})</option>
                         {children.map(child => (
                           <option key={child.id} value={child.id} className="bg-slate-900 text-slate-200">
-                            &nbsp;&nbsp;↳ {child.name} (Unit)
+                            &nbsp;&nbsp;↳ {orgName(child)} ({language === 'bn' ? 'ইউনিট' : 'Unit'})
                           </option>
                         ))}
                       </optgroup>
                     ))}
                     {standaloneUnits.length > 0 && (
-                      <optgroup label="Standalone Units" className="bg-slate-900 text-slate-400">
+                      <optgroup label={language === 'bn' ? 'স্বতন্ত্র ইউনিট' : 'Standalone Units'} className="bg-slate-900 text-slate-400">
                         {standaloneUnits.map(unit => (
                           <option key={unit.id} value={unit.id} className="bg-slate-900 text-white">
-                            🏢 {unit.name} (Unit)
+                            🏢 {orgName(unit)} ({language === 'bn' ? 'ইউনিট' : 'Unit'})
                           </option>
                         ))}
                       </optgroup>
