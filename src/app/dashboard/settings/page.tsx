@@ -12,7 +12,7 @@ import {
   ShieldAlert, ShieldCheck, Settings, Database, Users,
   Save, Download, Trash2, CheckCircle2, AlertTriangle,
   RefreshCw, Lock, Radio, BellRing, Sparkles, Server,
-  Building2, Phone, Mail, Calendar, Search
+  Building2, Phone, Mail, Calendar, Search, SlidersHorizontal
 } from 'lucide-react';
 
 interface SystemSettings {
@@ -24,6 +24,8 @@ interface SystemSettings {
   requireStrictPhone: boolean;
   allowDeleteIndividual: boolean;
   allowDeleteAll: boolean;
+  defaultFilterCategory?: 'shohojogi' | 'kormi' | 'all';
+  defaultFilterDisposition?: string;
   updatedAt?: string;
   updatedBy?: string;
 }
@@ -37,7 +39,47 @@ const defaultSettings: SystemSettings = {
   requireStrictPhone: false,
   allowDeleteIndividual: true,
   allowDeleteAll: false,
+  defaultFilterCategory: 'shohojogi',
+  defaultFilterDisposition: 'all',
 };
+
+const DEFAULT_CATEGORY_OPTIONS = [
+  {
+    value: 'shohojogi',
+    labelEn: 'Shohojogi (Associate)',
+    labelBn: 'সহযোগী (Shohojogi)',
+    tag: 'Recommended',
+    descEn: 'Default directory filter displays associate brothers on initial view',
+    descBn: 'ডিরেক্টরি ওপেন করার পর ডিফল্টভাবে সহযোগী ভাইদের তালিকা প্রদর্শিত হবে',
+  },
+  {
+    value: 'kormi',
+    labelEn: 'Kormi (Worker)',
+    labelBn: 'কর্মী (Kormi)',
+    descEn: 'Default directory filter displays worker brothers on initial view',
+    descBn: 'ডিরেক্টরি ওপেন করার পর ডিফল্টভাবে কর্মী ভাইদের তালিকা প্রদর্শিত হবে',
+  },
+  {
+    value: 'all',
+    labelEn: 'All Categories',
+    labelBn: 'সকল ক্যাটাগরি (All Categories)',
+    descEn: 'Shows all contacts without any category restrictions',
+    descBn: 'কোনো ক্যাটাগরি সীমাবদ্ধতা ছাড়া সমস্ত ভাইদের তালিকা একসাথে দেখাবে',
+  },
+] as const;
+
+const DEFAULT_DISPOSITION_CHOICES = [
+  { value: 'all', labelEn: 'All Dispositions', labelBn: 'সকল স্ট্যাটাস (All Dispositions)', dot: '#94a3b8' },
+  { value: 'will_join', labelEn: 'Will Join ✓', labelBn: 'যুক্ত হবেন ✓ (Will Join)', dot: '#34d399' },
+  { value: 'active', labelEn: 'Active Worker', labelBn: 'সক্রিয় কর্মী (Active)', dot: '#60a5fa' },
+  { value: 'call_next', labelEn: 'Call Next Program', labelBn: 'পরবর্তী প্রোগ্রামে কল (Call Next)', dot: '#22d3ee' },
+  { value: 'donor', labelEn: 'Donor', labelBn: 'অনুদানকারী (Donor)', dot: '#fbbf24' },
+  { value: 'silent', labelEn: 'Silent Supporter', labelBn: 'নীরব সমর্থক (Silent)', dot: '#c084fc' },
+  { value: 'no_answer', labelEn: 'No Answer', labelBn: 'উত্তর নেই (No Answer)', dot: '#94a3b8' },
+  { value: 'not_interested', labelEn: 'Not Interested', labelBn: 'আগ্রহী নন (Not Interested)', dot: '#f87171' },
+  { value: 'wont_come', labelEn: "Won't Come", labelBn: 'আসবেন না (Won\'t Come)', dot: '#fb923c' },
+  { value: 'dnc', labelEn: 'DNC / Irritated', labelBn: 'বিরক্ত / কল নিষেধ (DNC)', dot: '#fb7185' },
+];
 
 interface UserRecord {
   uid: string;
@@ -645,6 +687,125 @@ export default function SuperAdminSettingsPage() {
                     </label>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Default Contacts View & Filter State */}
+          <div className="bg-slate-900 border border-white/10 rounded-3xl p-6 space-y-6">
+            <div className="flex items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+                  <SlidersHorizontal className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-semibold text-white">
+                      {language === 'bn' ? 'ডিফল্ট ফিল্টার অবস্থা' : 'Default Contact Filter State'}
+                    </h2>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
+                      Super Admin
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    {language === 'bn'
+                      ? 'পরিচিতি তালিকায় প্রবেশ করার সময় বা ফিল্টার ক্লিয়ার করার সময় প্রাথমিক ডিফল্ট অবস্থা ও ক্যাটাগরি নির্বাচন করুন।'
+                      : 'Choose the default category and disposition applied when users browse contacts or clear filters.'}
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                href="/dashboard/contacts"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 hover:text-white transition-all font-medium"
+              >
+                <span>{language === 'bn' ? 'পরিচিতি দেখুন' : 'View Contacts'}</span>
+                <span>→</span>
+              </Link>
+            </div>
+
+            <div className="space-y-5 pt-2 border-t border-white/5">
+              {/* Category Selector */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-200">
+                    {language === 'bn' ? '১. ডিফল্ট ক্যাটাগরি (Default Category)' : '1. Default Category Filter'}
+                  </label>
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    active: <span className="text-cyan-400 font-bold">{settings.defaultFilterCategory || 'shohojogi'}</span>
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {DEFAULT_CATEGORY_OPTIONS.map((opt) => {
+                    const isSelected = (settings.defaultFilterCategory || 'shohojogi') === opt.value;
+                    return (
+                      <button
+                        type="button"
+                        key={opt.value}
+                        onClick={() => setSettings({ ...settings, defaultFilterCategory: opt.value as any })}
+                        className={`p-4 rounded-2xl border text-left transition-all cursor-pointer relative flex flex-col justify-between gap-3 ${
+                          isSelected
+                            ? 'bg-blue-600/15 border-blue-500 text-white ring-1 ring-blue-500/50 shadow-lg shadow-blue-500/10'
+                            : 'bg-slate-800/60 border-white/10 text-slate-300 hover:bg-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-sm tracking-wide">
+                            {language === 'bn' ? opt.labelBn : opt.labelEn}
+                          </span>
+                          {isSelected ? (
+                            <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />
+                          ) : (
+                            <span className="w-4 h-4 rounded-full border border-white/20 shrink-0" />
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          {language === 'bn' ? opt.descBn : opt.descEn}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Disposition Selector */}
+              <div className="space-y-2.5 pt-3 border-t border-white/5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-200">
+                    {language === 'bn' ? '২. ডিফল্ট কল স্ট্যাটাস (Default Disposition)' : '2. Default Call Disposition'}
+                  </label>
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    status: <span className="text-cyan-400 font-bold">{settings.defaultFilterDisposition || 'all'}</span>
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {DEFAULT_DISPOSITION_CHOICES.map((disp) => {
+                    const isSelected = (settings.defaultFilterDisposition || 'all') === disp.value;
+                    return (
+                      <button
+                        type="button"
+                        key={disp.value}
+                        onClick={() => setSettings({ ...settings, defaultFilterDisposition: disp.value })}
+                        className={`px-3 py-2 rounded-xl border text-xs font-medium transition-all cursor-pointer flex items-center gap-2 ${
+                          isSelected
+                            ? 'bg-blue-600/20 border-blue-500 text-blue-300 font-semibold ring-1 ring-blue-500/30 shadow-sm'
+                            : 'bg-slate-800/80 border-white/10 text-slate-400 hover:text-white hover:bg-slate-800'
+                        }`}
+                      >
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: disp.dot }} />
+                        <span>{language === 'bn' ? disp.labelBn : disp.labelEn}</span>
+                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  {language === 'bn'
+                    ? 'প্রস্তাবিত: "সকল স্ট্যাটাস (All Dispositions)" যাতে প্রথম দেখায় সকল কলের পরিসংখ্যান ও তালিকা পাওয়া যায়।'
+                    : 'Recommended: "All Dispositions" so coordinators see all contacts regardless of follow-up call status.'}
+                </p>
               </div>
             </div>
           </div>

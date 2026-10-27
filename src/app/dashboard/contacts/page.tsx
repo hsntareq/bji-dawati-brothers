@@ -4,13 +4,14 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { database } from '@/lib/firebase';
 import { ref, get, push, set, remove, update, onValue } from 'firebase/database';
+import Link from 'next/link';
 import {
   Users, Loader2, Phone, Search, Building2,
   Pencil, Trash2, X, Mail, MapPin, Calendar, SlidersHorizontal, ChevronDown, ChevronLeft,
   Plus, BookOpen, BookMarked, Library, Check, Trash2 as Delete, Send, UserPlus,
   MoreVertical, Download, RefreshCw, RotateCcw, CheckSquare, LayoutList,
   FileSpreadsheet, UploadCloud, AlertTriangle, Info, BarChart3, ShieldCheck,
-  Shield, CornerDownRight,
+  Shield, CornerDownRight, Settings,
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useLanguage } from '@/context/LanguageContext';
@@ -698,6 +699,12 @@ export default function ContactsPage() {
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
 
+  // ── Super Admin Configurable Default Filter State ──
+  const [defaultFilterCategory, setDefaultFilterCategory] = useState<'shohojogi' | 'kormi' | 'all'>('shohojogi');
+  const [defaultFilterDisposition, setDefaultFilterDisposition] = useState<string>('all');
+  const userInteractedCategoryRef = useRef(false);
+  const userInteractedDispositionRef = useRef(false);
+
   // ── Three-dots dropdown state ───────────────────────
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
@@ -735,20 +742,32 @@ export default function ContactsPage() {
     return contacts.filter(c => c.category === 'kormi').length;
   }, [contacts]);
 
+  const isDispositionFiltered = defaultFilterDisposition === 'all'
+    ? filterStatuses.size > 0
+    : (filterStatuses.size !== 1 || !filterStatuses.has(defaultFilterDisposition));
+
   const isActivelyFiltered = Boolean(
     searchQuery.trim() ||
-    filterStatuses.size > 0 ||
+    isDispositionFiltered ||
     filterOrgIds.size > 0 ||
-    filterCategory !== 'all'
+    filterCategory !== defaultFilterCategory
   );
 
-  const resetAllFilters = () => {
+  const resetToDefaults = () => {
     setSearchQuery('');
-    setFilterStatuses(new Set());
     setFilterOrgIds(new Set());
-    setFilterCategory('all');
+    setFilterCategory(defaultFilterCategory);
+    if (defaultFilterDisposition && defaultFilterDisposition !== 'all') {
+      setFilterStatuses(new Set([defaultFilterDisposition]));
+    } else {
+      setFilterStatuses(new Set());
+    }
     setExpandedFilter(null);
     setFilterOpen(false);
+  };
+
+  const resetAllFilters = () => {
+    resetToDefaults();
   };
 
   // Pre-filter by orgId / unitId from query params if passed
@@ -801,7 +820,8 @@ export default function ContactsPage() {
     return () => document.removeEventListener('mousedown', handler);
   }, [filterOpen, moreOpen, addNumberDropdownOpen, addSecPhoneDropdownOpen, addWaDropdownOpen, editNumberDropdownOpen, editSecPhoneDropdownOpen, editWaDropdownOpen]);
 
-  const toggleStatus = (v: string) =>
+  const toggleStatus = (v: string) => {
+    userInteractedDispositionRef.current = true;
     setFilterStatuses(prev => {
       const s = new Set(prev);
       if (v === '' || v === 'set_status' || v === 'new') {
@@ -818,9 +838,13 @@ export default function ContactsPage() {
       }
       return s;
     });
+  };
   const toggleOrg = (id: string) =>
     setFilterOrgIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
-  const activeFilterCount = filterStatuses.size + filterOrgIds.size + (filterCategory !== 'shohojogi' ? 1 : 0);
+  const activeFilterCount =
+    (isDispositionFiltered ? (filterStatuses.size || 1) : 0) +
+    filterOrgIds.size +
+    (filterCategory !== defaultFilterCategory ? 1 : 0);
 
   // ── Detail panel ───────────────────────────────────
   const [selectedContact, setSelectedContact] = useState<any | null>(null);
@@ -934,13 +958,30 @@ export default function ContactsPage() {
     return () => unsub();
   }, [user, allOrgs, organizations]);
 
-  // Listen to system settings for deletion permissions
+  // Listen to system settings for deletion permissions & default filter state
   useEffect(() => {
     const unsub = onValue(ref(database, 'system_settings'), snap => {
       if (snap.exists()) {
         const val = snap.val();
         if (typeof val.allowDeleteIndividual === 'boolean') setAllowDeleteIndividual(val.allowDeleteIndividual);
         if (typeof val.allowDeleteAll === 'boolean') setAllowDeleteAll(val.allowDeleteAll);
+
+        if (val.defaultFilterCategory) {
+          setDefaultFilterCategory(val.defaultFilterCategory);
+          if (!userInteractedCategoryRef.current) {
+            setFilterCategory(val.defaultFilterCategory);
+          }
+        }
+        if (val.defaultFilterDisposition) {
+          setDefaultFilterDisposition(val.defaultFilterDisposition);
+          if (!userInteractedDispositionRef.current) {
+            if (val.defaultFilterDisposition === 'all') {
+              setFilterStatuses(new Set());
+            } else {
+              setFilterStatuses(new Set([val.defaultFilterDisposition]));
+            }
+          }
+        }
       }
     });
     return () => unsub();
@@ -2115,6 +2156,7 @@ export default function ContactsPage() {
                     <button
                       type="button"
                       onClick={() => {
+                        userInteractedCategoryRef.current = true;
                         setFilterCategory('all');
                         setMoreOpen(false);
                       }}
@@ -2128,6 +2170,7 @@ export default function ContactsPage() {
                     <button
                       type="button"
                       onClick={() => {
+                        userInteractedCategoryRef.current = true;
                         setFilterCategory('shohojogi');
                         setMoreOpen(false);
                       }}
@@ -2141,6 +2184,7 @@ export default function ContactsPage() {
                     <button
                       type="button"
                       onClick={() => {
+                        userInteractedCategoryRef.current = true;
                         setFilterCategory('kormi');
                         setMoreOpen(false);
                       }}
@@ -2152,16 +2196,13 @@ export default function ContactsPage() {
                       {filterCategory === 'kormi' && <Check className="w-3.5 h-3.5" />}
                     </button>
 
-                    {(searchQuery || activeFilterCount > 0 || filterCategory !== 'all') && (
+                    {(searchQuery || activeFilterCount > 0 || filterCategory !== defaultFilterCategory) && (
                       <>
                         <div className="my-1 border-t border-white/10" />
                         <button
                           type="button"
                           onClick={() => {
-                            setSearchQuery('');
-                            setFilterStatuses(new Set());
-                            setFilterOrgIds(new Set());
-                            setFilterCategory('all');
+                            resetToDefaults();
                             setMoreOpen(false);
                           }}
                           className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition-colors text-left cursor-pointer"
@@ -2209,14 +2250,22 @@ export default function ContactsPage() {
                         {activeFilterCount}
                       </span>
                     )}
+                    {isSuperAdmin(user?.email) && (
+                      <Link
+                        href="/dashboard/settings"
+                        title={language === 'bn' ? 'সুপার অ্যাডমিন সেটিংস থেকে ডিফল্ট অবস্থা পরিবর্তন করুন' : 'Change default filter state in Settings'}
+                        className="text-[10px] text-slate-400 hover:text-cyan-400 transition-colors flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded-md border border-white/10"
+                      >
+                        <Settings className="w-3 h-3 text-cyan-400" />
+                        <span>Default: {defaultFilterCategory === 'all' ? 'All' : defaultFilterCategory === 'kormi' ? 'Kormi' : 'Shohojogi'}</span>
+                      </Link>
+                    )}
                   </div>
-                  {(activeFilterCount > 0 || filterCategory !== 'shohojogi') && (
+                  {(activeFilterCount > 0 || filterCategory !== defaultFilterCategory) && (
                     <button
                       type="button"
                       onClick={() => {
-                        setFilterStatuses(new Set());
-                        setFilterOrgIds(new Set());
-                        setFilterCategory('shohojogi');
+                        resetToDefaults();
                         setExpandedFilter(null);
                       }}
                       className="text-xs text-blue-400 hover:text-blue-300 transition-colors font-medium cursor-pointer"
@@ -2262,6 +2311,7 @@ export default function ContactsPage() {
                             key={opt.value}
                             type="button"
                             onClick={() => {
+                              userInteractedCategoryRef.current = true;
                               setFilterCategory(opt.value as any);
                               setExpandedFilter(null);
                             }}
@@ -2323,7 +2373,10 @@ export default function ContactsPage() {
                       <div className="mt-2 pt-2 border-t border-white/5 space-y-0.5 max-h-48 overflow-y-auto">
                         <button
                           type="button"
-                          onClick={() => setFilterStatuses(new Set())}
+                          onClick={() => {
+                            userInteractedDispositionRef.current = true;
+                            setFilterStatuses(new Set());
+                          }}
                           className={`w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors text-left cursor-pointer ${
                             filterStatuses.size === 0
                               ? 'text-blue-400 bg-blue-500/10 font-semibold'
@@ -2545,19 +2598,12 @@ export default function ContactsPage() {
                 </div>
 
                 {/* Reset all filters footer */}
-                {(activeFilterCount > 0 || filterCategory !== 'shohojogi' || searchQuery) && (
+                {(activeFilterCount > 0 || filterCategory !== defaultFilterCategory || searchQuery) && (
                   <>
                     <div className="my-1 border-t border-white/10" />
                     <button
                       type="button"
-                      onClick={() => {
-                        setSearchQuery('');
-                        setFilterStatuses(new Set());
-                        setFilterOrgIds(new Set());
-                        setFilterCategory('shohojogi');
-                        setExpandedFilter(null);
-                        setFilterOpen(false);
-                      }}
+                      onClick={resetToDefaults}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition-colors text-left cursor-pointer"
                     >
                       <RotateCcw className="w-4 h-4" />
@@ -2627,16 +2673,11 @@ export default function ContactsPage() {
                 </button>
               </div>
             )}
-            {contacts.length > 0 && (searchQuery || activeFilterCount > 0 || filterCategory !== 'all') && (
+            {contacts.length > 0 && (searchQuery || activeFilterCount > 0 || filterCategory !== defaultFilterCategory) && (
               <div className="pt-1">
                 <button
                   type="button"
-                  onClick={() => {
-                    setSearchQuery('');
-                    setFilterStatuses(new Set());
-                    setFilterOrgIds(new Set());
-                    setFilterCategory('all');
-                  }}
+                  onClick={resetToDefaults}
                   className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 rounded-xl transition-all cursor-pointer shadow-sm shadow-blue-500/10 active:scale-95"
                 >
                   <X className="w-3.5 h-3.5" />
