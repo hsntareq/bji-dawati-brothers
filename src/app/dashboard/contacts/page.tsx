@@ -11,7 +11,7 @@ import {
   Plus, BookOpen, BookMarked, Library, Check, Trash2 as Delete, Send, UserPlus,
   MoreVertical, Download, RefreshCw, RotateCcw, CheckSquare, LayoutList,
   FileSpreadsheet, UploadCloud, AlertTriangle, Info, BarChart3, ShieldCheck,
-  Shield, CornerDownRight, Settings,
+  Shield, CornerDownRight, Settings, Clock,
 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useLanguage } from '@/context/LanguageContext';
@@ -906,6 +906,12 @@ export default function ContactsPage() {
   const [targetBulkOrgId, setTargetBulkOrgId] = useState('');
   const [bulkUpdatingOrg, setBulkUpdatingOrg] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  // ── WhatsApp Event Modal ─────────────────────────────
+  const [waModalContact, setWaModalContact] = useState<any | null>(null);  // single contact
+  const [waBulkOpen, setWaBulkOpen] = useState(false);                     // bulk mode
+  const [waEvents, setWaEvents] = useState<any[]>([]);
+  const [waEventsLoading, setWaEventsLoading] = useState(false);
 
   // ── Swipe to Dismiss Handlers (Slide right to close) ──
   const contactDetailSwipeRef = useSwipeToDismiss({
@@ -1848,6 +1854,55 @@ export default function ContactsPage() {
     if (c.whatsappNumber) return c.whatsappNumber;
     return null;
   };
+
+  // ── WhatsApp event-invite helper ─────────────────────
+  const openWaModal = async (contact: any | null, bulk = false) => {
+    if (bulk) setWaBulkOpen(true);
+    else setWaModalContact(contact);
+    setWaEvents([]);
+
+    // Determine which org to fetch events for
+    const orgId = bulk
+      ? (() => {
+          // Try to find a common org among selected contacts
+          const selContacts = contacts.filter(c => selectedIds.has(c.id));
+          const orgIds = [...new Set(selContacts.map(c => c.organizationId).filter(Boolean))];
+          return orgIds[0] || null;
+        })()
+      : contact?.organizationId;
+
+    if (!orgId) return;
+    setWaEventsLoading(true);
+    try {
+      const snap = await get(ref(database, `org_events/${orgId}`));
+      if (snap.exists()) {
+        const raw = snap.val() as Record<string, any>;
+        const list = Object.entries(raw).map(([id, v]) => ({ id, ...v }));
+        list.sort((a, b) => (a.date > b.date ? 1 : -1));
+        setWaEvents(list);
+      }
+    } catch (e) {
+      console.error('WA events fetch:', e);
+    } finally {
+      setWaEventsLoading(false);
+    }
+  };
+
+  const buildWaUrl = (waNum: string, message?: string) => {
+    const num = clean(waNum);
+    if (!message) return `https://wa.me/${num}`;
+    return `https://wa.me/${num}?text=${encodeURIComponent(message)}`;
+  };
+
+  const buildEventMessage = (evt: any) => {
+    const parts: string[] = [];
+    parts.push(`🌟 *${evt.name}*`);
+    if (evt.date) parts.push(`📅 Date: ${new Date(evt.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`);
+    if (evt.time) parts.push(`🕐 Time: ${evt.time}`);
+    if (evt.location) parts.push(`📍 Location: ${evt.location}`);
+    if (evt.message) parts.push(`\n${evt.message}`);
+    return parts.join('\n');
+  };
   const fmtDate = (iso: string) =>
     iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
@@ -2778,6 +2833,15 @@ export default function ContactsPage() {
 
                     <button
                       type="button"
+                      onClick={() => openWaModal(null, true)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold transition-all cursor-pointer shadow-sm active:scale-95"
+                    >
+                      <FaWhatsapp className="w-3.5 h-3.5" />
+                      <span>WhatsApp ({selectedIds.size})</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={handleBulkDelete}
                       disabled={bulkDeleting}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-500/30 text-xs font-semibold transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50 bji-bulk-delete-btn"
@@ -2930,15 +2994,14 @@ export default function ContactsPage() {
                               </span>
                             )}
                             {waNum ? (
-                              <a
-                                href={`https://wa.me/${clean(waNum)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); openWaModal(c); }}
                                 title={`WhatsApp ${waNum}`}
-                                className="w-10 sm:w-11 h-8 sm:h-8.5 flex items-center justify-center rounded-xl bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/20 active:scale-95 transition-all shadow-sm"
+                                className="w-10 sm:w-11 h-8 sm:h-8.5 flex items-center justify-center rounded-xl bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/20 active:scale-95 transition-all shadow-sm cursor-pointer"
                               >
                                 <FaWhatsapp className="w-4 h-4" />
-                              </a>
+                              </button>
                             ) : (
                               <span
                                 title="Phone only"
@@ -3100,15 +3163,14 @@ export default function ContactsPage() {
                             </span>
                           )}
                           {waNum ? (
-                            <a
-                              href={`https://wa.me/${clean(waNum)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); openWaModal(c); }}
                               title={`WhatsApp ${waNum}`}
-                              className="w-9 h-9 flex items-center justify-center rounded-xl bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/40 transition-all active:scale-95 shadow-sm"
+                              className="w-9 h-9 flex items-center justify-center rounded-xl bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/40 transition-all active:scale-95 shadow-sm cursor-pointer"
                             >
                               <FaWhatsapp className="w-4 h-4" />
-                            </a>
+                            </button>
                           ) : (
                             <span
                               title="Phone only (No WhatsApp)"
@@ -3345,16 +3407,14 @@ export default function ContactsPage() {
                                     </span>
                                   )}
                                   {waNum ? (
-                                    <a
-                                      href={`https://wa.me/${clean(waNum)}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); openWaModal(c); }}
                                       title={`WhatsApp ${waNum}`}
-                                      onClick={e => e.stopPropagation()}
-                                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/25 transition-all hover:scale-105 active:scale-95 shadow-sm"
+                                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/25 transition-all hover:scale-105 active:scale-95 shadow-sm cursor-pointer"
                                     >
                                       <FaWhatsapp className="w-3.5 h-3.5" />
-                                    </a>
+                                    </button>
                                   ) : (
                                     <span
                                       title="Phone only (No WhatsApp)"
@@ -5045,6 +5105,15 @@ export default function ContactsPage() {
 
             <button
               type="button"
+              onClick={() => openWaModal(null, true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
+            >
+              <FaWhatsapp className="w-3.5 h-3.5" />
+              <span>WhatsApp</span>
+            </button>
+
+            <button
+              type="button"
               onClick={handleBulkDelete}
               disabled={bulkDeleting}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer disabled:opacity-50"
@@ -5520,6 +5589,191 @@ export default function ContactsPage() {
                 className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-colors cursor-pointer"
               >
                 {language === 'bn' ? 'বন্ধ করুন' : 'Close'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── WhatsApp Event Invite Modal ── */}
+      {(waModalContact || waBulkOpen) && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm"
+          onClick={() => { setWaModalContact(null); setWaBulkOpen(false); }}
+        >
+          <div
+            className="w-full sm:max-w-md bg-slate-900 border border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Grab bar */}
+            <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mt-3 mb-1 sm:hidden" />
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                  <FaWhatsapp className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <p className="font-bold text-white text-sm">
+                    {waBulkOpen
+                      ? `Send to ${selectedIds.size} contact${selectedIds.size === 1 ? '' : 's'}`
+                      : waModalContact?.name || 'WhatsApp'}
+                  </p>
+                  {waModalContact && (
+                    <p className="text-xs text-emerald-400 font-mono">{getWhatsAppNumber(waModalContact)}</p>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setWaModalContact(null); setWaBulkOpen(false); }}
+                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="overflow-y-auto flex-1 p-4 space-y-3">
+              {/* Open empty option */}
+              {!waBulkOpen && waModalContact && (() => {
+                const waNum = getWhatsAppNumber(waModalContact);
+                return waNum ? (
+                  <a
+                    href={buildWaUrl(waNum)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => { setWaModalContact(null); setWaBulkOpen(false); }}
+                    className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/5 hover:bg-emerald-500/10 border border-white/10 hover:border-emerald-500/30 transition-all cursor-pointer group"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/20">
+                      <FaWhatsapp className="w-4 h-4 text-emerald-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white">Open WhatsApp (no message)</p>
+                      <p className="text-xs text-slate-400">Start a blank conversation</p>
+                    </div>
+                  </a>
+                ) : null;
+              })()}
+
+              {/* Divider if events exist */}
+              {!waBulkOpen && (
+                <div className="flex items-center gap-2 pt-1">
+                  <div className="flex-1 h-px bg-white/10" />
+                  <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Or include event invitation</span>
+                  <div className="flex-1 h-px bg-white/10" />
+                </div>
+              )}
+              {waBulkOpen && (
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px bg-white/10" />
+                  <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Choose event to invite</span>
+                  <div className="flex-1 h-px bg-white/10" />
+                </div>
+              )}
+
+              {/* Events list */}
+              {waEventsLoading ? (
+                <div className="flex items-center justify-center py-6 gap-2 text-slate-400">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-xs">Loading events…</span>
+                </div>
+              ) : waEvents.length === 0 ? (
+                <div className="text-center py-6 text-slate-500 text-xs">
+                  No events found for this organization
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {waEvents.map(evt => {
+                    const msg = buildEventMessage(evt);
+                    return (
+                      <div key={evt.id} className="rounded-2xl border border-white/10 overflow-hidden">
+                        {/* Event info */}
+                        <div className="p-3.5 bg-white/[0.03]">
+                          <p className="text-sm font-semibold text-white">{evt.name}</p>
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5">
+                            {evt.date && (
+                              <span className="flex items-center gap-1 text-[11px] text-slate-400">
+                                <Calendar className="w-3 h-3" />
+                                {new Date(evt.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </span>
+                            )}
+                            {evt.time && (
+                              <span className="flex items-center gap-1 text-[11px] text-slate-400">
+                                <Clock className="w-3 h-3" />
+                                {evt.time}
+                              </span>
+                            )}
+                            {evt.location && (
+                              <span className="flex items-center gap-1 text-[11px] text-slate-400">
+                                <MapPin className="w-3 h-3" />
+                                {evt.location}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Action row */}
+                        <div className="flex border-t border-white/10">
+                          {!waBulkOpen && waModalContact && (() => {
+                            const waNum = getWhatsAppNumber(waModalContact);
+                            return waNum ? (
+                              <a
+                                href={buildWaUrl(waNum, msg)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={() => { setWaModalContact(null); setWaBulkOpen(false); }}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                              >
+                                <FaWhatsapp className="w-3.5 h-3.5" />
+                                Send Invitation
+                              </a>
+                            ) : null;
+                          })()}
+
+                          {waBulkOpen && (() => {
+                            const selContacts = contacts.filter(c => selectedIds.has(c.id));
+                            const withWa = selContacts.filter(c => !!getWhatsAppNumber(c));
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  // Open WhatsApp for each contact with WA number
+                                  withWa.forEach((c, i) => {
+                                    const waNum = getWhatsAppNumber(c);
+                                    if (!waNum) return;
+                                    setTimeout(() => {
+                                      window.open(buildWaUrl(waNum, msg), '_blank');
+                                    }, i * 600);
+                                  });
+                                  setWaBulkOpen(false);
+                                  setSelectedIds(new Set());
+                                }}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                              >
+                                <FaWhatsapp className="w-3.5 h-3.5" />
+                                Send to {withWa.length} contacts
+                              </button>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-4 py-3 border-t border-white/10 bg-slate-950/40 flex justify-end">
+              <button
+                type="button"
+                onClick={() => { setWaModalContact(null); setWaBulkOpen(false); }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer"
+              >
+                Cancel
               </button>
             </div>
           </div>
