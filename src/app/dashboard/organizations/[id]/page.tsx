@@ -12,7 +12,7 @@ import {
   UserPlus, Settings, Save, AlertCircle, Crown, Phone,
   FileSpreadsheet, UploadCloud, Calendar, Clock, MessageSquare,
   Share2, Copy, CheckCircle2, ArrowLeft, Send, Search, Filter,
-  Sparkles, ExternalLink, ChevronLeft,
+  Sparkles, ExternalLink, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import ImportContactsModal from '@/components/ImportContactsModal';
 import {
@@ -76,6 +76,13 @@ const formatMonthLabel = (monthKey: string, lang: 'en' | 'bn'): string => {
   }
   const date = new Date(y, m - 1, 1);
   return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+};
+
+const getCurrentMonthKey = (): string => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
 };
 
 const toE164Phone = (raw: string | undefined): string => {
@@ -185,7 +192,7 @@ export default function OrganizationDetailPage() {
   // Events State
   const [orgEvents, setOrgEvents] = useState<OrgEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => new Date().toISOString().slice(0, 7));
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => getCurrentMonthKey());
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<OrgEvent | null>(null);
   const [eventForm, setEventForm] = useState(emptyEventForm);
@@ -232,25 +239,37 @@ export default function OrganizationDetailPage() {
     }
   };
 
-  // Month navigation
+  // Month navigation (pure integer arithmetic to avoid timezone/UTC rollover bugs)
   const goToPrevMonth = () => {
-    const parts = selectedMonth.split('-');
-    const y = parseInt(parts[0], 10) || 2026;
-    const m = parseInt(parts[1], 10) || 1;
-    const prevDate = new Date(y, m - 2, 1);
-    setSelectedMonth(prevDate.toISOString().slice(0, 7));
+    setSelectedMonth(prev => {
+      const parts = prev.split('-');
+      let y = parseInt(parts[0], 10) || 2026;
+      let m = parseInt(parts[1], 10) || 1;
+      m -= 1;
+      if (m < 1) {
+        m = 12;
+        y -= 1;
+      }
+      return `${y}-${String(m).padStart(2, '0')}`;
+    });
   };
 
   const goToNextMonth = () => {
-    const parts = selectedMonth.split('-');
-    const y = parseInt(parts[0], 10) || 2026;
-    const m = parseInt(parts[1], 10) || 1;
-    const nextDate = new Date(y, m, 1);
-    setSelectedMonth(nextDate.toISOString().slice(0, 7));
+    setSelectedMonth(prev => {
+      const parts = prev.split('-');
+      let y = parseInt(parts[0], 10) || 2026;
+      let m = parseInt(parts[1], 10) || 1;
+      m += 1;
+      if (m > 12) {
+        m = 1;
+        y += 1;
+      }
+      return `${y}-${String(m).padStart(2, '0')}`;
+    });
   };
 
   const goToCurrentMonth = () => {
-    setSelectedMonth(new Date().toISOString().slice(0, 7));
+    setSelectedMonth(getCurrentMonthKey());
   };
 
   // Fetch initial data
@@ -1019,20 +1038,22 @@ export default function OrganizationDetailPage() {
                   <button
                     type="button"
                     onClick={goToNextMonth}
-                    title="Next Month"
+                    title={language === 'bn' ? 'পরবর্তী মাস' : 'Next Month'}
                     className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer"
                   >
-                    <ChevronDown className="w-4 h-4 -rotate-90" />
+                    <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={goToCurrentMonth}
-                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-white/5 transition-all cursor-pointer"
-                >
-                  {language === 'bn' ? 'চলতি মাস' : 'Current Month'}
-                </button>
+                {selectedMonth !== getCurrentMonthKey() && (
+                  <button
+                    type="button"
+                    onClick={goToCurrentMonth}
+                    className="px-3 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs font-semibold transition-all cursor-pointer animate-fade-in"
+                  >
+                    {language === 'bn' ? 'চলতি মাস' : 'Current Month'}
+                  </button>
+                )}
               </div>
 
               {/* Action Buttons: Superadmin Demo Events + Create Event */}

@@ -95,6 +95,13 @@ const formatMonthLabel = (monthKey: string, lang: 'en' | 'bn'): string => {
   return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 };
 
+const getCurrentMonthKey = (): string => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+};
+
 const emptyForm = {
   name: '',
   nameBn: '',
@@ -226,7 +233,7 @@ export default function OrganizationsPage() {
   // ── Monthly Events State ──
   const [orgEvents,       setOrgEvents]       = useState<OrgEvent[]>([]);
   const [eventsLoading,   setEventsLoading]   = useState(false);
-  const [selectedMonth,   setSelectedMonth]   = useState<string>(() => new Date().toISOString().slice(0, 7));
+  const [selectedMonth,   setSelectedMonth]   = useState<string>(() => getCurrentMonthKey());
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [editingEvent,    setEditingEvent]    = useState<OrgEvent | null>(null);
   const [eventForm,       setEventForm]       = useState(emptyEventForm);
@@ -239,25 +246,37 @@ export default function OrganizationsPage() {
   const [attendeeCategoryFilter, setAttendeeCategoryFilter] = useState<'all' | 'shohojogi' | 'kormi'>('all');
   const [attendeeStatusFilter, setAttendeeStatusFilter] = useState<'all' | 'invited' | 'confirmed' | 'attended' | 'declined'>('all');
 
-  // Month navigation
+  // Month navigation (pure integer arithmetic to avoid timezone/UTC rollover bugs)
   const goToPrevMonth = () => {
-    const parts = selectedMonth.split('-');
-    const y = parseInt(parts[0], 10) || 2026;
-    const m = parseInt(parts[1], 10) || 1;
-    const prevDate = new Date(y, m - 2, 1);
-    setSelectedMonth(prevDate.toISOString().slice(0, 7));
+    setSelectedMonth(prev => {
+      const parts = prev.split('-');
+      let y = parseInt(parts[0], 10) || 2026;
+      let m = parseInt(parts[1], 10) || 1;
+      m -= 1;
+      if (m < 1) {
+        m = 12;
+        y -= 1;
+      }
+      return `${y}-${String(m).padStart(2, '0')}`;
+    });
   };
 
   const goToNextMonth = () => {
-    const parts = selectedMonth.split('-');
-    const y = parseInt(parts[0], 10) || 2026;
-    const m = parseInt(parts[1], 10) || 1;
-    const nextDate = new Date(y, m, 1);
-    setSelectedMonth(nextDate.toISOString().slice(0, 7));
+    setSelectedMonth(prev => {
+      const parts = prev.split('-');
+      let y = parseInt(parts[0], 10) || 2026;
+      let m = parseInt(parts[1], 10) || 1;
+      m += 1;
+      if (m > 12) {
+        m = 1;
+        y += 1;
+      }
+      return `${y}-${String(m).padStart(2, '0')}`;
+    });
   };
 
   const goToCurrentMonth = () => {
-    setSelectedMonth(new Date().toISOString().slice(0, 7));
+    setSelectedMonth(getCurrentMonthKey());
   };
 
   // Keyboard Escape listener
@@ -2203,7 +2222,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
                       </button>
                     </div>
 
-                    {selectedMonth !== new Date().toISOString().slice(0, 7) && (
+                    {selectedMonth !== getCurrentMonthKey() && (
                       <button
                         type="button"
                         onClick={goToCurrentMonth}
