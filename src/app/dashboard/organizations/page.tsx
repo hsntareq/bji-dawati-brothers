@@ -33,6 +33,7 @@ import {
 import { useLanguage } from '@/context/LanguageContext';
 import { getOrgDisplayName, getOrgSecondaryName } from '@/lib/orgHelper';
 import { isSuperAdmin } from '@/lib/superadmin';
+import { encodeOrgId, decodeOrgId, isReservedRoute } from '@/lib/orgUrlHelper';
 
 const ORG_TYPES = [
   { value: 'ward',   label: 'Ward',   desc: 'Parent ward — oversees multiple units', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
@@ -586,9 +587,9 @@ export default function OrganizationsPage() {
     setIsEventModalOpen(false);
     fetchOrgEvents(org.id);
     if (updateUrl && typeof window !== 'undefined') {
-      const currentUrl = new URL(window.location.href);
-      currentUrl.searchParams.set('org', org.id);
-      window.history.pushState(null, '', currentUrl.toString());
+      const basePath = window.location.pathname.startsWith('/bji-dawati-brothers') ? '/bji-dawati-brothers' : '';
+      const encodedId = encodeOrgId(org.id);
+      window.history.pushState(null, '', `${basePath}/${encodedId}`);
     }
   };
 
@@ -596,22 +597,33 @@ export default function OrganizationsPage() {
     setSelectedOrg(null);
     setIsFullView(false);
     if (typeof window !== 'undefined') {
-      const currentUrl = new URL(window.location.href);
-      currentUrl.searchParams.delete('org');
-      currentUrl.searchParams.delete('org_id');
-      currentUrl.searchParams.delete('orgId');
-      currentUrl.searchParams.delete('id');
-      window.history.pushState(null, '', currentUrl.toString());
+      const basePath = window.location.pathname.startsWith('/bji-dawati-brothers') ? '/bji-dawati-brothers' : '';
+      window.history.pushState(null, '', `${basePath}/dashboard/organizations`);
     }
   };
 
-  // Auto-open organization if ?org= / ?org_id= / ?orgId= / ?id= query param is present
+  // Auto-open organization if ?org= / ?id= query param OR /:encodedId / /:id root path is present
   useEffect(() => {
     if (typeof window === 'undefined' || allOrgsRaw.length === 0) return;
     const params = new URLSearchParams(window.location.search);
     const orgParam = params.get('org') || params.get('org_id') || params.get('orgId') || params.get('id');
+    
+    let targetId = '';
     if (orgParam) {
-      const found = allOrgsRaw.find((o: any) => o.id === orgParam);
+      targetId = decodeOrgId(orgParam);
+    } else {
+      const basePath = '/bji-dawati-brothers';
+      const cleanPath = window.location.pathname.startsWith(basePath)
+        ? window.location.pathname.slice(basePath.length)
+        : window.location.pathname;
+      const rootMatch = cleanPath.match(/^\/([^/?#]+)/);
+      if (rootMatch && rootMatch[1] && !isReservedRoute(rootMatch[1])) {
+        targetId = decodeOrgId(rootMatch[1]);
+      }
+    }
+
+    if (targetId) {
+      const found = allOrgsRaw.find((o: any) => o.id === targetId || o.id === orgParam);
       if (found) {
         if (!selectedOrg || selectedOrg.id !== found.id || !isFullView) {
           openOrgManage(found, false);
@@ -626,14 +638,22 @@ export default function OrganizationsPage() {
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
       const orgParam = params.get('org') || params.get('org_id') || params.get('orgId') || params.get('id');
-      if (orgParam && allOrgsRaw.length > 0) {
-        const found = allOrgsRaw.find((o: any) => o.id === orgParam);
+      const basePath = '/bji-dawati-brothers';
+      const cleanPath = window.location.pathname.startsWith(basePath)
+        ? window.location.pathname.slice(basePath.length)
+        : window.location.pathname;
+      const rootMatch = cleanPath.match(/^\/([^/?#]+)/);
+      const token = rootMatch && rootMatch[1] && !isReservedRoute(rootMatch[1]) ? rootMatch[1] : '';
+      
+      const targetId = orgParam ? decodeOrgId(orgParam) : (token ? decodeOrgId(token) : '');
+      if (targetId && allOrgsRaw.length > 0) {
+        const found = allOrgsRaw.find((o: any) => o.id === targetId || o.id === orgParam);
         if (found) {
           openOrgManage(found, false);
           return;
         }
       }
-      if (!orgParam && isFullView) {
+      if (!targetId && isFullView) {
         setSelectedOrg(null);
         setIsFullView(false);
       }
@@ -1339,7 +1359,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
                     {/* Action buttons (Manage + Expand/Collapse) */}
                     <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
                       <Link
-                        href={`/dashboard/organizations?org=${encodeURIComponent(ward.id)}`}
+                        href={`/${encodeOrgId(ward.id)}`}
                         onClick={(e) => {
                           e.preventDefault();
                           openOrgManage(ward);
@@ -1438,7 +1458,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
 
                           {/* Manage Button */}
                           <Link
-                            href={`/dashboard/organizations?org=${encodeURIComponent(unit.id)}`}
+                            href={`/${encodeOrgId(unit.id)}`}
                             onClick={e => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -1503,7 +1523,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
                         </p>
                       </div>
                       <Link
-                        href={`/dashboard/organizations?org=${encodeURIComponent(unit.id)}`}
+                        href={`/${encodeOrgId(unit.id)}`}
                         onClick={e => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -1545,7 +1565,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
                       </div>
                     </div>
                     <Link
-                      href={`/dashboard/organizations?org=${encodeURIComponent(org.id)}`}
+                      href={`/${encodeOrgId(org.id)}`}
                       onClick={e => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -1615,7 +1635,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
 
                 <div className="flex items-center gap-2">
                   <Link
-                    href={`/dashboard/organizations?org=${encodeURIComponent(selectedOrg.id)}`}
+                    href={`/${encodeOrgId(selectedOrg.id)}`}
                     onClick={(e) => {
                       e.preventDefault();
                       openOrgManage(selectedOrg);

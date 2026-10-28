@@ -28,6 +28,7 @@ import {
 import { useLanguage } from '@/context/LanguageContext';
 import { getOrgDisplayName, getOrgSecondaryName } from '@/lib/orgHelper';
 import { isSuperAdmin } from '@/lib/superadmin';
+import { decodeOrgId } from '@/lib/orgUrlHelper';
 
 interface OrgEvent {
   id: string;
@@ -173,7 +174,7 @@ export default function OrganizationDetailClient() {
   const params = useParams();
   const router = useRouter();
   const rawId = (params?.id as string) || (typeof window !== 'undefined' ? window.location.pathname.split('/').filter(Boolean).pop() : '') || '';
-  const orgId = decodeURIComponent(rawId);
+  const orgId = decodeOrgId(decodeURIComponent(rawId));
 
   const { user } = useAuth();
   const { language } = useLanguage();

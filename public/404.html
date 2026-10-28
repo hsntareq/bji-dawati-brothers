@@ -123,16 +123,58 @@
         
         // Remove basePath prefix if present
         var path = pathname.startsWith(basePath) ? pathname.slice(basePath.length) : pathname;
-        
-        // Automatically redirect /dashboard/organizations/:id to /dashboard/organizations?org=:id
+
+        function decodeOrgId(str) {
+          if (!str) return '';
+          if (str.startsWith('-')) return str;
+          try {
+            var base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+            while (base64.length % 4) base64 += '=';
+            var decoded = decodeURIComponent(escape(atob(base64)));
+            if (decoded && (decoded.startsWith('-') || decoded.length >= 8)) {
+              return decoded;
+            }
+          } catch(e) {}
+          return str;
+        }
+
+        var reserved = {
+          '': true,
+          'dashboard': true,
+          'contacts': true,
+          'organizations': true,
+          'profile': true,
+          'settings': true,
+          'login': true,
+          'register': true,
+          'manifest.webmanifest': true,
+          'manifest.json': true,
+          'favicon.ico': true,
+          'default': true
+        };
+
+        // 1. Match /dashboard/organizations/:id
         var orgMatch = path.match(/^\/dashboard\/organizations\/([^/?#]+)/);
         if (orgMatch && orgMatch[1] && orgMatch[1] !== 'default') {
-          var orgId = orgMatch[1];
+          var orgId = decodeOrgId(orgMatch[1]);
           l.replace(l.origin + basePath + '/dashboard/organizations?org=' + encodeURIComponent(orgId) + l.hash);
           return;
         }
 
-        // Setup links when DOM loads
+        // 2. Match root short url /:id or /:base64 (e.g. /-P3-1sCrB3eAYQeLv_Dj or /LVAzLTFzQ3JCM2VBWVFlTHZfRGo)
+        var rootMatch = path.match(/^\/([^/?#]+)/);
+        if (rootMatch && rootMatch[1]) {
+          var token = rootMatch[1];
+          if (!reserved[token.toLowerCase()]) {
+            var decoded = decodeOrgId(token);
+            if (decoded.startsWith('-') || (decoded.length >= 8 && decoded !== token)) {
+              l.replace(l.origin + basePath + '/dashboard/organizations?org=' + encodeURIComponent(decoded) + l.hash);
+              return;
+            }
+          }
+        }
+
+        // Setup 404 links when DOM loads
         window.addEventListener('DOMContentLoaded', function() {
           var dashLink = document.getElementById('dash-link');
           var orgsLink = document.getElementById('orgs-link');

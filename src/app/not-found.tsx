@@ -5,16 +5,37 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Home, Building2 } from 'lucide-react';
 import { useEffect } from 'react';
 
+import { decodeOrgId, isReservedRoute } from '@/lib/orgUrlHelper';
+
 export default function NotFound() {
   const router = useRouter();
 
-  // If path was /dashboard/organizations/:id, redirect to ?org=:id
+  // If path was /dashboard/organizations/:id or root /:id /:base64, redirect to ?org=:id
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const pathname = window.location.pathname;
-      const match = pathname.match(/\/dashboard\/organizations\/([^/?#]+)/);
-      if (match && match[1] && match[1] !== 'default') {
-        router.replace(`/dashboard/organizations?org=${encodeURIComponent(match[1])}`);
+      const basePath = '/bji-dawati-brothers';
+      const cleanPath = pathname.startsWith(basePath) ? pathname.slice(basePath.length) : pathname;
+
+      // 1. /dashboard/organizations/:id
+      const orgMatch = cleanPath.match(/^\/dashboard\/organizations\/([^/?#]+)/);
+      if (orgMatch && orgMatch[1] && orgMatch[1] !== 'default') {
+        const decoded = decodeOrgId(orgMatch[1]);
+        router.replace(`/dashboard/organizations?org=${encodeURIComponent(decoded)}`);
+        return;
+      }
+
+      // 2. Root /:id or /:base64
+      const rootMatch = cleanPath.match(/^\/([^/?#]+)/);
+      if (rootMatch && rootMatch[1]) {
+        const token = rootMatch[1];
+        if (!isReservedRoute(token)) {
+          const decoded = decodeOrgId(token);
+          if (decoded.startsWith('-') || (decoded.length >= 8 && decoded !== token)) {
+            router.replace(`/dashboard/organizations?org=${encodeURIComponent(decoded)}`);
+            return;
+          }
+        }
       }
     }
   }, [router]);
