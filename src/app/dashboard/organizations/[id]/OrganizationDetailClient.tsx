@@ -12,7 +12,7 @@ import {
   UserPlus, Settings, Save, AlertCircle, Crown, Phone,
   FileSpreadsheet, UploadCloud, Calendar, Clock, MessageSquare,
   Share2, Copy, CheckCircle2, ArrowLeft, Send, Search, Filter,
-  Sparkles, ExternalLink, ChevronLeft, ChevronRight,
+  Sparkles, ExternalLink, ChevronLeft, ChevronRight, MoreHorizontal,
 } from 'lucide-react';
 import ImportContactsModal from '@/components/ImportContactsModal';
 import {
@@ -194,6 +194,7 @@ export default function OrganizationDetailClient() {
 
   // Tab
   const [activeTab, setActiveTab] = useState<'events' | 'members' | 'settings'>('events');
+  const [isMoreTabOpen, setIsMoreTabOpen] = useState(false);
 
   // Events State
   const [orgEvents, setOrgEvents] = useState<OrgEvent[]>([]);
@@ -964,54 +965,130 @@ export default function OrganizationDetailClient() {
         </div>
       </header>
 
-      {/* ── Navigation Tab Bar ────────────────────────────────────── */}
-      <nav className="px-4 sm:px-6 border-b border-white/10 bg-slate-900/60 backdrop-blur-sm shrink-0 flex items-center gap-2 sm:gap-4 overflow-x-auto">
-        <button
-          type="button"
-          onClick={() => handleTabChange('events')}
-          className={`flex items-center gap-2 py-3 px-3 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'events'
-              ? 'border-blue-500 text-blue-400'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Calendar className="w-4 h-4" />
-          <span>{language === 'bn' ? 'কর্মসূচি ও ইভেন্ট' : 'Events & Programs'}</span>
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-            activeTab === 'events' ? 'bg-blue-500/20 text-blue-300' : 'bg-white/5 text-slate-400'
-          }`}>
-            {monthEvents.length}
-          </span>
-        </button>
+      {/* ── Navigation Tab Bar with 'Tabs and More' Overflow Pattern ── */}
+      <nav className="px-3 sm:px-6 border-b border-white/10 bg-slate-900/60 backdrop-blur-sm shrink-0 flex items-center justify-between sm:justify-start gap-1 sm:gap-4 relative">
+        <div className="flex items-center gap-1 sm:gap-3 overflow-x-auto no-scrollbar flex-1 sm:flex-initial">
+          {/* Tab 1: Events */}
+          <button
+            type="button"
+            onClick={() => { handleTabChange('events'); setIsMoreTabOpen(false); }}
+            className={`flex items-center gap-1.5 sm:gap-2 py-3 px-2 sm:px-3 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'events'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Calendar className="w-4 h-4 shrink-0" />
+            <span>
+              <span className="sm:hidden">{language === 'bn' ? 'কর্মসূচি' : 'Events'}</span>
+              <span className="hidden sm:inline">{language === 'bn' ? 'কর্মসূচি ও ইভেন্ট' : 'Events & Programs'}</span>
+            </span>
+            <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] font-bold ${
+              activeTab === 'events' ? 'bg-blue-500/20 text-blue-300' : 'bg-white/5 text-slate-400'
+            }`}>
+              {monthEvents.length}
+            </span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => handleTabChange('members')}
-          className={`flex items-center gap-2 py-3 px-3 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'members'
-              ? 'border-blue-500 text-blue-400'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          <span>{language === 'bn' ? 'সদস্য ও অনুমতি' : 'Members & Access'}</span>
-          <span className="px-2 py-0.5 rounded-full bg-white/5 text-slate-400 text-[10px] font-bold">
-            {(currentOrg.allowedEmails?.length ?? 0) + (currentOrg.creatorEmail ? 1 : 0)}
-          </span>
-        </button>
+          {/* Tab 2: Members */}
+          <button
+            type="button"
+            onClick={() => { handleTabChange('members'); setIsMoreTabOpen(false); }}
+            className={`flex items-center gap-1.5 sm:gap-2 py-3 px-2 sm:px-3 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'members'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Users className="w-4 h-4 shrink-0" />
+            <span>
+              <span className="sm:hidden">{language === 'bn' ? 'সদস্য' : 'Members'}</span>
+              <span className="hidden sm:inline">{language === 'bn' ? 'সদস্য ও অনুমতি' : 'Members & Access'}</span>
+            </span>
+            <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] font-bold ${
+              activeTab === 'members' ? 'bg-blue-500/20 text-blue-300' : 'bg-white/5 text-slate-400'
+            }`}>
+              {(currentOrg.allowedEmails?.length ?? 0) + (currentOrg.creatorEmail ? 1 : 0)}
+            </span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => handleTabChange('settings')}
-          className={`flex items-center gap-2 py-3 px-3 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'settings'
-              ? 'border-blue-500 text-blue-400'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Settings className="w-4 h-4" />
-          <span>{language === 'bn' ? 'বিবরণ ও সেটিংস' : 'Details & Settings'}</span>
-        </button>
+          {/* Tab 3: Settings (Visible directly on desktop / tablets) */}
+          <button
+            type="button"
+            onClick={() => { handleTabChange('settings'); setIsMoreTabOpen(false); }}
+            className={`hidden md:flex items-center gap-2 py-3 px-3 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'settings'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Settings className="w-4 h-4 shrink-0" />
+            <span>{language === 'bn' ? 'বিবরণ ও সেটিংস' : 'Details & Settings'}</span>
+          </button>
+        </div>
+
+        {/* "More" Dropdown Menu when items exceed mobile width */}
+        <div className="relative md:hidden shrink-0">
+          <button
+            type="button"
+            onClick={() => setIsMoreTabOpen(prev => !prev)}
+            className={`flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${
+              activeTab === 'settings'
+                ? 'bg-blue-500/15 border-blue-500/40 text-blue-400'
+                : 'bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            {activeTab === 'settings' ? (
+              <>
+                <Settings className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <span>{language === 'bn' ? 'সেটিংস' : 'Settings'}</span>
+              </>
+            ) : (
+              <>
+                <MoreHorizontal className="w-4 h-4 shrink-0" />
+                <span>{language === 'bn' ? 'আরও' : 'More'}</span>
+              </>
+            )}
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isMoreTabOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {isMoreTabOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-30"
+                onClick={() => setIsMoreTabOpen(false)}
+              />
+              <div className="absolute right-0 top-full mt-1.5 w-48 bg-slate-900 border border-white/15 rounded-xl shadow-2xl z-40 p-1.5 animate-scale-in">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleTabChange('settings');
+                    setIsMoreTabOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all text-left cursor-pointer ${
+                    activeTab === 'settings'
+                      ? 'bg-blue-600/20 text-blue-300 font-semibold'
+                      : 'text-slate-200 hover:bg-white/10'
+                  }`}
+                >
+                  <Settings className="w-4 h-4 text-slate-400 shrink-0" />
+                  <span>{language === 'bn' ? 'বিবরণ ও সেটিংস' : 'Details & Settings'}</span>
+                </button>
+
+                <Link
+                  href={`/dashboard/contacts?orgId=${currentOrg.id}`}
+                  onClick={() => setIsMoreTabOpen(false)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-slate-300 hover:bg-white/10 transition-all text-left"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Users className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span>{language === 'bn' ? 'যোগাযোগ দেখুন' : 'View Contacts'}</span>
+                  </div>
+                </Link>
+              </div>
+            </>
+          )}
+        </div>
       </nav>
 
       {/* ── Main Tab Content ──────────────────────────────────────── */}
@@ -1022,9 +1099,10 @@ export default function OrganizationDetailClient() {
         {activeTab === 'events' && (
           <div className="space-y-6 animate-fade-in">
             {/* Month Navigator Header Bar */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900/80 border border-white/10 rounded-2xl p-3 sm:p-4 shadow-sm">
-              <div className="flex items-center gap-2">
-                <div className="flex items-center bg-slate-800 rounded-xl border border-white/10 p-1">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/80 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-sm">
+              {/* Month Navigation (Centered on mobile, current month button on next line) */}
+              <div className="w-full sm:w-auto flex flex-col items-center justify-center">
+                <div className="flex items-center bg-slate-800 rounded-xl border border-white/10 p-1 shadow-inner">
                   <button
                     type="button"
                     onClick={goToPrevMonth}
@@ -1035,7 +1113,7 @@ export default function OrganizationDetailClient() {
                   </button>
 
                   <div className="px-3 py-1 flex items-center gap-2 min-w-[150px] justify-center text-center">
-                    <Calendar className="w-4 h-4 text-blue-400" />
+                    <Calendar className="w-4 h-4 text-blue-400 shrink-0" />
                     <span className="font-bold text-white text-sm">
                       {formatMonthLabel(selectedMonth, language)}
                     </span>
@@ -1051,45 +1129,48 @@ export default function OrganizationDetailClient() {
                   </button>
                 </div>
 
+                {/* Current Month Button on Next Line */}
                 {selectedMonth !== getCurrentMonthKey() && (
                   <button
                     type="button"
                     onClick={goToCurrentMonth}
-                    className="px-3 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs font-semibold transition-all cursor-pointer animate-fade-in"
+                    className="mt-2.5 px-3 py-1 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 shadow-sm animate-fade-in"
                   >
-                    {language === 'bn' ? 'চলতি মাস' : 'Current Month'}
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>{language === 'bn' ? 'চলতি মাস' : 'Current Month'}</span>
                   </button>
                 )}
               </div>
 
-              {/* Action Buttons: Superadmin Demo Events + Create Event */}
-              <div className="flex items-center gap-2 flex-wrap justify-end">
-                {(isSuperAdmin(user?.email) || user?.email === 'hsntareq@gmail.com') && (
+              {/* Action Buttons: Full Width Button Group on Mobile, inline on Desktop */}
+              <div className="w-full sm:w-auto">
+                <div className="flex w-full sm:w-auto items-stretch rounded-xl p-1 bg-slate-800/80 border border-white/10 shadow-inner gap-1">
+                  {(isSuperAdmin(user?.email) || user?.email === 'hsntareq@gmail.com') && (
+                    <button
+                      type="button"
+                      onClick={handleCreateDemoEvents}
+                      disabled={creatingDemoEvents}
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:via-indigo-500 hover:to-blue-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-purple-600/30 transition-all cursor-pointer active:scale-95 text-center"
+                      title={language === 'bn' ? 'চলতি মাসের ডেমো কর্মসূচি তৈরি করুন' : 'Generate demo events for this month'}
+                    >
+                      {creatingDemoEvents ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                      )}
+                      <span className="truncate">{language === 'bn' ? 'ডেমো কর্মসূচি' : 'Demo Events'}</span>
+                    </button>
+                  )}
+
                   <button
                     type="button"
-                    onClick={handleCreateDemoEvents}
-                    disabled={creatingDemoEvents}
-                    className="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:via-indigo-500 hover:to-blue-500 text-white text-xs font-bold transition-all shadow-md shadow-purple-600/30 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 border border-purple-400/30 shrink-0"
-                    title={language === 'bn' ? 'চলতি মাসের ডেমো কর্মসূচি তৈরি করুন' : 'Generate demo events for this month'}
+                    onClick={handleOpenCreateEvent}
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-600/25 transition-all cursor-pointer active:scale-95 text-center"
                   >
-                    {creatingDemoEvents ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-4 h-4 text-amber-300" />
-                    )}
-                    <span>{language === 'bn' ? 'ডেমো কর্মসূচি যোগ' : 'Demo Events'}</span>
+                    <Plus className="w-4 h-4 shrink-0" />
+                    <span className="truncate">{language === 'bn' ? 'নতুন কর্মসূচি' : 'Create Event'}</span>
                   </button>
-                )}
-
-                {/* Create Event Trigger */}
-                <button
-                  type="button"
-                  onClick={handleOpenCreateEvent}
-                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/25 flex items-center justify-center gap-2 cursor-pointer active:scale-95 shrink-0"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>{language === 'bn' ? 'নতুন কর্মসূচি তৈরি করুন' : 'Create Event'}</span>
-                </button>
+                </div>
               </div>
             </div>
 
