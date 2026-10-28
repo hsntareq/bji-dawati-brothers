@@ -35,6 +35,7 @@ import { getOrgDisplayName, getOrgSecondaryName } from '@/lib/orgHelper';
 import { isSuperAdmin } from '@/lib/superadmin';
 import { encodeOrgId, decodeOrgId, isReservedRoute } from '@/lib/orgUrlHelper';
 import DemoEventsModal from '@/components/DemoEventsModal';
+import WhatsAppDispatcherModal from '@/components/WhatsAppDispatcherModal';
 import { DEMO_EVENT_TEMPLATES, generateDemoEventsForMonth, buildStructuredMessage, formatStructuredInvitation } from '@/lib/demoEventTemplates';
 
 const ORG_TYPES = [
@@ -167,6 +168,7 @@ export default function OrganizationsPage() {
 
   // ── Attendee Messaging State ──
   const [messagingEvent,  setMessagingEvent]  = useState<OrgEvent | null>(null);
+  const [isWhatsAppDispatcherOpen, setIsWhatsAppDispatcherOpen] = useState(false);
   const [attendeeSearchQuery, setAttendeeSearchQuery] = useState('');
   const [attendeeCategoryFilter, setAttendeeCategoryFilter] = useState<'all' | 'shohojogi' | 'kormi'>('all');
   const [attendeeStatusFilter, setAttendeeStatusFilter] = useState<'all' | 'invited' | 'confirmed' | 'attended' | 'declined'>('all');
@@ -3432,14 +3434,23 @@ export default function OrganizationsPage() {
 
             {/* Quick Broadcast / Announcement Copy Banner */}
             <div className="px-5 sm:px-6 py-3.5 bg-slate-950/70 border-b border-white/10 flex flex-wrap items-center justify-between gap-3 shrink-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setIsWhatsAppDispatcherOpen(true)}
+                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold border border-emerald-500/40 flex items-center gap-1.5 shadow-md shadow-emerald-900/30 transition-all cursor-pointer active:scale-95"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>{language === 'bn' ? '🚀 বাল্ক হোয়াটসঅ্যাপ অটোমেশন' : '🚀 Bulk WhatsApp Broadcast'}</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => copyToClipboard(formatEventInvitation(messagingEvent), language === 'bn' ? 'সম্পূর্ণ আমন্ত্রণ বার্তা কপি হয়েছে!' : 'Full announcement copied!')}
                   className="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
                 >
                   <Copy className="w-3.5 h-3.5" />
-                  <span>{language === 'bn' ? '📋 আমন্ত্রণ বার্তা কপি করুন' : '📋 Copy Full Announcement'}</span>
+                  <span>{language === 'bn' ? '📋 বার্তা কপি' : '📋 Copy Text'}</span>
                 </button>
 
                 <button
@@ -3451,7 +3462,7 @@ export default function OrganizationsPage() {
                   className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-white/10 flex items-center gap-1.5 transition-all cursor-pointer"
                 >
                   <Phone className="w-3.5 h-3.5 text-blue-400" />
-                  <span>{language === 'bn' ? 'সকল ফোন নম্বর কপি' : 'Copy All Numbers'}</span>
+                  <span>{language === 'bn' ? 'সকল নম্বর কপি' : 'Copy Numbers'}</span>
                 </button>
               </div>
 
@@ -3657,6 +3668,21 @@ export default function OrganizationsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Sub-modal: Bulk WhatsApp Dispatcher Modal ────── */}
+      {isWhatsAppDispatcherOpen && messagingEvent && selectedOrg && (
+        <WhatsAppDispatcherModal
+          isOpen={isWhatsAppDispatcherOpen}
+          onClose={() => setIsWhatsAppDispatcherOpen(false)}
+          event={messagingEvent}
+          orgTitle={orgName(selectedOrg)}
+          attendees={orgAttendees}
+          language={language}
+          onMarkInvited={(attId) => {
+            handleUpdateAttendeeResponse(messagingEvent.id, attId, 'invited');
+          }}
+        />
       )}
 
       {/* ── Create Organization Modal ───────────────── */}
