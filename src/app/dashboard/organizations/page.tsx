@@ -35,7 +35,7 @@ import { getOrgDisplayName, getOrgSecondaryName } from '@/lib/orgHelper';
 import { isSuperAdmin } from '@/lib/superadmin';
 import { encodeOrgId, decodeOrgId, isReservedRoute } from '@/lib/orgUrlHelper';
 import DemoEventsModal from '@/components/DemoEventsModal';
-import { DEMO_EVENT_TEMPLATES, generateDemoEventsForMonth } from '@/lib/demoEventTemplates';
+import { DEMO_EVENT_TEMPLATES, generateDemoEventsForMonth, buildStructuredMessage, formatStructuredInvitation } from '@/lib/demoEventTemplates';
 
 const ORG_TYPES = [
   { value: 'ward',   label: 'Ward',   desc: 'Parent ward — oversees multiple units', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
@@ -51,9 +51,11 @@ export interface OrgEvent {
   date: string; // YYYY-MM-DD
   time: string;
   message: string;
+  guest?: string;
+  convener?: string;
   targetCategory?: 'all' | 'shohojogi' | 'kormi';
-  createdAt: number;
-  createdBy: string;
+  createdAt?: number;
+  createdBy?: string;
   createdByName?: string;
   attendeeResponses?: Record<string, 'invited' | 'confirmed' | 'attended' | 'declined'>;
 }
@@ -64,6 +66,8 @@ const emptyEventForm = {
   date: '',
   time: '16:30',
   message: '',
+  guest: '',
+  convener: '',
   targetCategory: 'all' as 'all' | 'shohojogi' | 'kormi',
 };
 
@@ -618,12 +622,17 @@ export default function OrganizationsPage() {
       ? new Date().toISOString().slice(0, 10)
       : `${selectedMonth}-01`;
     const locs = selectedOrg ? getAvailableLocations(selectedOrg) : [];
+    const defaultConvener = selectedOrg
+      ? (language === 'bn' ? `সভাপতি / সেক্রেটারি, ${orgName(selectedOrg)}` : `President / Secretary, ${orgName(selectedOrg)}`)
+      : (language === 'bn' ? 'সভাপতি / সেক্রেটারি' : 'President / Secretary / Owner of the org');
     setEventForm({
       name: '',
       location: locs[0] || '',
       date: defaultDate,
       time: '16:30',
       message: '',
+      guest: language === 'bn' ? 'এমপি প্রার্থী কবির আহমেদ' : 'MP Candidate Kabir Ahmed',
+      convener: defaultConvener,
       targetCategory: 'all',
     });
     setIsEventModalOpen(true);
@@ -637,6 +646,8 @@ export default function OrganizationsPage() {
       date: evt.date || '',
       time: evt.time || '',
       message: evt.message || '',
+      guest: evt.guest || '',
+      convener: evt.convener || '',
       targetCategory: evt.targetCategory || 'all',
     });
     setIsEventModalOpen(true);
@@ -658,6 +669,8 @@ export default function OrganizationsPage() {
         date: eventForm.date,
         time: eventForm.time.trim(),
         message: eventForm.message.trim(),
+        guest: eventForm.guest?.trim() || '',
+        convener: eventForm.convener?.trim() || '',
         targetCategory: eventForm.targetCategory,
         createdAt: editingEvent?.createdAt || Date.now(),
         createdBy: editingEvent?.createdBy || user?.uid || '',
@@ -735,7 +748,7 @@ export default function OrganizationsPage() {
     try {
       const authorUid = user.uid || '';
       const authorName = user.displayName || user.email?.split('@')[0] || 'SuperAdmin';
-      const demoEvts = generateDemoEventsForMonth(selectedOrg.id, selectedMonth, authorUid, authorName, language, selectedKeys);
+      const demoEvts = generateDemoEventsForMonth(selectedOrg.id, selectedMonth, authorUid, authorName, language, selectedKeys, orgName(selectedOrg));
 
       // Merge into state and sort
       setOrgEvents(prev => {
@@ -807,38 +820,7 @@ export default function OrganizationsPage() {
 
   // Format WhatsApp / Announcement Invitation Message
   const formatEventInvitation = (event: OrgEvent, contact?: any) => {
-    const targetOrgName = orgName(selectedOrg);
-    const contactGreeting = contact
-      ? (language === 'bn' ? `আসসালামু আলাইকুম ${contact.nameBn || contact.name},` : `Assalamu Alaikum ${contact.name},`)
-      : (language === 'bn' ? 'আসসালামু আলাইকুম,' : 'Assalamu Alaikum,');
-
-    const dateFormatted = event.date;
-    const timeFormatted = event.time || (language === 'bn' ? 'সময়মতো' : 'On time');
-    const locationFormatted = event.location || targetOrgName;
-
-    if (language === 'bn') {
-      return `${contactGreeting}
-
-📢 *কর্মসূচির আমন্ত্রণ - ${targetOrgName}*
-
-📌 *কর্মসূচি:* ${event.name}
-📅 *তারিখ:* ${dateFormatted}
-⏰ *সময়:* ${timeFormatted}
-📍 *স্থান:* ${locationFormatted}
-
-${event.message ? `💬 *বার্তা:*\n${event.message}\n\n` : ''}ইনশাআল্লাহ আপনার সময়মতো উপস্থিতি ও সক্রিয় সহযোগিতা একান্তভাবে কাম্য।`;
-    }
-
-    return `${contactGreeting}
-
-📢 *Program Invitation - ${targetOrgName}*
-
-📌 *Event:* ${event.name}
-📅 *Date:* ${dateFormatted}
-⏰ *Time:* ${timeFormatted}
-📍 *Location:* ${locationFormatted}
-
-${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual presence and participation are earnestly requested. InshaAllah.`;
+    return formatStructuredInvitation(event, orgName(selectedOrg), language, contact);
   };
 
   const copyToClipboard = async (text: string, successMsg: string) => {
@@ -2538,7 +2520,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
                                   <MessageSquare className="w-3 h-3 text-blue-400" />
                                   <span>{language === 'bn' ? 'উপস্থিতদের জন্য বার্তা' : 'Message to Attendees'}:</span>
                                 </div>
-                                <p className="italic text-slate-300 whitespace-pre-wrap">{evt.message}</p>
+                                <p className="text-slate-200 whitespace-pre-wrap font-sans text-xs sm:text-[13px] leading-relaxed">{evt.message}</p>
                               </div>
                             )}
 
@@ -3145,13 +3127,32 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
                         key={tmpl.key}
                         type="button"
                         onClick={() => {
+                          const name = language === 'bn' ? tmpl.nameBn : tmpl.nameEn;
+                          const time = language === 'bn' ? tmpl.timeBn : tmpl.timeEn;
+                          const location = eventForm.location || (language === 'bn' ? tmpl.locationBn : tmpl.locationEn);
+                          const guest = language === 'bn' ? tmpl.guestBn : tmpl.guestEn;
+                          const convener = eventForm.convener || (language === 'bn' ? tmpl.convenerBn : tmpl.convenerEn);
+                          const date = eventForm.date || `${selectedMonth}-${String(tmpl.dayOffset).padStart(2, '0')}`;
+                          const message = buildStructuredMessage({
+                            programName: name,
+                            orgName: selectedOrg ? orgName(selectedOrg) : '',
+                            date,
+                            time,
+                            location,
+                            guestName: guest,
+                            convener,
+                            lang: language,
+                          });
                           setEventForm(prev => ({
                             ...prev,
-                            name: language === 'bn' ? tmpl.nameBn : tmpl.nameEn,
-                            time: language === 'bn' ? tmpl.timeBn : tmpl.timeEn,
-                            location: prev.location || (language === 'bn' ? tmpl.locationBn : tmpl.locationEn),
+                            name,
+                            time,
+                            location,
+                            guest,
+                            convener,
+                            date,
                             targetCategory: tmpl.category,
-                            message: language === 'bn' ? tmpl.messageBn : tmpl.messageEn,
+                            message,
                           }));
                         }}
                         className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all text-left flex items-center gap-1.5 cursor-pointer ${
@@ -3271,6 +3272,37 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
                 })()}
               </div>
 
+              {/* Guests and Convener row with appropriate logos */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <span>🎙️</span>
+                    <span>{language === 'bn' ? 'বিশেষ অতিথি ও পরিচয়' : 'Special Guest & Identity'}</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={eventForm.guest}
+                    onChange={e => setEventForm(f => ({ ...f, guest: e.target.value }))}
+                    placeholder={language === 'bn' ? 'যেমন: এমপি প্রার্থী কবির আহমেদ' : 'e.g. MP Candidate Kabir Ahmed'}
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <span>👤</span>
+                    <span>{language === 'bn' ? 'বিনীত আহ্বানকারী / পদবী' : 'Convener / Regards'}</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={eventForm.convener}
+                    onChange={e => setEventForm(f => ({ ...f, convener: e.target.value }))}
+                    placeholder={language === 'bn' ? 'যেমন: সভাপতি / সেক্রেটারি' : 'e.g. President / Secretary'}
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
               {/* Target Audience / Category */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
@@ -3307,22 +3339,30 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
                   <button
                     type="button"
                     onClick={() => {
-                      const sample = language === 'bn'
-                        ? 'আসসালামু আলাইকুম। আমাদের মাসিক সাধারণ সভা অনুষ্ঠিত হবে। আপনার আন্তরিক উপস্থিতি ও সহযোগিতা একান্ত কাম্য।'
-                        : 'Assalamu Alaikum. Our monthly general meeting will be held. Your attendance and participation are earnestly requested.';
-                      setEventForm(f => ({ ...f, message: sample }));
+                      const structuredMsg = buildStructuredMessage({
+                        programName: eventForm.name.trim() || (language === 'bn' ? 'বিশেষ দাওয়াতি কর্মসূচি' : 'Special Program'),
+                        orgName: selectedOrg ? orgName(selectedOrg) : '',
+                        date: eventForm.date || (language === 'bn' ? 'নির্ধারিত তারিখ' : 'Scheduled date'),
+                        time: eventForm.time || '16:30',
+                        location: eventForm.location || (selectedOrg ? orgName(selectedOrg) : ''),
+                        guestName: eventForm.guest?.trim() || (language === 'bn' ? 'এমপি প্রার্থী কবির আহমেদ' : 'MP Candidate Kabir Ahmed'),
+                        convener: eventForm.convener?.trim() || (language === 'bn' ? `সভাপতি / সেক্রেটারি, ${orgName(selectedOrg)}` : `President / Secretary, ${orgName(selectedOrg)}`),
+                        lang: language,
+                      });
+                      setEventForm(f => ({ ...f, message: structuredMsg }));
                     }}
-                    className="text-[11px] text-blue-400 hover:text-blue-300 font-semibold cursor-pointer"
+                    className="text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer flex items-center gap-1"
                   >
-                    {language === 'bn' ? '✨ নমুনা বার্তা ব্যবহার করুন' : '✨ Use Template'}
+                    <span>✨</span>
+                    <span>{language === 'bn' ? 'পূর্ণাঙ্গ বার্তা তৈরি করুন' : 'Generate Structured Message'}</span>
                   </button>
                 </div>
                 <textarea
-                  rows={3}
+                  rows={5}
                   value={eventForm.message}
                   onChange={e => setEventForm(f => ({ ...f, message: e.target.value }))}
-                  placeholder={language === 'bn' ? 'উপস্থিতদের উদ্দেশ্যে বিশেষ নির্দেশনা বা অনুরোধ লিখুন...' : 'Add special instructions or notes for attendees...'}
-                  className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed"
+                  placeholder={language === 'bn' ? 'উপস্থিতদের উদ্দেশ্যে বার্তা লিখুন...' : 'Write message or instructions for attendees...'}
+                  className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed font-sans"
                 />
               </div>
 

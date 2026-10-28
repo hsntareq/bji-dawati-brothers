@@ -30,7 +30,7 @@ import { getOrgDisplayName, getOrgSecondaryName } from '@/lib/orgHelper';
 import { isSuperAdmin } from '@/lib/superadmin';
 import { decodeOrgId } from '@/lib/orgUrlHelper';
 import DemoEventsModal from '@/components/DemoEventsModal';
-import { DEMO_EVENT_TEMPLATES, generateDemoEventsForMonth } from '@/lib/demoEventTemplates';
+import { DEMO_EVENT_TEMPLATES, generateDemoEventsForMonth, buildStructuredMessage, formatStructuredInvitation } from '@/lib/demoEventTemplates';
 
 interface OrgEvent {
   id: string;
@@ -39,7 +39,9 @@ interface OrgEvent {
   location: string;
   date: string; // YYYY-MM-DD
   time: string; // e.g. "04:30 PM" or "বাদ আসর"
-  message?: string;
+  message: string;
+  guest?: string;
+  convener?: string;
   targetCategory?: 'all' | 'shohojogi' | 'kormi';
   createdAt?: number;
   createdBy?: string;
@@ -53,6 +55,8 @@ const emptyEventForm = {
   date: new Date().toISOString().slice(0, 10),
   time: 'বাদ আসর',
   message: '',
+  guest: '',
+  convener: '',
   targetCategory: 'all' as 'all' | 'shohojogi' | 'kormi',
 };
 
@@ -392,13 +396,29 @@ export default function OrganizationDetailClient() {
   // Event handlers
   const handleOpenCreateEvent = () => {
     setEditingEvent(null);
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const defaultConvener = currentOrg
+      ? (language === 'bn' ? `সভাপতি / সেক্রেটারি, ${orgName(currentOrg)}` : `President / Secretary, ${orgName(currentOrg)}`)
+      : (language === 'bn' ? 'সভাপতি / সেক্রেটারি' : 'President / Secretary / Owner of the org');
+    const defaultGuest = language === 'bn' ? 'এমপি প্রার্থী কবির আহমেদ' : 'MP Candidate Kabir Ahmed';
+    const loc = availableLocations[0] || (currentOrg?.name ? `${orgName(currentOrg)} প্রাঙ্গণ` : '');
+    
     setEventForm({
       ...emptyEventForm,
-      date: new Date().toISOString().slice(0, 10),
-      location: availableLocations[0] || (currentOrg?.name ? `${orgName(currentOrg)} প্রাঙ্গণ` : ''),
-      message: language === 'bn'
-        ? `আসসালামু আলাইকুম। আগামী ${new Date().toLocaleDateString('bn-BD', { day: 'numeric', month: 'long' })}, ${orgName(currentOrg)}-এর উদ্যোগে গুরুত্বপূর্ণ কর্মসূচি অনুষ্ঠিত হবে। ইনশাআল্লাহ আপনার উপস্থিতি কামনা করছি।`
-        : `Assalamu Alaikum. You are cordially invited to attend our upcoming program for ${orgName(currentOrg)}. Please confirm your attendance.`,
+      date: todayStr,
+      location: loc,
+      guest: defaultGuest,
+      convener: defaultConvener,
+      message: buildStructuredMessage({
+        programName: language === 'bn' ? 'মাসিক সাধারণ সভা ও দাওয়াতি পর্যালোচনা' : 'Monthly Dawah Review & General Meeting',
+        orgName: orgName(currentOrg),
+        date: todayStr,
+        time: '০৪:৩০ PM (বাদ আসর)',
+        location: loc,
+        guestName: defaultGuest,
+        convener: defaultConvener,
+        lang: language,
+      }),
     });
     setIsEventModalOpen(true);
   };
@@ -411,6 +431,8 @@ export default function OrganizationDetailClient() {
       date: evt.date,
       time: evt.time,
       message: evt.message || '',
+      guest: evt.guest || '',
+      convener: evt.convener || '',
       targetCategory: evt.targetCategory || 'all',
     });
     setIsEventModalOpen(true);
@@ -430,6 +452,8 @@ export default function OrganizationDetailClient() {
         date: eventForm.date,
         time: eventForm.time.trim(),
         message: eventForm.message.trim(),
+        guest: eventForm.guest?.trim() || '',
+        convener: eventForm.convener?.trim() || '',
         targetCategory: eventForm.targetCategory,
         createdAt: editingEvent?.createdAt || Date.now(),
         createdBy: editingEvent?.createdBy || user?.uid || '',
@@ -498,7 +522,7 @@ export default function OrganizationDetailClient() {
     try {
       const authorUid = user.uid || '';
       const authorName = user.displayName || user.email?.split('@')[0] || 'SuperAdmin';
-      const demoEvts = generateDemoEventsForMonth(currentOrg.id, selectedMonth, authorUid, authorName, language, selectedKeys);
+      const demoEvts = generateDemoEventsForMonth(currentOrg.id, selectedMonth, authorUid, authorName, language, selectedKeys, orgName(currentOrg));
 
       // Merge into state and sort
       setOrgEvents(prev => {
@@ -586,22 +610,7 @@ export default function OrganizationDetailClient() {
   };
 
   const formatEventInvitation = (evt: OrgEvent, contact?: any): string => {
-    const contactGreeting = contact?.name ? `প্রিয় ${contact.nameBn || contact.name}, ` : '';
-    const dateFormatted = evt.date;
-    const lines = [
-      `السلام عليكم ورحمة الله وبركاته`,
-      contactGreeting ? contactGreeting : '',
-      `📌 *${evt.name}*`,
-      `🏛 সংগঠন: ${orgName(currentOrg)}`,
-      `📅 তারিখ: ${dateFormatted}`,
-      `⏰ সময়: ${evt.time || 'নির্ধারিত সময়ে'}`,
-      `📍 স্থান: ${evt.location || 'নির্ধারিত স্থানে'}`,
-    ];
-    if (evt.message) {
-      lines.push(``, `📝 *বার্তা:*`, evt.message);
-    }
-    lines.push(``, `ইনশাআল্লাহ আপনার সময়মতো উপস্থিতি কামনা করছি।`);
-    return lines.filter(Boolean).join('\n');
+    return formatStructuredInvitation(evt, orgName(currentOrg), language, contact);
   };
 
   // Member management
@@ -1277,8 +1286,12 @@ export default function OrganizationDetailClient() {
 
                         {/* Event Message preview if present */}
                         {evt.message && (
-                          <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 text-xs text-slate-300 line-clamp-2 italic">
-                            &quot;{evt.message}&quot;
+                          <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 text-xs text-slate-300 relative">
+                            <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-slate-500 mb-1.5">
+                              <MessageSquare className="w-3 h-3 text-blue-400" />
+                              <span>{language === 'bn' ? 'উপস্থিতদের জন্য বার্তা' : 'Message to Attendees'}:</span>
+                            </div>
+                            <p className="text-slate-200 whitespace-pre-wrap font-sans text-xs sm:text-[13px] leading-relaxed">{evt.message}</p>
                           </div>
                         )}
 
@@ -1857,13 +1870,32 @@ export default function OrganizationDetailClient() {
                         key={tmpl.key}
                         type="button"
                         onClick={() => {
+                          const name = language === 'bn' ? tmpl.nameBn : tmpl.nameEn;
+                          const time = language === 'bn' ? tmpl.timeBn : tmpl.timeEn;
+                          const location = eventForm.location || (language === 'bn' ? tmpl.locationBn : tmpl.locationEn);
+                          const guest = language === 'bn' ? tmpl.guestBn : tmpl.guestEn;
+                          const convener = eventForm.convener || (language === 'bn' ? tmpl.convenerBn : tmpl.convenerEn);
+                          const date = eventForm.date || `${selectedMonth}-${String(tmpl.dayOffset).padStart(2, '0')}`;
+                          const message = buildStructuredMessage({
+                            programName: name,
+                            orgName: currentOrg ? orgName(currentOrg) : '',
+                            date,
+                            time,
+                            location,
+                            guestName: guest,
+                            convener,
+                            lang: language,
+                          });
                           setEventForm(prev => ({
                             ...prev,
-                            name: language === 'bn' ? tmpl.nameBn : tmpl.nameEn,
-                            time: language === 'bn' ? tmpl.timeBn : tmpl.timeEn,
-                            location: prev.location || (language === 'bn' ? tmpl.locationBn : tmpl.locationEn),
+                            name,
+                            time,
+                            location,
+                            guest,
+                            convener,
+                            date,
                             targetCategory: tmpl.category,
-                            message: language === 'bn' ? tmpl.messageBn : tmpl.messageEn,
+                            message,
                           }));
                         }}
                         className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all text-left flex items-center gap-1.5 cursor-pointer ${
@@ -1979,6 +2011,37 @@ export default function OrganizationDetailClient() {
                 </div>
               </div>
 
+              {/* Special Guest & Convener Row with appropriate logos */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <span>🎙️</span>
+                    <span>{language === 'bn' ? 'বিশেষ অতিথি ও পরিচয়' : 'Special Guest & Identity'}</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={eventForm.guest}
+                    onChange={e => setEventForm(f => ({ ...f, guest: e.target.value }))}
+                    placeholder={language === 'bn' ? 'যেমন: এমপি প্রার্থী কবির আহমেদ' : 'e.g. MP Candidate Kabir Ahmed'}
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <span>👤</span>
+                    <span>{language === 'bn' ? 'বিনীত আহ্বানকারী / পদবী' : 'Convener / Regards'}</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={eventForm.convener}
+                    onChange={e => setEventForm(f => ({ ...f, convener: e.target.value }))}
+                    placeholder={language === 'bn' ? 'যেমন: সভাপতি / সেক্রেটারি' : 'e.g. President / Secretary'}
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
               {/* Target category */}
               <div>
                 <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
@@ -2015,25 +2078,30 @@ export default function OrganizationDetailClient() {
                   <button
                     type="button"
                     onClick={() => {
-                      setEventForm(f => ({
-                        ...f,
-                        message: language === 'bn'
-                          ? `আসসালামু আলাইকুম। আগামী ${f.date || 'তারিখে'}, ${orgName(currentOrg)}-এর উদ্যোগে "${f.name || 'কর্মসূচি'}" অনুষ্ঠিত হবে। ইনশাআল্লাহ আপনার উপস্থিতি কামনা করছি।`
-                          : `Assalamu Alaikum. You are warmly invited to join the upcoming ${f.name || 'Event'} organized by ${orgName(currentOrg)}. Please confirm your attendance.`,
-                      }));
+                      const structuredMsg = buildStructuredMessage({
+                        programName: eventForm.name.trim() || (language === 'bn' ? 'বিশেষ দাওয়াতি কর্মসূচি' : 'Special Program'),
+                        orgName: currentOrg ? orgName(currentOrg) : '',
+                        date: eventForm.date || (language === 'bn' ? 'নির্ধারিত তারিখ' : 'Scheduled date'),
+                        time: eventForm.time || '16:30',
+                        location: eventForm.location || (currentOrg ? orgName(currentOrg) : ''),
+                        guestName: eventForm.guest?.trim() || (language === 'bn' ? 'এমপি প্রার্থী কবির আহমেদ' : 'MP Candidate Kabir Ahmed'),
+                        convener: eventForm.convener?.trim() || (language === 'bn' ? `সভাপতি / সেক্রেটারি, ${orgName(currentOrg)}` : `President / Secretary, ${orgName(currentOrg)}`),
+                        lang: language,
+                      });
+                      setEventForm(f => ({ ...f, message: structuredMsg }));
                     }}
-                    className="text-[10px] text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1 cursor-pointer"
+                    className="text-[10px] text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1 cursor-pointer"
                   >
-                    <Sparkles className="w-3 h-3" />
-                    <span>{language === 'bn' ? 'টেমপ্লেট ব্যবহার' : 'Use Template'}</span>
+                    <span>✨</span>
+                    <span>{language === 'bn' ? 'পূর্ণাঙ্গ বার্তা তৈরি করুন' : 'Generate Structured Message'}</span>
                   </button>
                 </div>
                 <textarea
-                  rows={3}
+                  rows={5}
                   value={eventForm.message}
                   onChange={e => setEventForm(f => ({ ...f, message: e.target.value }))}
                   placeholder={language === 'bn' ? 'উপস্থিতদের মেসেজ, এজেন্ডা বা নির্দেশিকা লিখুন...' : 'Write instructions or message for attendees...'}
-                  className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed font-sans"
                 />
               </div>
 
