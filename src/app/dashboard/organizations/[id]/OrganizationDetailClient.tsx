@@ -29,6 +29,8 @@ import { useLanguage } from '@/context/LanguageContext';
 import { getOrgDisplayName, getOrgSecondaryName } from '@/lib/orgHelper';
 import { isSuperAdmin } from '@/lib/superadmin';
 import { decodeOrgId } from '@/lib/orgUrlHelper';
+import DemoEventsModal from '@/components/DemoEventsModal';
+import { DEMO_EVENT_TEMPLATES, generateDemoEventsForMonth } from '@/lib/demoEventTemplates';
 
 interface OrgEvent {
   id: string;
@@ -95,80 +97,7 @@ const toE164Phone = (raw: string | undefined): string => {
   return digits;
 };
 
-const generateDemoEventsForMonth = (
-  targetOrgId: string,
-  monthKey: string,
-  authorUid: string,
-  authorName: string,
-  lang: 'en' | 'bn'
-): OrgEvent[] => {
-  return [
-    {
-      id: generateOfflineId(),
-      orgId: targetOrgId,
-      name: lang === 'bn' ? 'মাসিক সাধারণ সভা ও দাওয়াতি পর্যালোচনা' : 'Monthly Dawah Review & General Meeting',
-      date: `${monthKey}-06`,
-      time: lang === 'bn' ? '০৪:৩০ PM (বাদ আসর)' : '04:30 PM (After Asr)',
-      location: lang === 'bn' ? 'ইউনিট কার্যালয় ও মসজিদ মিলনায়তন' : 'Unit Office & Mosque Conference Hall',
-      message: lang === 'bn'
-        ? 'আসসালামু আলাইকুম ওয়া রাহমাতুল্লাহ। আমাদের ইউনিটের সম্মানিত সকল ভাইদের অবগতির জন্য জানানো যাচ্ছে যে, আগামী ৬ তারিখে বাদ আসর আমাদের মাসিক দাওয়াতি পর্যালোচনা ও সাধারণ সভা অনুষ্ঠিত হবে ইনশাআল্লাহ। অনুষ্ঠানে বিগত মাসের দাওয়াতি অগ্রগতির হিসাব এবং আগামী মাসের কর্মপরিকল্পনা চূড়ান্ত করা হবে। আপনার উপস্থিতি ও মূল্যবান পরামর্শ আমাদের একান্ত প্রয়োজন। যথাসময়ে উপস্থিত হয়ে কর্মসূচিকে সাফল্যমণ্ডিত করার জন্য বিনীত অনুরোধ করা হলো।'
-        : 'Assalamu Alaikum wa Rahmatullah. You are cordially invited to attend our Monthly Dawah Review and General Assembly on the 6th after Asr prayer. We will review past accomplishments, address organizational milestones, and outline the action plan for the coming month. Your active presence and valuable insights are deeply appreciated.',
-      targetCategory: 'all',
-      createdAt: Date.now() - 3600000 * 24 * 3,
-      createdBy: authorUid,
-      createdByName: authorName,
-      attendeeResponses: {},
-    },
-    {
-      id: generateOfflineId(),
-      orgId: targetOrgId,
-      name: lang === 'bn' ? 'সহযোগী সমাবেশ ও তাফসিরুল কুরআন মাহফিল' : 'Associate Gathering & Quran Study Circle',
-      date: `${monthKey}-14`,
-      time: lang === 'bn' ? '০৭:১৫ PM (বাদ এশা)' : '07:15 PM (After Isha)',
-      location: lang === 'bn' ? 'কেন্দ্রীয় জামে মসজিদ সংলগ্ন হলরুম' : 'Central Jame Mosque Community Hall',
-      message: lang === 'bn'
-        ? 'মুহতারাম সহযোগী ভাই, আসসালামু আলাইকুম। দ্বীনি জ্ঞান অর্জন ও আত্মশুদ্ধির ধারাবাহিকতায় আগামী ১৪ তারিখে বাদ এশা আমাদের বিশেষ কুরআন স্টাডি সার্কেল ও সহযোগী সমাবেশ অনুষ্ঠিত হতে যাচ্ছে। এতে সূরা আল-ইমরানের নির্বাচিত আয়াতসমূহের আলোকে তাৎপর্যপূর্ণ আলোচনা পেশ করবেন আমন্ত্রিত আলোচকবৃন্দ। আপনার সশরীরে উপস্থিতি আমাদের দাওয়াতকে আরও বেগবান করবে। জাযাকুমুল্লাহু খাইরান।'
-        : 'Dear Associate Brother, Assalamu Alaikum. As part of our continuous spiritual purification and Quranic learning, a specialized Quran Study Circle and Associate Gathering is scheduled for the 14th after Isha prayer. Respected guest scholars will present deep tafseer reflections. We warmly anticipate your presence.',
-      targetCategory: 'shohojogi',
-      createdAt: Date.now() - 3600000 * 24 * 2,
-      createdBy: authorUid,
-      createdByName: authorName,
-      attendeeResponses: {},
-    },
-    {
-      id: generateOfflineId(),
-      orgId: targetOrgId,
-      name: lang === 'bn' ? 'কর্মী শিক্ষাশিবির ও ময়দানি কর্মপরিকল্পনা' : 'Workers Training Camp & Strategy Meeting',
-      date: `${monthKey}-21`,
-      time: lang === 'bn' ? '০৮:৩০ AM - ১২:৩০ PM' : '08:30 AM - 12:30 PM',
-      location: lang === 'bn' ? 'ওয়ার্ড ইসলামিক সেন্টার অডিটোরিয়াম' : 'Ward Islamic Center Training Auditorium',
-      message: lang === 'bn'
-        ? 'প্রিয় কর্মী ভাই, আসসালামু আলাইকুম। ময়দানে দাওয়াতি কার্যক্রমের মানোন্নয়ন ও সাংগঠনিক দক্ষতা বৃদ্ধির লক্ষ্যে আগামী ২১ তারিখে অর্ধ-দিবস কর্মী শিক্ষাশিবির অনুষ্ঠিত হবে। ইনশাআল্লাহ সময়ানুবর্তিতা বজায় রেখে সকাল ০৮:৩০ মিনিটের পূর্বে প্রয়োজনীয় নোটপ্যাড ও কলমসহ উপস্থিত থাকার অনুরোধ রইল। আল্লাহ তায়ালা আমাদের সমস্ত আমলকে কবুল করে দ্বীনের জন্য কবুল করুন, আমীন।'
-        : 'Dear Worker Brother, Assalamu Alaikum. To enhance field leadership and dawah efficacy, our half-day Workers Training Camp will take place on the 21st from 8:30 AM. Please ensure punctuality and bring writing materials for workshops and strategy sessions. May Allah accept our humble efforts.',
-      targetCategory: 'kormi',
-      createdAt: Date.now() - 3600000 * 24 * 1,
-      createdBy: authorUid,
-      createdByName: authorName,
-      attendeeResponses: {},
-    },
-    {
-      id: generateOfflineId(),
-      orgId: targetOrgId,
-      name: lang === 'bn' ? 'ফ্রি মেডিকেল ও সমাজসেবামূলক ক্যাম্প' : 'Free Community Health & Social Welfare Camp',
-      date: `${monthKey}-27`,
-      time: lang === 'bn' ? '০৯:০০ AM - ০২:০০ PM' : '09:00 AM - 02:00 PM',
-      location: lang === 'bn' ? 'স্থানীয় স্কুল মাঠ ও মসজিদ প্রাঙ্গণ' : 'Local School Grounds & Community Yard',
-      message: lang === 'bn'
-        ? 'আসসালামু আলাইকুম। গণমানুষের কল্যানে ও সামাজিক দায়বদ্ধতার অংশ হিসেবে আগামী ২৭ তারিখে একটি বিশেষ ফ্রি স্বাস্থ্যসেবা ও ব্লাড গ্রুপিং ক্যাম্প পরিচালিত হবে। স্থানীয় অভিজ্ঞ চিকিৎসকবৃন্দ বিনামূল্যে রোগী দেখবেন ও প্রাথমিক ওষুধ বিতরণ করা হবে। এই জনকল্যাণমূলক কাজে আপনার সক্রিয় উপস্থিতি, স্বেচ্ছাসেবা ও সার্বিক সহযোগিতা আন্তরিকভাবে কামনা করছি।'
-        : 'Assalamu Alaikum. In pursuit of social welfare and uplifting underserved communities, we are organizing a Free Health Screening and Blood Grouping Camp on the 27th from 9:00 AM to 2:00 PM. Expert medical practitioners will provide consultations. Your volunteer participation and support are earnestly requested.',
-      targetCategory: 'all',
-      createdAt: Date.now(),
-      createdBy: authorUid,
-      createdByName: authorName,
-      attendeeResponses: {},
-    },
-  ];
-};
+
 
 export default function OrganizationDetailClient() {
   const params = useParams();
@@ -206,6 +135,7 @@ export default function OrganizationDetailClient() {
   const [eventForm, setEventForm] = useState(emptyEventForm);
   const [savingEvent, setSavingEvent] = useState(false);
   const [creatingDemoEvents, setCreatingDemoEvents] = useState(false);
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
 
   // Attendee Messaging State
   const [messagingEvent, setMessagingEvent] = useState<OrgEvent | null>(null);
@@ -558,13 +488,17 @@ export default function OrganizationDetailClient() {
     }
   };
 
-  const handleCreateDemoEvents = async () => {
+  const handleOpenDemoModal = () => {
+    setIsDemoModalOpen(true);
+  };
+
+  const handleGenerateDemoEvents = async (selectedKeys?: string[]) => {
     if (!currentOrg || !user || creatingDemoEvents) return;
     setCreatingDemoEvents(true);
     try {
       const authorUid = user.uid || '';
       const authorName = user.displayName || user.email?.split('@')[0] || 'SuperAdmin';
-      const demoEvts = generateDemoEventsForMonth(currentOrg.id, selectedMonth, authorUid, authorName, language);
+      const demoEvts = generateDemoEventsForMonth(currentOrg.id, selectedMonth, authorUid, authorName, language, selectedKeys);
 
       // Merge into state and sort
       setOrgEvents(prev => {
@@ -603,6 +537,8 @@ export default function OrganizationDetailClient() {
       setCreatingDemoEvents(false);
     }
   };
+
+  const handleCreateDemoEvents = handleOpenDemoModal;
 
   const handleUpdateAttendeeResponse = async (eventId: string, contactId: string, status: 'confirmed' | 'attended' | 'declined') => {
     if (!currentOrg) return;
@@ -1902,6 +1838,48 @@ export default function OrganizationDetailClient() {
 
             {/* Modal Form */}
             <form onSubmit={handleSaveEvent} className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
+              {/* Quick Event Template Selector */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                    {language === 'bn' ? 'কর্মসূচির ধরণ বেছে নিন (দ্রুত টেমপ্লেট)' : 'Event Type / Quick Templates'}
+                  </label>
+                  <span className="text-[10px] text-indigo-400 font-medium">
+                    {language === 'bn' ? 'ক্লিক করলে তথ্য পূরণ হবে' : 'Click to auto-fill'}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1.5 bg-slate-950/50 rounded-xl border border-white/5">
+                  {DEMO_EVENT_TEMPLATES.map(tmpl => {
+                    const title = language === 'bn' ? tmpl.nameBn : tmpl.nameEn;
+                    const isSelected = eventForm.name === title;
+                    return (
+                      <button
+                        key={tmpl.key}
+                        type="button"
+                        onClick={() => {
+                          setEventForm(prev => ({
+                            ...prev,
+                            name: language === 'bn' ? tmpl.nameBn : tmpl.nameEn,
+                            time: language === 'bn' ? tmpl.timeBn : tmpl.timeEn,
+                            location: prev.location || (language === 'bn' ? tmpl.locationBn : tmpl.locationEn),
+                            targetCategory: tmpl.category,
+                            message: language === 'bn' ? tmpl.messageBn : tmpl.messageEn,
+                          }));
+                        }}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all text-left flex items-center gap-1.5 cursor-pointer ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-purple-600 to-indigo-600 border-purple-400 text-white shadow-sm'
+                            : 'bg-slate-800/80 border-white/10 text-slate-300 hover:bg-slate-700/80 hover:text-white hover:border-white/20'
+                        }`}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+                        <span className="truncate">{title}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Event Name */}
               <div>
                 <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
@@ -2081,6 +2059,16 @@ export default function OrganizationDetailClient() {
           </div>
         </div>
       )}
+
+      {/* ── Demo Events Modal ── */}
+      <DemoEventsModal
+        isOpen={isDemoModalOpen}
+        onClose={() => setIsDemoModalOpen(false)}
+        selectedMonth={selectedMonth}
+        orgTitle={currentOrg ? orgName(currentOrg) : ''}
+        isGenerating={creatingDemoEvents}
+        onGenerate={handleGenerateDemoEvents}
+      />
 
       {/* ── Sub-modal: Attendee Messaging Modal ────────────── */}
       {messagingEvent && (
