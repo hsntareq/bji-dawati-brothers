@@ -193,16 +193,7 @@ export default function OrganizationsPage() {
   const { language } = useLanguage();
   const orgName = (o: any) => getOrgDisplayName(o, language);
 
-  // Auto-navigate to unique URL if orgId query param passed
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const orgParam = params.get('orgId') || params.get('id');
-      if (orgParam) {
-        router.push(`/dashboard/organizations/${orgParam}`);
-      }
-    }
-  }, [router]);
+
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [allOrgsRaw,    setAllOrgsRaw]    = useState<any[]>([]);
   const [loading,       setLoading]       = useState(true);
@@ -288,8 +279,7 @@ export default function OrganizationsPage() {
         } else if (isEventModalOpen) {
           setIsEventModalOpen(false);
         } else if (selectedOrg) {
-          setSelectedOrg(null);
-          setIsFullView(false);
+          closeOrgFullView();
         }
       }
     };
@@ -300,8 +290,7 @@ export default function OrganizationsPage() {
   // ── Swipe to Dismiss Handlers (Slide right to close) ──
   const orgDetailSwipeRef = useSwipeToDismiss({
     onClose: () => {
-      setSelectedOrg(null);
-      setIsFullView(false);
+      closeOrgFullView();
     },
   });
   const orgModalSwipeRef = useSwipeToDismiss({
@@ -576,11 +565,81 @@ export default function OrganizationsPage() {
     }
   };
 
-  // Open Organization Full View (When Manage button is clicked -> Navigate to Unique URL)
-  const openOrgManage = (org: any) => {
+  // Open Organization Full View (When Manage button is clicked -> Sets org & updates URL to ?org=${org.id})
+  const openOrgManage = (org: any, updateUrl = true) => {
     if (!org) return;
-    router.push(`/dashboard/organizations/${org.id}`);
+    setSelectedOrg(org);
+    setIsFullView(true);
+    setActiveOrgTab('events');
+    setEditOrgForm({
+      name: org.name || '',
+      nameBn: org.nameBn || org.bnName || '',
+      type: org.type || 'unit',
+      wardName: org.wardName || '',
+      parentOrgId: org.parentOrgId || '',
+    });
+    setNewMemberEmail('');
+    setNewLocationInput('');
+    setFeedback(null);
+    setMessagingEvent(null);
+    setIsEventModalOpen(false);
+    fetchOrgEvents(org.id);
+    if (updateUrl && typeof window !== 'undefined') {
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set('org', org.id);
+      window.history.pushState(null, '', currentUrl.toString());
+    }
   };
+
+  const closeOrgFullView = () => {
+    setSelectedOrg(null);
+    setIsFullView(false);
+    if (typeof window !== 'undefined') {
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.delete('org');
+      currentUrl.searchParams.delete('org_id');
+      currentUrl.searchParams.delete('orgId');
+      currentUrl.searchParams.delete('id');
+      window.history.pushState(null, '', currentUrl.toString());
+    }
+  };
+
+  // Auto-open organization if ?org= / ?org_id= / ?orgId= / ?id= query param is present
+  useEffect(() => {
+    if (typeof window === 'undefined' || allOrgsRaw.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const orgParam = params.get('org') || params.get('org_id') || params.get('orgId') || params.get('id');
+    if (orgParam) {
+      const found = allOrgsRaw.find((o: any) => o.id === orgParam);
+      if (found) {
+        if (!selectedOrg || selectedOrg.id !== found.id || !isFullView) {
+          openOrgManage(found, false);
+        }
+      }
+    }
+  }, [allOrgsRaw]);
+
+  // Handle browser Back/Forward history navigation
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const orgParam = params.get('org') || params.get('org_id') || params.get('orgId') || params.get('id');
+      if (orgParam && allOrgsRaw.length > 0) {
+        const found = allOrgsRaw.find((o: any) => o.id === orgParam);
+        if (found) {
+          openOrgManage(found, false);
+          return;
+        }
+      }
+      if (!orgParam && isFullView) {
+        setSelectedOrg(null);
+        setIsFullView(false);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [allOrgsRaw, isFullView]);
 
   // Open Organization Slide-over Panel (When clicking other area of organization card)
   const openOrgDrawer = (org: any) => {
@@ -1279,7 +1338,11 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
                     {/* Action buttons (Manage + Expand/Collapse) */}
                     <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
                       <Link
-                        href={`/dashboard/organizations/${ward.id}`}
+                        href={`/dashboard/organizations?org=${encodeURIComponent(ward.id)}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          openOrgManage(ward);
+                        }}
                         title="Manage details & users"
                         className="p-2 sm:px-3 sm:py-2 rounded-xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-500/15 dark:hover:bg-purple-500/25 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-sm"
                       >
@@ -1374,8 +1437,12 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
 
                           {/* Manage Button */}
                           <Link
-                            href={`/dashboard/organizations/${unit.id}`}
-                            onClick={e => e.stopPropagation()}
+                            href={`/dashboard/organizations?org=${encodeURIComponent(unit.id)}`}
+                            onClick={e => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              openOrgManage(unit);
+                            }}
                             className="w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shrink-0 active:scale-95 shadow-sm cursor-pointer"
                             title="Manage unit"
                           >
@@ -1435,9 +1502,13 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
                         </p>
                       </div>
                       <Link
-                        href={`/dashboard/organizations/${unit.id}`}
-                        onClick={e => e.stopPropagation()}
-                        className="w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shrink-0 active:scale-95 shadow-sm"
+                        href={`/dashboard/organizations?org=${encodeURIComponent(unit.id)}`}
+                        onClick={e => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openOrgManage(unit);
+                        }}
+                        className="w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shrink-0 active:scale-95 shadow-sm cursor-pointer"
                       >
                         <Settings className="w-3.5 h-3.5" />
                         <span className="hidden sm:inline">Manage</span>
@@ -1473,9 +1544,13 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
                       </div>
                     </div>
                     <Link
-                      href={`/dashboard/organizations/${org.id}`}
-                      onClick={e => e.stopPropagation()}
-                      className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all shrink-0"
+                      href={`/dashboard/organizations?org=${encodeURIComponent(org.id)}`}
+                      onClick={e => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openOrgManage(org);
+                      }}
+                      className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all shrink-0 cursor-pointer"
                     >
                       <Settings className="w-4 h-4" />
                     </Link>
@@ -1539,7 +1614,11 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
 
                 <div className="flex items-center gap-2">
                   <Link
-                    href={`/dashboard/organizations/${selectedOrg.id}`}
+                    href={`/dashboard/organizations?org=${encodeURIComponent(selectedOrg.id)}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      openOrgManage(selectedOrg);
+                    }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 text-xs font-semibold transition-all cursor-pointer shadow-xs active:scale-95"
                     title={language === 'bn' ? 'সম্পূর্ণ ব্যবস্থাপনা ও কর্মসূচি পেজে যান' : 'Open Full Management & Events'}
                   >
@@ -1548,7 +1627,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
                   </Link>
 
                   <button
-                    onClick={() => { setSelectedOrg(null); setIsFullView(false); }}
+                    onClick={() => closeOrgFullView()}
                     className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
                   >
                     <X className="w-4 h-4" />
@@ -2070,7 +2149,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
             <div className="flex items-center gap-3 min-w-0">
               <button
                 type="button"
-                onClick={() => { setSelectedOrg(null); setIsFullView(false); }}
+                onClick={() => closeOrgFullView()}
                 className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white flex items-center justify-center transition-all cursor-pointer shrink-0"
                 title={language === 'bn' ? 'ফিরে যান (Esc)' : 'Back / Close (Esc)'}
               >
@@ -2127,7 +2206,7 @@ ${event.message ? `💬 *Message:*\n${event.message}\n\n` : ''}Your punctual pre
 
               <button
                 type="button"
-                onClick={() => { setSelectedOrg(null); setIsFullView(false); }}
+                onClick={() => closeOrgFullView()}
                 className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer border border-white/5"
                 title="Close (Esc)"
               >

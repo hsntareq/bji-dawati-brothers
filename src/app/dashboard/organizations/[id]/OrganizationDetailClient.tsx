@@ -179,6 +179,12 @@ export default function OrganizationDetailClient() {
   const { language } = useLanguage();
   const orgName = (o: any) => getOrgDisplayName(o, language);
 
+  useEffect(() => {
+    if (orgId && orgId !== 'default') {
+      router.replace(`/dashboard/organizations?org=${encodeURIComponent(orgId)}`);
+    }
+  }, [orgId, router]);
+
   const [loading, setLoading] = useState(true);
   const [currentOrg, setCurrentOrg] = useState<any | null>(null);
   const [allOrgs, setAllOrgs] = useState<any[]>([]);

@@ -2,22 +2,30 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>BJI Dawati Brothers</title>
+    <title>Redirecting...</title>
     <script>
-      // GitHub Pages SPA redirect trick.
-      // When GH Pages serves this 404.html for an unknown path, we:
-      // 1. Store the full URL in sessionStorage
-      // 2. Redirect to the base URL so the React app boots
-      // The app's layout.tsx then reads sessionStorage and restores the route.
-      var segmentsToKeep = 1; // number of path segments in basePath (/bji-dawati-brothers)
-      var l = window.location;
-      var origin = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '');
-      var basePath = l.pathname.split('/').slice(0, 1 + segmentsToKeep).join('/');
-      var redirectPath = l.pathname.slice(basePath.length) + l.search + l.hash;
+      (function() {
+        var l = window.location;
+        var pathname = l.pathname;
+        var basePath = '/bji-dawati-brothers';
+        
+        // Remove basePath prefix if present
+        var path = pathname.startsWith(basePath) ? pathname.slice(basePath.length) : pathname;
+        
+        // Match /dashboard/organizations/:id
+        var orgMatch = path.match(/^\/dashboard\/organizations\/([^/?#]+)/);
+        if (orgMatch && orgMatch[1] && orgMatch[1] !== 'default') {
+          var orgId = orgMatch[1];
+          l.replace(l.origin + basePath + '/dashboard/organizations?org=' + encodeURIComponent(orgId) + l.hash);
+          return;
+        }
 
-      sessionStorage.setItem('spa_redirect', redirectPath || '/');
-      l.replace(origin + basePath + '/?p=1');
+        // General fallback to dashboard
+        l.replace(l.origin + basePath + '/dashboard' + l.search + l.hash);
+      })();
     </script>
   </head>
-  <body></body>
+  <body>
+    <p>Redirecting...</p>
+  </body>
 </html>

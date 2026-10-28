@@ -64,17 +64,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* GitHub Pages SPA deep-link restore — reads path stored by 404.html */}
-        <script dangerouslySetInnerHTML={{ __html: `
-          (function() {
-            var redirect = sessionStorage.getItem('spa_redirect');
-            if (redirect && redirect !== '/') {
-              sessionStorage.removeItem('spa_redirect');
-              var basePath = '/bji-dawati-brothers';
-              window.history.replaceState(null, '', basePath + redirect);
-            }
-          })();
-        `}} />
         <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
